@@ -133,6 +133,8 @@ class Invoke(object):
         my_typedecl=TypeDeclGen(invoke_sub,datatype="field_type",entity_decls=self.unique_args,intent="inout")
         invoke_sub.add(my_typedecl)
         # declare field-type, column topology and function-space types
+        my_typedecl=TypeDeclGen(invoke_sub,datatype="integer",entity_decls=["map(1)"],pointer=False)
+        invoke_sub.add(my_typedecl)
         column_topology_name="topology"
         my_typedecl=TypeDeclGen(invoke_sub,datatype="ColumnTopology",entity_decls=[column_topology_name],pointer=True)
         invoke_sub.add(my_typedecl)

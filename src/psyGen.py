@@ -202,6 +202,9 @@ def psyGen(alg_calls,psyName="psy",infName="inf",kernName="kern"):
         invoke_sub.add(my_typedecl)
         my_typedecl=TypeDeclGen(invoke_sub,datatype="ColumnTopology",entity_decls=[column_topology_name],pointer=True)
         invoke_sub.add(my_typedecl)
+        
+        my_typedecl=TypeDeclGen(invoke_sub,datatype="integer",entity_decls=["map(1)"]
+        invoke_sub.add(my_typedecl)
 
         # declare any basic types required
         my_decl=DeclGen(invoke_sub,datatype="integer",entity_decls=["nlayers"])
