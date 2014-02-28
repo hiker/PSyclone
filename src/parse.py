@@ -417,7 +417,6 @@ def parse(filename, invoke_name="invoke", inf_name="inf"):
             else:
                 raise ParseError("OrderedDict not found which is unexpected as it is meant to be part of the Python library from 2.7 onwards")
     invokecalls = OrderedDict()
-
     container_name=None
     for child in ast.content:
         if isinstance(child,fparser.block_statements.Program) or \

@@ -380,7 +380,7 @@ class Argument(object):
 class KernelArgument(Argument):
     ''' kernel argument functionality '''
     def __init__(self,arg,argInfo):
-        mapping={"dg * dg" : "p0", "cg1 * cg1" : "p1", "r" : None }
+        mapping={"v3" : "v3" , "dg * dg" : "p0", "cg1 * cg1" : "p1", "r" : None }
         self._form=argInfo.form
         self._name=argInfo.value
         self._stencil=arg.access

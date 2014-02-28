@@ -9,7 +9,7 @@ class GenerationError(Exception):
 
 class Argument(object):
     def __init__(self,arg,name,call):
-        mapping={"dg * dg" : "p0", "cg1 * cg1" : "p1", "r" : None }
+        mapping={"v3" : "v3", "dg * dg" : "p0", "cg1 * cg1" : "p1", "r" : None }
         self._name=name
         self._stencil=arg.access
         self._access=arg.stencil
