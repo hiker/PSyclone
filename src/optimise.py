@@ -133,44 +133,53 @@ class Invoke(object):
         my_typedecl=TypeDeclGen(invoke_sub,datatype="field_type",entity_decls=self.unique_args,intent="inout")
         invoke_sub.add(my_typedecl)
         # declare field-type, column topology and function-space types
-        my_typedecl=TypeDeclGen(invoke_sub,datatype="integer",entity_decls=["map(1)"],pointer=False)
-        invoke_sub.add(my_typedecl)
-        column_topology_name="topology"
-        my_typedecl=TypeDeclGen(invoke_sub,datatype="ColumnTopology",entity_decls=[column_topology_name],pointer=True)
-        invoke_sub.add(my_typedecl)
+        my_decl=DeclGen(invoke_sub,datatype="integer",entity_decls=["map(1)"],pointer=True)
+        invoke_sub.add(my_decl)
+#        column_topology_name="topology"
+#        my_typedecl=TypeDeclGen(invoke_sub,datatype="ColumnTopology",entity_decls=[column_topology_name],pointer=True)
+#        invoke_sub.add(my_typedecl)
         # declare any basic types required
         my_decl=DeclGen(invoke_sub,datatype="integer",entity_decls=["nlayers"])
         invoke_sub.add(my_decl)
 
+#  get the number  of layers
+
+        
+
         for (idx,dof) in enumerate(self._dofs):
             call=self._dofs[dof][0]
             arg=self._dofs[dof][1]
-            # declare a type select clause which is used to map from a base class to FunctionSpace_type
-            type_select=SelectionGen(invoke_sub,expr=arg.name+"_space=>"+arg.name+"%function_space",typeselect=True)
-            invoke_sub.add(type_select)
-
-            my_typedecl=TypeDeclGen(invoke_sub,datatype="FunctionSpace_type",entity_decls=[arg.name+"_space"],pointer=True)
-            invoke_sub.add(my_typedecl)
-
             content=[]
             if idx==0:
+                my_nlayers=AssignGen(invoke_sub,lhs="nlayers",rhs=arg.name+"%get_nlayers()")
+                #content.append(my_nlayers)
+                invoke_sub.add(my_nlayers)
+            # declare a type select clause which is used to map from a base class to FunctionSpace_type
+#            type_select=SelectionGen(invoke_sub,expr=arg.name+"_space=>"+arg.name+"%function_space",typeselect=True)
+#            invoke_sub.add(type_select)
+
+ #           my_typedecl=TypeDeclGen(invoke_sub,datatype="FunctionSpace_type",entity_decls=[arg.name+"_space"],pointer=True)
+ #           invoke_sub.add(my_typedecl)
+
+
                 # use the first model to provide nlayers
                 # *** assumption that all fields operate over the same number of layers
-                assign1=AssignGen(type_select,lhs="topology",rhs=arg.name+"_space%topology",pointer=True)
-                assign2=AssignGen(type_select,lhs="nlayers",rhs="topology%layer_count()")
-                content.append(assign1)
-                content.append(assign2)
-            iterates_over=call.iterates_over
+  #              assign1=AssignGen(type_select,lhs="topology",rhs=arg.name+"_space%topology",pointer=True)
+#                assign2=AssignGen(type_select,lhs="nlayers",rhs=arg.name+"%get_nlayers()")
+ #               content.append(assign1)
+#                content.append(assign2)
+                
+#            iterates_over=call.iterates_over
             #if iterates_over!="cells":
             #    print type(iterates_over)
             #    print iterates_over
-            stencil=arg.stencil
-            assign3=AssignGen(type_select,lhs=dof+"dofmap",rhs=arg.name+"_space%dof_map("+iterates_over+", "+stencil+")",pointer=True)
-            content.append(assign3)
-            type_select.addcase(["FunctionSpace_type"],content=content)
+#            stencil=arg.stencil
+#            assign3=AssignGen(type_select,lhs=dof+"dofmap",rhs=arg.name+"_space%dof_map("+iterates_over+", "+stencil+")",pointer=True)
+#            content.append(assign3)
+#            type_select.addcase(["FunctionSpace_type"],content=content)
             # declare our dofmap
-            my_decl=DeclGen(invoke_sub,datatype="integer",entity_decls=[dof+"dofmap(:,:)"],pointer=True)
-            invoke_sub.add(my_decl)
+#            my_decl=DeclGen(invoke_sub,datatype="integer",entity_decls=[dof+"dofmap(:,:)"],pointer=True)
+#            invoke_sub.add(my_decl)
 
         # create the subroutine kernel call content
         self.schedule.genCode(invoke_sub)
@@ -229,21 +238,31 @@ class Loop(Statement):
         else:
             raise Exception
         self._start="1"
-        self._stop=topology_name+"%entity_counts({0})".format(self.children[0].iterates_over)
+#        self._stop=topology_name+"%entity_counts({0})".format(self.children[0].iterates_over)
         self._step=None
         self._variable_name=variable_name
-        self._id="TBD"
+        fname=call.args[0].value        
+        self._stop=fname+"%get_num_cell()"
+        self._id=call.args[0].value  ### dirty hack
     def __str__(self):
         return "Loop: id="+self._id+" lower="+self._start+" upper="+self._stop+"step="+self._step+" var_name="+self._variable_name
     @property
     def children(self):
         return self._children
     def genCode(self,parent):
+        from f2pygen import CallGen
         if self._start=="1" and self._stop=="1": # no need for a loop
             self.call.genCode(parent)
         else:
             from f2pygen import DoGen,DeclGen
             do=DoGen(parent,self._variable_name,self._start,self._stop)
+            mapAssign="call "+self._id+"%vspace%get_cell_dofmap("+self._variable_name+",map)"
+            print "this is not an object"
+            print mapAssign
+            args=[self._variable_name,"map"]
+            print args[0]
+            print args[1]
+            parent.add(CallGen(parent,self._id+"%vspace%get_cell_dofmap",args))
             for child in self.children:
                 child.genCode(do)
             parent.add(do)
@@ -337,7 +356,8 @@ class KernelArguments(Arguments):
             self._arglist.append("nLayers")
             for arg in self._args:
                 if arg.ptype is not None:
-                    dofmap=arg.ptype+"dofmap(:,column)"
+#                    dofmap=arg.ptype+"dofmap(:,column)"
+                    dofmap="map"
                     if dofmap not in self._arglist:
                         self._arglist.append(dofmap)
                     if not arg.ptype in self._dofs:
