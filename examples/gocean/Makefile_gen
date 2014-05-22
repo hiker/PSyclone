@@ -44,7 +44,7 @@ manual_invoke_apply_bcs_mod.o: apply_bcs_cf_mod.o apply_bcs_ct_mod.o \
           apply_bcs_cu_mod.o apply_bcs_cv_mod.o
 
 %: %.o 
-	$(F90) -o $@ $< $(GUNGHO_MODULES) $(MODULES) $(LDFLAGS)
+	$(F90) -o $@ $< $(GUNGHO_MODULES) $(MODULES) psy.o $(LDFLAGS)
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
