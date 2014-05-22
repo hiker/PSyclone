@@ -199,16 +199,12 @@ class SubroutineGen(BaseGen):
                 # have I already been declared?
                 for child in self._children:
                     if isinstance(child,DeclGen) or isinstance(child,TypeDeclGen):
-                        for var_name in content.names:
-                            if var_name in child.names:
-                                if len(content.names)==1:
-                                    #print "Skipping as",var_name,"already exists"
-                                    return # as this variable already exists
-                                else:
-                                    # remove it
-                                    #print "Removing",var_name
-                                    content.names.remove(var_name)
-
+                        for var_name in content.root.entity_decls[:]: # take a copy of the list as we are deleting elements of the original
+                            for child_name in child.root.entity_decls:
+                                if var_name.lower()==child_name.lower():
+                                    content.root.entity_decls.remove(var_name)
+                                    if len(content.root.entity_decls)==0:
+                                        return # return as all variables in this declaration already exists
                 # skip over any use statements
                 index=0
                 while isinstance(self.root.content[index],fparser.statements.Use):
@@ -244,8 +240,8 @@ class SubroutineGen(BaseGen):
                                 return
                             if child.root.isonly and content.root.isonly:
                                 # see if the same names are specified.
-                                for existing_name in child.root.items:
-                                    for new_name in content.root.items:
+                                for new_name in content.root.items[:]: # take a copy of the list as we are deleting elements of the original
+                                    for existing_name in child.root.items:
                                         if existing_name.lower()==new_name.lower():
                                             content.root.items.remove(new_name)
                                             if len(content.root.items)==0:
@@ -349,7 +345,6 @@ def adduse(name,parent,only=False,funcnames=[]):
 
 class DeclGen(BaseGen):
     def __init__(self,parent,datatype="",entity_decls=[],intent="",pointer=False,kind="",dimension=""):
-        self._names=entity_decls
 
         if datatype.lower()=="integer":
             from fparser.typedecl_statements import Integer
@@ -377,10 +372,6 @@ class DeclGen(BaseGen):
         if kind is not "":
             self._decl.selector=('',kind)
         BaseGen.__init__(self,parent,self._decl)
-
-    @property
-    def names(self):
-        return self._names
 
 def adddecl(datatype,entity_decls,parent,intent="",pointer=False):
 
