@@ -33,7 +33,14 @@ class PSyclone(tk.Frame):
         self.mb["menu"]=self.mb.menu
         self.mb.menu.add_command(label="Open", underline=0, command=self.load)
         self.mb.menu.add_command(label="Quit", underline=0, command=self.quit)
+        vlevel = IntVar(  )
+        self.mb.menu.add_radiobutton(label='Level 1', var=vlevel, value=1)
+        self.mb.menu.add_radiobutton(label='Level 2', var=vlevel, value=2)
+        self.mb.menu.add_radiobutton(label='Level 3', var=vlevel, value=3)
+
         self.mb.pack(side="left")
+
+        #self.om.pack(side="left")
 
         m1 = PanedWindow(self,showhandle=True,sashrelief=RAISED,height=600)
         m1.pack(fill=BOTH, expand=1)

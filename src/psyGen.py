@@ -597,6 +597,18 @@ class Arguments(object):
     @property
     def argNames(self):
         raise NotImplementedError("Arguments:argNames() should be implemented by subclass")
+    def iterationSpaceType(self,mapping):
+        for arg in self._args:
+            if arg.access.lower()==mapping["write"] or arg.access.lower()==mapping["readwrite"]:
+                return arg.space
+        raise GenerationError("psyGen:arguments:iterationSpaceType Error, we assume there is at least one writer or reader/writer as an argument")
+
+    def iterationSpaceOwnerName(self,mapping):
+        for arg in self._args:
+            if arg.access.lower()==mapping["write"] or arg.access.lower()==mapping["readwrite"]:
+                return arg.name
+        raise GenerationError("psyGen:arguments:iterationOwnerName: Error, we assume there is at least one writer or reader/writer as an argument")
+
     def setDependencies(self):
         for argument in self._args:
             argument.setDependencies()
@@ -667,6 +679,18 @@ class Argument(object):
         return self._antiDependence
     def dependencies():
         return trueDependencies+antiDependencies
+
+class KernelArgument(Argument):
+    def __init__(self,arg,argInfo,call):
+        if arg==None and argInfo==None and call==None:return
+        self._arg=arg
+        Argument.__init__(self,call,argInfo,arg.access)
+    @property
+    def space(self):
+        return self._arg.function_space
+    @property
+    def stencil(self):
+        return self._arg.stencil
 
 class InfArgument(Argument):
     ''' infrastructure call argument '''

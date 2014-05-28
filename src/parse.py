@@ -15,14 +15,10 @@ class ParseError(Exception):
 
 class Descriptor(object):
     """A description of how a kernel argument is accessed"""
-    def __init__(self,stencil,access):
-        self._stencil=stencil
+    def __init__(self,access,space,stencil):
         self._access=access
-        self._space=None # subclasses set this
-
-    @property
-    def stencil(self):
-        return self._stencil
+        self._space=space
+        self._stencil=stencil
 
     @property
     def access(self):
@@ -32,13 +28,20 @@ class Descriptor(object):
     def function_space(self):
         return self._space
 
+    @property
+    def stencil(self):
+        return self._stencil
+
     def __repr__(self):
         return 'Descriptor(%s, %s)' % (self.stencil, self.access)
 
+class GODescriptor(Descriptor):
+    def __init__(self, access, space, stencil):
+        Descriptor.__init__(self,access,space,stencil)
+
 class DynDescriptor(Descriptor):
     def __init__(self,access,funcspace,stencil,basis,diff_basis,gauss_quad):
-        Descriptor.__init__(self,stencil,access)
-        self._space=funcspace
+        Descriptor.__init__(self,access,funcspace,stencil)
         self._basis=basis
         self._diff_basis=diff_basis
         self._gauss_quad=gauss_quad
@@ -54,8 +57,8 @@ class DynDescriptor(Descriptor):
 
 class GHProtoDescriptor(Descriptor):
     def __init__(self, access, space, stencil):
-        Descriptor.__init__(self,stencil,access)
         self._space = FunctionSpace.unpack(space)
+        Descriptor.__init__(self,access,self._space,stencil)
 
     @property
     def element(self):
@@ -235,9 +238,7 @@ class KernelTypeFactory(object):
         elif self._type=="dynamo0.1":
             return DynKernelType(name,ast)
         elif self._type=="gocean":
-            # we are using the GHProto api in GOcean at the moment
-            ###return GOKernelType(name,ast)
-            return GHProtoKernelType(name,ast)
+            return GOKernelType(name,ast)
         else:
             raise ParseError("KernelTypeFactory: Internal Error: Unsupported kernel type '{0}' found. Should not be possible.".format(self._myType))
 
@@ -340,18 +341,25 @@ class DynKernelType(KernelType):
             access=init.args[0].name
             funcspace=init.args[1].name
             stencil=init.args[2].name
-            hmm1=init.args[3].name
-            hmm2=init.args[4].name
-            hmm3=init.args[5].name
-            self._arg_descriptors.append(DynDescriptor(access,funcspace,stencil,hmm1,hmm2,hmm3))
+            x1=init.args[3].name
+            x2=init.args[4].name
+            x3=init.args[5].name
+            self._arg_descriptors.append(DynDescriptor(access,funcspace,stencil,x1,x2,x3))
 
 class GOKernelType(KernelType):
     def __init__(self,name,ast):
         KernelType.__init__(self,name,ast)
-        print "GOKernelType *** "+str(self._inits)
-        raise ParseError("gocean api support is work in progress")
-        self._arg_descriptors=None
-
+        self._arg_descriptors=[]
+        for init in self._inits:
+            if init.name != 'arg':
+                raise ParseError("Each meta_arg value must be of type 'arg' for the gocean0.1 api, but found '{0}'".format(init.name))
+            access=init.args[0].name
+            funcspace=init.args[1].name
+            stencil=init.args[2].name
+            if len(init.args) != 3:
+                raise ParseError("'arg' type expects 3 arguments but found '{}' in '{}'".format(str(len(init.args)), init.args))
+            self._arg_descriptors.append(GODescriptor(access,funcspace,stencil))
+        
 class GHProtoKernelType(KernelType):
 
     def __init__(self, name, ast):

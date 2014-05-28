@@ -1,4 +1,4 @@
-from psyGen import PSy,Invokes,Invoke,Schedule,Loop,Kern,Arguments,Argument,Node
+from psyGen import PSy,Invokes,Invoke,Schedule,Loop,Kern,Arguments,KernelArgument,Node
 
 class GOPSy(PSy):
     def __init__(self,invoke_info):
@@ -53,19 +53,33 @@ class GODoubleLoop(object):
         self._call=GOKern(call,parent=self._innerLoop)
         self._innerLoop.addchild(self._call)
     def genCode(self,parent):
-        from f2pygen import DeclGen,AssignGen
-        dims=DeclGen(parent,datatype="INTEGER",entity_decls=["idim1","idim2"])
-        parent.add(dims)
-        fieldName=self._call.arguments.args[0].name # arbitrarily choose 1st argument
-        dim1=AssignGen(parent,lhs="idim1",rhs="SIZE("+fieldName+", 1)")
-        parent.add(dim1)
-        dim2=AssignGen(parent,lhs="idim2",rhs="SIZE("+fieldName+", 2)")
-        parent.add(dim2)
+        from f2pygen import DeclGen,AssignGen,UseGen
+        argSpace=self._call.arguments.iterationSpaceType()
+        if argSpace=="every": # access all elements so use the size of the input data
+            dim1Name="idim1"
+            dim2Name="idim2"
+            dims=DeclGen(parent,datatype="INTEGER",entity_decls=[dim1Name,dim2Name])
+            parent.add(dims)
+            # choose iteration space owner as the field name.
+            fieldName=self._call.arguments.iterationSpaceOwnerName()
+            dim1=AssignGen(parent,lhs=dim1Name,rhs="SIZE("+fieldName+", 1)")
+            parent.add(dim1)
+            self._outerLoop.setBounds("1",dim1Name)
+            dim2=AssignGen(parent,lhs=dim2Name,rhs="SIZE("+fieldName+", 2)")
+            parent.add(dim2)
+            self._innerLoop.setBounds("1",dim2Name)
+        else: # one of our spaces so use values provided by the infrastructure
+            use=UseGen(parent,"topology_mod",only=[argSpace])
+            parent.add(use)
+            self._outerLoop.setBounds(argSpace+"%istart",argSpace+"%istop")
+            self._innerLoop.setBounds(argSpace+"%jstart",argSpace+"%jstop")
         self._outerLoop.genCode(parent)
 
 class GOLoop(Loop):
     def __init__(self,call=None,parent=None,variable_name="",topology_name="topology",start="1",end="n"):
         Loop.__init__(self,GOInf,GOKern,call,parent,variable_name,topology_name)
+        self.setBounds(start,end)
+    def setBounds(self,start,end,step=""):
         self._start=start
         self._stop=end
         self._step=""
@@ -95,9 +109,15 @@ class GOKernelArguments(Arguments):
     @property
     def dofs(self):
         return self._dofs
+    def iterationSpaceType(self):
+        mapping={"read":"read","write":"write","readwrite":"readwrite"}
+        return Arguments.iterationSpaceType(self,mapping)
+    def iterationSpaceOwnerName(self):
+        mapping={"read":"read","write":"write","readwrite":"readwrite"}
+        return Arguments.iterationSpaceOwnerName(self,mapping)
 
-class GOKernelArgument(Argument):
+class GOKernelArgument(KernelArgument):
     def __init__(self,arg,argInfo,call):
         if arg==None and argInfo==None and call==None:return
-        Argument.__init__(self,call,argInfo,arg.access)
+        KernelArgument.__init__(self,arg,argInfo,call)
 

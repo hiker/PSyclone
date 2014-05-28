@@ -1,9 +1,5 @@
 from psyGen import transformation
 
-#class OpenMPParallel(Transform):
-#    def __init__(self):
-#        pass
-
 class SwapTrans(transformation):
     ''' A test transformation. This swaps two entries in a schedule. These entries must be siblings and next to eachother in the schedule.
 
@@ -56,6 +52,23 @@ class SwapTrans(transformation):
 
         return schedule,keep
 
+#class OpenMPTrans(Transform):
+#
+#    def __str__(self):
+#        return "Add OpenMP to a loop"
+#
+#    @property
+#    def name(self):
+#        return "OpenMP"
+#
+#    def apply(self,node):
+#
+#        assert False, "Not yet implemented"
+#        # check node is a loop
+#        # create memento
+#        # analyse loop - start off with only reads and writes
+#        # add appropriate openmp directive
+
 class LoopFuseTrans(transformation):
 
     def __str__(self):
@@ -85,10 +98,10 @@ class LoopFuseTrans(transformation):
         from undoredo import Memento
         keep=Memento(schedule,self,[node1,node2])
 
-        #add loop contents of node2 to node1
+        # add loop contents of node2 to node1
         node1.children.extend(node2.children)
 
-        # TBD remove node2
+        # remove node2
         node2.parent.children.remove(node2)
 
         return schedule,keep
