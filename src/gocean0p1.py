@@ -29,7 +29,7 @@ class GOInvokes(Invokes):
 
 class GOInvoke(Invoke):
     def __init__(self,alg_invocation,idx):
-        Invoke.__init__(self,alg_invocation,idx,GOSchedule)
+        Invoke.__init__(self,alg_invocation,idx,GOSchedule,reservedNames=["cf","ct","cu","cv"])
 
     def genCode(self,parent):
         from f2pygen import SubroutineGen,DeclGen

@@ -129,13 +129,54 @@ class DependenciesOLD(object):
     def getFollows(obj1):
         return self._follows[obj1]
 
+class NameSpaceFactory(object):
+        # storage for the instance reference
+    _instance = None
+    def __init__(self,reset=False):
+        """ Create singleton instance """
+        # Check whether we already have an instance
+        if NameSpaceFactory._instance is None or reset:
+            # Create and remember instance
+            NameSpaceFactory._instance = NameSpace()
+    def create(self):
+        return NameSpaceFactory._instance
+
+class NameSpace(object):
+    ''' keeps a record of reserved names and currently used names to check for clashes and provides a
+        new name if there is a clash. Reserved names are ones already allocated to the infrastructure. '''
+    def __init__(self):
+        self._reservedNames=[]
+        self._argNames={}
+    def addReserved(self,names):
+        if len(self._argNames)>0:
+            raise Exception("Error: NameSpace class: not coded for adding reserved names after used names")
+        for name in names:
+            if not name in self._reservedNames: # silently ignore if this is already a reserved name
+                self._reservedNames.append(name.lower()) # fortran is not case sensitive
+    def addArg(self,name):
+        if name in self._argNames.keys():
+            return self._argNames[name]
+        elif name in self._reservedNames:
+            count=1
+            proposedName=name+"_"+str(count)
+            while proposedName in self._argNames.values() or proposedName in self._reservedNames:
+                proposedName=name+"_"+str(++count)
+            self._argNames[name]=proposedName
+        else:
+            self._argNames[name]=name
+        return self._argNames[name]
+
 class Invoke(object):
 
     def __str__(self):
         return self._name+"("+self.unique_args+")"
-    def __init__(self,alg_invocation,idx,Schedule):
+    def __init__(self,alg_invocation,idx,Schedule,reservedNames=[]):
 
         if alg_invocation==None and idx==None: return
+
+        # create our namespace manager - must be done before creating the schedule
+        self._nameSpaceManager=NameSpaceFactory(reset=True).create()
+        self._nameSpaceManager.addReserved(reservedNames)
 
         # create the schedule
         self._schedule=Schedule(alg_invocation.kcalls)
@@ -158,11 +199,13 @@ class Invoke(object):
         # work out the argument list. It needs to be unique and should
         # not contain any literals.
         self._unique_args=[]
+        self._orig_unique_args=[]
         for call in alg_invocation.kcalls:
             for arg in call.args:
                 if not arg.isLiteral(): # skip literals
                     if arg.value not in self._unique_args:
-                        self._unique_args.append(arg.value)
+                        self._orig_unique_args.append(arg.value)
+                        self._unique_args.append(self._nameSpaceManager.addArg(arg.value))
 
         # work out the unique dofs required in this subroutine
         self._dofs={}
@@ -181,6 +224,9 @@ class Invoke(object):
     @property
     def unique_args(self):
         return self._unique_args
+    @property
+    def orig_unique_args(self):
+        return self._orig_unique_args
     @property
     def schedule(self):
         return self._schedule
@@ -636,10 +682,13 @@ class Argument(object):
     def __init__(self,call,argInfo,access):
         self._dependencies=Dependencies(self)
         self._call=call
-        self._name=argInfo.value
+        self._origName=argInfo.value
         self._form=argInfo.form
         self._isLiteral=argInfo.isLiteral()
         self._access=access
+        self._nameSpaceManager=NameSpaceFactory().create()
+        self._name=self._nameSpaceManager.addArg(self._origName)
+
     def __str__(self):
         return self._name
     @property
