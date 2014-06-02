@@ -17,7 +17,7 @@ class GOPSy(PSy):
         # create an empty PSy layer module
         psy_module=ModuleGen(self.name)
         # include the kind_params module
-        kp_use=UseGen(psy_module,name="kind_params")
+        kp_use=UseGen(psy_module,name="kind_params_mod")
         psy_module.add(kp_use)
         # add in the subroutines for each invocation
         self.invokes.genCode(psy_module)
