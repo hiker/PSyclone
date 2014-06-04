@@ -58,6 +58,14 @@ available help
     > ./setup.py build --help
     > ./setup.py build --help-fcompiler
 
+In particular, if you do not have root access then the python 
+modules can be installed in your user account by specifying 
+--user to the install command
+::
+    > ./setup.py install --user
+
+This causes the software to be installed under ${HOME}/.local/
+
 pyparsing
 ^^^^^^^^^
 
