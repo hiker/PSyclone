@@ -289,6 +289,16 @@ class Invoke(object):
 class Node(object):
     ''' baseclass for a node in a schedule '''
 
+    def indent(self,count,indent="    "):
+        result=""
+        for i in range(count):
+            result+=indent
+        return result
+
+    def list(self,indent=0):
+        for entity in self._children:
+            result+=str(entity)+"\n"
+
     def __init__(self,children=[],parent=None):
         self._children=children
         self._parent=parent
@@ -436,10 +446,17 @@ class Schedule(Node):
         #    sequence.append(Loop(call,parent=self))
         Node.__init__(self,children=sequence)
 
-    def __str__(self):
-        result=""
+    def view(self,indent=0):
+        print self.indent(indent)+"Schedule"
         for entity in self._children:
-            result+=str(entity)
+            entity.view(indent=indent+1)
+        print self.indent(indent)+"End Schedule"
+
+    def __str__(self):
+        result="Schedule:\n"
+        for entity in self._children:
+            result+=str(entity)+"\n"
+        result+="End Schedule"
         return result
 
     def genCode(self,parent):
@@ -447,6 +464,11 @@ class Schedule(Node):
             entity.genCode(parent)
 
 class Loop(Node):
+
+    def view(self,indent=0):
+        print self.indent(indent)+"LoopOver["+self.iterates_over+"]"
+        for entity in self._children:
+            entity.view(indent=indent+1)
 
     @property
     def height(self):
@@ -496,14 +518,18 @@ class Loop(Node):
         children=[]
         # we need to determine whether this is an infrastructure or kernel call
         # so our schedule can do the right thing.
+        self._iteration_space=""
         if call is not None:
             from parse import InfCall,KernelCall
             if isinstance(call,InfCall):
-                children.append(Inf.create(call,parent=self))
+                my_call=Inf.create(call,parent=self)
+                self._iterates_over="unknown" # needs to inherit this?
             elif isinstance(call,KernelCall):
-                children.append(Kern(call,parent=self))
+                my_call=Kern(call,parent=self)
+                self._iterates_over=my_call.iterates_over
             else:
                 raise Exception
+            children.append(my_call)
         Node.__init__(self,children=children,parent=parent)
 
         self._variable_name=variable_name
@@ -515,8 +541,16 @@ class Loop(Node):
         self._text=None
         self._canvas=None
 
+    @property
+    def iterates_over(self):
+        return self._iterates_over
+
     def __str__(self):
-        return "Loop["+self._id+"]: "+self._variable_name+"="+self._id+" lower="+self._start+","+self._stop+","+self._step
+        result="Loop["+self._id+"]: "+self._variable_name+"="+self._id+" lower="+self._start+","+self._stop+","+self._step+"\n"
+        for entity in self._children:
+            result+=str(entity)+"\n"
+        result+="EndLoop"
+        return result
 
     def genCode(self,parent):
         if self._start=="1" and self._stop=="1": # no need for a loop
@@ -532,6 +566,11 @@ class Loop(Node):
             parent.add(my_decl)
 
 class Call(Node):
+
+    def view(self,indent=0):
+        print self.indent(indent)+"Call",self.name+"("+str(self.arguments.rawArgList)+")"
+        for entity in self._children:
+            entity.view(indent=indent+1)
 
     @property
     def width(self):
@@ -634,6 +673,17 @@ class Arguments(object):
     def __init__(self,parentCall):
         self._parentCall=parentCall
         self._args=[]
+
+    @property
+    def rawArgList(self):
+        ''' returns a comma separated list of the field arguments to the kernel call '''
+        result=""
+        for idx,arg in enumerate(self.args):
+            result+=arg.name
+            if idx<(len(self.args)-1):
+                result+=","
+        return result
+
     @property
     def args(self):
         return self._args
