@@ -66,7 +66,6 @@ class PSy(object):
 class Invokes(object):
     ''' Manage the invoke calls '''
     def __init__(self,alg_calls,Invoke):
-        self._0toN=Invoke(None,None) # only here for pyreverse!
         self.invokeMap={}
         self.invokeList=[]
         for idx,alg_invocation in enumerate(alg_calls.values()):
@@ -288,6 +287,9 @@ class Invoke(object):
 
 class Node(object):
     ''' baseclass for a node in a schedule '''
+
+    def view(self):
+        raise NotImplementedError("BaseClass of a Node must implement the view method")
 
     def indent(self,count,indent="    "):
         result=""
@@ -687,12 +689,6 @@ class Arguments(object):
     @property
     def args(self):
         return self._args
-    @property
-    def arglist(self):
-        raise NotImplementedError("Arguments:arglist() should be implemented by subclass")
-    @property
-    def argNames(self):
-        raise NotImplementedError("Arguments:argNames() should be implemented by subclass")
     def iterationSpaceType(self,mapping):
         for arg in self._args:
             if arg.access.lower()==mapping["write"] or arg.access.lower()==mapping["readwrite"]:
