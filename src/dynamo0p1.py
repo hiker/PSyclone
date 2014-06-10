@@ -1,6 +1,6 @@
 ''' This module implements the PSyclone Dynamo 0.1 API by specialising the
     required base classes (PSy, Invokes, Invoke, Schedule, Loop, Kern,
-    Arguments and Argument). '''
+    Inf, Arguments and Argument). '''
 
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
                    Argument, GenerationError, Inf
@@ -29,7 +29,7 @@ class DynamoPSy(PSy):
         lfric_use = UseGen(psy_module, name = "lfric")
         psy_module.add(lfric_use)
         # add all invoke specific information
-        self.invokes.genCode(psy_module)
+        self.invokes.gen_code(psy_module)
         return psy_module.root
 
 class DynamoInvokes(Invokes):
@@ -43,14 +43,14 @@ class DynamoInvokes(Invokes):
 class DynInvoke(Invoke):
     ''' The Dynamo specific invoke class. This passes the Dynamo specific
         schedule class to the base class so it creates the one we require.
-        Also overrides the genCode method so that we generate dynamo
+        Also overrides the gen_code method so that we generate dynamo
         specific invocation code. '''
     def __init__(self, alg_invocation, idx):
         if False:
             self._schedule = DynSchedule(None) # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, DynSchedule)
 
-    def genCode(self, parent):
+    def gen_code(self, parent):
         ''' Generates Dynamo specific invocation code (the subroutine called
             by the associated invoke call in the algorithm layer). This
             consists of the PSy invocation subroutine and the declaration of
@@ -59,7 +59,7 @@ class DynInvoke(Invoke):
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name = self.name,
                                    args = self.unique_args)
-        self.schedule.genCode(invoke_sub)
+        self.schedule.gen_code(invoke_sub)
         parent.add(invoke_sub)
         # add the subroutine argument declarations
         my_typedecl = TypeDeclGen(invoke_sub, datatype = "field_type",
@@ -75,9 +75,10 @@ class DynSchedule(Schedule):
         Schedule.__init__(self, DynLoop, DynInf, arg)
 
 class DynLoop(Loop):
-    ''' Stores information about Dynamo Kernels as specified by the Kernel
-        metadata. Uses this information to generate appropriate PSy layer
-        code for the Kernel instance. '''
+    ''' The Dynamo specific Loop class. This passes the Dynamo specific
+        loop information to the base class so it creates the one we require.
+        Adds a Dynamo specific topology_name method which tells the loop what
+        to iterate over. '''
     def __init__(self, call = None, parent = None, variable_name = "cell",
                  topology_name = "unset"):
         Loop.__init__(self, DynInf, DynKern, call, parent, variable_name,
@@ -95,7 +96,7 @@ class DynLoop(Loop):
             iteration over all cells. '''
         self._stop = value+"%get_ncell()"
 
-class DynInf(object):
+class DynInf(Inf):
     ''' A Dynamo 0.1 specific infrastructure call factory. No infrastructure
         calls are supported in Dynamo at the moment so we just call the base
         class (which currently recognises the set() infrastructure call). '''
@@ -114,7 +115,7 @@ class DynKern(Kern):
             self._arguments = DynKernelArguments(None, None) # for pyreverse
         Kern.__init__(self, DynKernelArguments, call, parent)
         self._arglist = []
-    def genCode(self, parent):
+    def gen_code(self, parent):
         ''' Generates dynamo version 0.1 specific psy code for a call to
             the dynamo kernel instance. '''
         from f2pygen import CallGen, DeclGen, AssignGen, UseGen
@@ -195,12 +196,13 @@ class DynKernelArguments(Arguments):
         for (idx, arg) in enumerate (call.ktype.arg_descriptors):
             self._args.append(DynKernelArgument(arg, call.args[idx],
                                                 parent_call))
+        self._dofs = []
     @property
     def dofs(self):
         ''' Currently required for invoke base class although this makes no
             sense for dynamo. Need to refactor the invoke class and pull out
             dofs into the gunghoproto api '''
-        return []
+        return self._dofs
 
 class DynKernelArgument(Argument):
     ''' Provides information about individual Dynamo kernel call arguments

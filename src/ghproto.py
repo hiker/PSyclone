@@ -23,7 +23,7 @@ class GHProtoPSy(PSy):
         psy_module.add(lfric_use)
 
         # add in the subroutines for each invocation
-        self.invokes.genCode(psy_module)
+        self.invokes.gen_code(psy_module)
         return psy_module.root
 
 class GHProtoInvokes(Invokes):

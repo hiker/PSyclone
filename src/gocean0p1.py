@@ -1,9 +1,18 @@
-from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, KernelArgument, Node
+''' This module implements the emerging PSyclone GOcean API by specialising
+    the required base classes (PSy, Invokes, Invoke, Schedule, Loop, Kern,
+    Inf, Arguments and KernelArgument). '''
+
+from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
+                   KernelArgument, Inf
 
 class GOPSy(PSy):
+    ''' The GOcean specific PSy class. This creates a GOcean specific
+        invokes object (which controls all the required invocation calls).
+        Also overrides the PSy gen method so that we generate GOceaen
+        specific PSy module code. '''
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
-        self._invokes=GOInvokes(invoke_info.calls)
+        self._invokes = GOInvokes(invoke_info.calls)
     @property
     def gen(self):
         '''
@@ -15,115 +24,192 @@ class GOPSy(PSy):
         from f2pygen import ModuleGen, UseGen
 
         # create an empty PSy layer module
-        psy_module=ModuleGen(self.name)
+        psy_module = ModuleGen(self.name)
         # include the kind_params module
-        kp_use=UseGen(psy_module, name="kind_params_mod")
+        kp_use = UseGen(psy_module, name = "kind_params_mod")
         psy_module.add(kp_use)
         # add in the subroutines for each invocation
-        self.invokes.genCode(psy_module)
+        self.invokes.gen_code(psy_module)
         return psy_module.root
 
 class GOInvokes(Invokes):
+    ''' The GOcean specific invokes class. This passes the GOcean specific
+        invoke class to the base class so it creates the one we require. '''
     def __init__(self, alg_calls):
-        self._0toN=GOInvoke(None, None) # for pyreverse
+        if False:
+            self._0_to_n = GOInvoke(None, None) # for pyreverse
         Invokes.__init__(self, alg_calls, GOInvoke)
 
 class GOInvoke(Invoke):
+    ''' The GOcean specific invoke class. This passes the GOcean specific
+        schedule class to the base class so it creates the one we require.
+        A set of GOcean infrastructure reserved names are also passed to
+        ensure that there are no name clashes. Also overrides the gen_code
+        method so that we generate GOcean specific invocation code. '''
     def __init__(self, alg_invocation, idx):
-        self._schedule=GOSchedule(None) # for pyreverse
-        Invoke.__init__(self, alg_invocation, idx, GOSchedule, reservedNames=["cf", "ct", "cu", "cv"])
+        if False:
+            self._schedule = GOSchedule(None) # for pyreverse
+        Invoke.__init__(self, alg_invocation, idx, GOSchedule,
+                        reservedNames = ["cf", "ct", "cu", "cv"])
 
-    def genCode(self, parent):
+    def gen_code(self, parent):
+        ''' Generates GOcean specific invocation code (the subroutine called
+            by the associated invoke call in the algorithm layer). This
+            consists of the PSy invocation subroutine and the declaration of
+            its arguments.'''
         from f2pygen import SubroutineGen, DeclGen
         # create the subroutine
-        invoke_sub=SubroutineGen(parent, name=self.name, args=self.unique_args)
-        self.schedule.genCode(invoke_sub)
+        invoke_sub = SubroutineGen(parent, name = self.name,
+                                   args = self.unique_args)
+        self.schedule.gen_code(invoke_sub)
         parent.add(invoke_sub)
         # add the subroutine argument declarations
-        my_decl=DeclGen(invoke_sub, datatype="REAL", intent="inout", kind="wp", entity_decls=self.unique_args, dimension=":,:")
+        my_decl = DeclGen(invoke_sub, datatype = "REAL", intent = "inout",
+                          kind = "wp", entity_decls = self.unique_args,
+                          dimension = ":,:")
         invoke_sub.add(my_decl)
 
 class GOSchedule(Schedule):
+    ''' The GOcean specific schedule class. This passes the GOcean specific
+        loop and infrastructure classes to the base class so it creates the
+        ones we require.'''
     def __init__(self, arg):
         Schedule.__init__(self, GODoubleLoop, GOInf, arg)
 
 class GODoubleLoop(object):
-    def __init__(self, call=None, parent=None, variable_name="", topology_name=""):
-        self._outerLoop=GOLoop(call=None, parent=parent, variable_name="i", end="idim1")
-        self._innerLoop=GOLoop(call=None, parent=self._outerLoop, variable_name="j", end="idim2")
-        self._outerLoop.addchild(self._innerLoop)
-        self._call=GOKern(call, parent=self._innerLoop)
-        self._innerLoop.addchild(self._call)
-    def genCode(self, parent):
+    ''' A GOcean specific double loop class that supports the lat/lon loops
+        required for direct addressing. '''
+    def __init__(self, call = None, parent = None, variable_name = "",
+                 topology_name = ""):
+        self._outer_loop = GOLoop(call = None, parent = parent,
+                                  variable_name = "i")
+        self._outer_loop.set_bounds(start="1",end="idim1")
+        self._inner_loop = GOLoop(call = None, parent = self._outer_loop,
+                                  variable_name = "j")
+        self._inner_loop.set_bounds(start="1",end="idim2")
+        self._outer_loop.addchild(self._inner_loop)
+        self._call = GOKern(call, parent = self._inner_loop)
+        self._inner_loop.addchild(self._call)
+    def gen_code(self, parent):
+        ''' Creates the required loop structure including variable names. If
+            the iteration space is for all elements (every) then the bounds
+            are the size of the array, otherwise an infrastructure look-up
+            is used based on the grid position that the loops iterates
+            over. '''
         from f2pygen import DeclGen, AssignGen, UseGen
-        argSpace=self._call.arguments.iterationSpaceType()
-        if argSpace=="every": # access all elements so use the size of the input data
-            dim1Name="idim1"
-            dim2Name="idim2"
-            dims=DeclGen(parent, datatype="INTEGER", entity_decls=[dim1Name, dim2Name])
+        arg_space = self._call.arguments.iteration_space_type()
+        if arg_space == "every":
+            # access all elements so use the size of the input data
+            dim1_name = "idim1"
+            dim2_name = "idim2"
+            dims = DeclGen(parent, datatype = "INTEGER",
+                           entity_decls = [dim1_name, dim2_name])
             parent.add(dims)
             # choose iteration space owner as the field name.
-            fieldName=self._call.arguments.iterationSpaceOwnerName()
-            dim1=AssignGen(parent, lhs=dim1Name, rhs="SIZE("+fieldName+", )")
+            field_name = self._call.arguments.iteration_space_owner_name()
+            dim1 = AssignGen(parent, lhs = dim1_name,
+                             rhs = "SIZE("+field_name+", 1)")
             parent.add(dim1)
-            self._outerLoop.setBounds("1", dim1Name)
-            dim2=AssignGen(parent, lhs=dim2Name, rhs="SIZE("+fieldName+", 2)")
+            self._outer_loop.set_bounds("1", dim1_name)
+            dim2 = AssignGen(parent, lhs = dim2_name,
+                             rhs = "SIZE("+field_name+", 2)")
             parent.add(dim2)
-            self._innerLoop.setBounds("1", dim2Name)
+            self._inner_loop.set_bounds("1", dim2_name)
         else: # one of our spaces so use values provided by the infrastructure
-            use=UseGen(parent, "topology_mod", only=[argSpace])
+            use = UseGen(parent, "topology_mod", only = [arg_space])
             parent.add(use)
-            self._outerLoop.setBounds(argSpace+"%istart", argSpace+"%istop")
-            self._innerLoop.setBounds(argSpace+"%jstart", argSpace+"%jstop")
-        self._outerLoop.genCode(parent)
+            self._outer_loop.set_bounds(arg_space+"%istart",
+                                        arg_space+"%istop")
+            self._inner_loop.set_bounds(arg_space+"%jstart",
+                                        arg_space+"%jstop")
+        self._outer_loop.gen_code(parent)
 
 class GOLoop(Loop):
-    def __init__(self, call=None, parent=None, variable_name="", topology_name="topology", start="1", end="n"):
-        Loop.__init__(self, GOInf, GOKern, call, parent, variable_name, topology_name)
-        self.setBounds(start, end)
-    def setBounds(self, start, end, step=""):
-        self._start=start
-        self._stop=end
-        self._step=""
+    ''' The GOcean specific Loop class. This passes the GOcean specific
+        single loop information to the base class so it creates the one we
+        require. Adds a GOcean specific setBounds method which tells the loop
+        what to iterate over. Need to harmonise with the topology_name method
+        in the Dynamo api. '''
+    def __init__(self, call = None, parent = None, variable_name = "",
+                 topology_name = "topology"):
+        Loop.__init__(self, GOInf, GOKern, call, parent, variable_name,
+                      topology_name)
+        self._start = None
+        self._stop = None
+        self._step = None
+    def set_bounds(self, start, end, step = ""):
+        ''' The loop does not know what to iterate over. This method allows an
+            external object to provide the start, end, and step of the loop.
+        '''
+        self._start = start
+        self._stop = end
+        self._step = step
 
-class GOInf(Call):
+class GOInf(Inf):
+    ''' A GOcean specific infrastructure call factory. No infrastructure
+        calls are supported in GOcean at the moment so we just call the base
+        class (which currently recognises the set() infrastructure call). '''
     @staticmethod
-    def create(call, parent=None):
+    def create(call, parent = None):
+        ''' Creates a specific infrastructure call. Currently just calls
+            the base class method. '''
         return(Inf.create(call, parent))
         
 class GOKern(Kern):
-    def __init__(self, call, parent=None):
-        self._arguments=GOKernelArguments(None, None) # for pyreverse
+    ''' Stores information about GOcean Kernels as specified by the Kernel
+        metadata. Uses this information to generate appropriate PSy layer
+        code for the Kernel instance. Specialises the gen_code method to
+        create the appropriate GOcean specific kernel call. '''
+    def __init__(self, call, parent = None):
+        if False:
+            self._arguments = GOKernelArguments(None, None) # for pyreverse
         Kern.__init__(self, GOKernelArguments, call, parent)
-    def genCode(self, parent):
+    def gen_code(self, parent):
+        ''' Generates GOcean specific psy code for a call to the dynamo
+            kernel instance. '''
         from f2pygen import CallGen, UseGen
-        arguments=["i", "j"]
+        arguments = ["i", "j"]
         for arg in self._arguments.args:
             arguments.append(arg.name)
         parent.add(CallGen(parent, self._name, arguments))
-        parent.add(UseGen(parent, name=self._module_name, only=True, funcnames=[self._name]))
+        parent.add(UseGen(parent, name = self._module_name, only = True,
+                          funcnames = [self._name]))
 
 class GOKernelArguments(Arguments):
-    def __init__(self, call, parentCall):
-        if call==None and parentCall==None: return # for pyreverse
-        self._0toN=GOKernelArgument(None, None, None) # for pyreverse
-        Arguments.__init__(self, parentCall)
-        self._args=[]
+    ''' Provides information about GOcean kernel call arguments collectively,
+        as specified by the kernel argument metadata. This class ensures that
+        initialisation is performed correctly. It also adds three '''
+    def __init__(self, call, parent_call):
+        if False:
+            self._0_to_n = GOKernelArgument(None, None, None) # for pyreverse
+        Arguments.__init__(self, parent_call)
+        self._args = []
         for (idx, arg) in enumerate (call.ktype.arg_descriptors):
-            self._args.append(GOKernelArgument(arg, call.args[idx], parentCall))
-        self._dofs={}
+            self._args.append(GOKernelArgument(arg, call.args[idx],
+                                               parent_call))
+        self._dofs = []
     @property
     def dofs(self):
+        ''' Currently required for invoke base class although this makes no
+            sense for GOcean. Need to refactor the invoke class and pull out
+            dofs into the gunghoproto api '''
         return self._dofs
-    def iterationSpaceType(self):
-        mapping={"read":"read", "write":"write", "readwrite":"readwrite"}
-        return Arguments.iterationSpaceType(self, mapping)
-    def iterationSpaceOwnerName(self):
-        mapping={"read":"read", "write":"write", "readwrite":"readwrite"}
-        return Arguments.iterationSpaceOwnerName(self, mapping)
+    def iteration_space_type(self):
+        ''' Returns the type of an argument that determines the kernels
+            iteration space. Uses a mapping from the GOcean terminology to
+            the one used by the base class. '''
+        mapping = {"read":"read", "write":"write", "readwrite":"readwrite"}
+        return Arguments.it_space_type(self, mapping)
+    def iteration_space_owner_name(self):
+        ''' Returns the name of an argument that determines the kernels
+            iteration space. Uses a mapping from the GOcean terminology to
+            the one used by the base class. '''
+        mapping = {"read":"read", "write":"write", "readwrite":"readwrite"}
+        return Arguments.it_space_owner_name(self, mapping)
 
 class GOKernelArgument(KernelArgument):
-    def __init__(self, arg, argInfo, call):
-        if arg==None and argInfo==None and call==None:return # for pyreverse
-        KernelArgument.__init__(self, arg, argInfo, call)
-
+    ''' Provides information about individual GOcean kernel call arguments
+        as specified by the kernel argument metadata. Only passes information
+        onto the base class. '''
+    def __init__(self, arg, arg_info, call):
+        KernelArgument.__init__(self, arg, arg_info, call)

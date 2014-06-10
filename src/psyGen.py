@@ -80,9 +80,9 @@ class Invokes(object):
     def get(self,invokeName):
         # add a try here for keyerror
         return self.invokeMap[invokeName]
-    def genCode(self,parent):
+    def gen_code(self,parent):
         for invoke in self.invokeList:
-            invoke.genCode(parent)
+            invoke.gen_code(parent)
 
 class Dependencies(object):
     def __init__(self,thisArg):
@@ -233,10 +233,10 @@ class Invoke(object):
     def gen(self):
         from f2pygen import ModuleGen
         module=ModuleGen("container")
-        self.genCode(module)
+        self.gen_code(module)
         return module.root
 
-    def genCode(self,parent):
+    def gen_code(self,parent):
         from f2pygen import SubroutineGen,TypeDeclGen,DeclGen,SelectionGen,AssignGen
         # create the subroutine
         invoke_sub=SubroutineGen(parent,name=self.name,args=self.unique_args)
@@ -282,7 +282,7 @@ class Invoke(object):
             invoke_sub.add(my_decl)
 
         # create the subroutine kernel call content
-        self.schedule.genCode(invoke_sub)
+        self.schedule.gen_code(invoke_sub)
         parent.add(invoke_sub)
 
 class Node(object):
@@ -404,7 +404,7 @@ class Node(object):
         ''' return all loops currently in this schedule '''
         return self.walk(self._children,Loop)
 
-    def genCode(self):
+    def gen_code(self):
         raise NotImplementedError("Please implement me")
 
 class Schedule(Node):
@@ -461,9 +461,9 @@ class Schedule(Node):
         result+="End Schedule"
         return result
 
-    def genCode(self,parent):
+    def gen_code(self,parent):
         for entity in self._children:
-            entity.genCode(parent)
+            entity.gen_code(parent)
 
 class Loop(Node):
 
@@ -554,16 +554,16 @@ class Loop(Node):
         result+="EndLoop"
         return result
 
-    def genCode(self,parent):
+    def gen_code(self,parent):
         if self._start=="1" and self._stop=="1": # no need for a loop
-            self.call.genCode(parent)
+            self.call.gen_code(parent)
         else:
             from f2pygen import DoGen,DeclGen
             do=DoGen(parent,self._variable_name,self._start,self._stop)
             # need to add do loop before children as children may want to add info outside of do loop
             parent.add(do)
             for child in self.children:
-                child.genCode(do)
+                child.gen_code(do)
             my_decl=DeclGen(parent,datatype="integer",entity_decls=[self._variable_name])
             parent.add(my_decl)
 
@@ -626,8 +626,8 @@ class Call(Node):
         raise NotImplementedError("Call.__str__ should be implemented")
     def iterates_over(self):
         raise NotImplementedError("Call.iterates_over should be implemented")
-    def genCode(self):
-        raise NotImplementedError("Call.genCode should be implemented")
+    def gen_code(self):
+        raise NotImplementedError("Call.gen_code should be implemented")
 
 class Inf(object):
     ''' infrastructure call factory, Used to create a call specific class '''
@@ -647,7 +647,7 @@ class SetInfCall(Call):
         #self._arguments=InfArguments(call,self,access)
     def __str__(self):
         return "set inf call"
-    def genCode(self,parent):
+    def gen_code(self,parent):
         from f2pygen import AssignGen
         field_name=self._arguments.arglist[0]
         var_name=field_name+"%data"
@@ -665,7 +665,7 @@ class Kern(Call):
     @property
     def iterates_over(self):
         return self._iterates_over
-    def genCode(self,parent):
+    def gen_code(self,parent):
         from f2pygen import CallGen,UseGen
         parent.add(CallGen(parent,self._name,self._arguments.arglist))
         parent.add(UseGen(parent,name=self._module_name,only=True,funcnames=[self._name]))
@@ -689,13 +689,15 @@ class Arguments(object):
     @property
     def args(self):
         return self._args
-    def iterationSpaceType(self,mapping):
+    def it_space_type(self,mapping):
         for arg in self._args:
             if arg.access.lower()==mapping["write"] or arg.access.lower()==mapping["readwrite"]:
                 return arg.space
-        raise GenerationError("psyGen:arguments:iterationSpaceType Error, we assume there is at least one writer or reader/writer as an argument")
+        raise GenerationError("psyGen:arguments:iteration_space_type Error, "
+                              "we assume there is at least one writer or "
+                              "reader/writer as an argument")
 
-    def iterationSpaceOwnerName(self,mapping):
+    def it_space_owner_name(self,mapping):
         for arg in self._args:
             if arg.access.lower()==mapping["write"] or arg.access.lower()==mapping["readwrite"]:
                 return arg.name
