@@ -214,14 +214,16 @@ class Invoke(object):
         # not contain any literals.
         self._unique_args = []
         self._orig_unique_args = []
+        self._unique_args_dict = {}
         for call in alg_invocation.kcalls:
             for arg in call.args:
                 if not arg.is_literal(): # skip literals
-                    if arg.value not in self._unique_args:
+                    if arg.value not in self._orig_unique_args:
                         self._orig_unique_args.append(arg.value)
-                        self._unique_args.append(
-                            self._name_space_manager.add_arg(arg.value))
-
+                        value=self._name_space_manager.add_arg(arg.value)
+                        self._unique_args.append(value)
+                        self._unique_args_dict[arg] = value
+                            
         # work out the unique dofs required in this subroutine
         self._dofs = {}
         for kern_call in self._schedule.kern_calls():
@@ -409,8 +411,7 @@ class Node(object):
         for child in children:
             if isinstance(child, my_type):
                 local_list.append(child)
-            if isinstance(child, Loop):
-                local_list += self.walk(child.children, my_type)
+            local_list += self.walk(child.children, my_type)
         return local_list
 
     def calls(self):

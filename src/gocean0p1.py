@@ -45,12 +45,40 @@ class GOInvoke(Invoke):
         schedule class to the base class so it creates the one we require.
         A set of GOcean infrastructure reserved names are also passed to
         ensure that there are no name clashes. Also overrides the gen_code
-        method so that we generate GOcean specific invocation code. '''
+        method so that we generate GOcean specific invocation code and
+        provides to methods which separate arguments that are arrays from
+        arguments that are scalars. '''
     def __init__(self, alg_invocation, idx):
         if False:
             self._schedule = GOSchedule(None) # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, GOSchedule,
                         reserved_names = ["cf", "ct", "cu", "cv"])
+
+    @property
+    def unique_args_arrays(self):
+        ''' find unique arguments that are arrays (defined as those that are
+            not rspace). GOcean needs to kow this as we are dealing with
+            arrays directly so need to declare them correctly. '''
+        result=[]
+        for call in self._schedule.calls():
+            for arg in call.arguments.args:
+                if not arg.is_literal and not arg.space.lower()=="r" and \
+                   not arg.name in result:
+                    result.append(arg.name)
+        return result
+
+    @property
+    def unique_args_scalars(self):
+        ''' find unique arguments that are scalars (defined as those that are
+            rspace). GOcean needs to kow this as we are dealing with arrays
+            directly so need to declare them correctly. '''
+        result=[]
+        for call in self._schedule.calls():
+            for arg in call.arguments.args:
+                if not arg.is_literal and arg.space.lower()=="r" and \
+                   not arg.name in result:
+                    result.append(arg.name)
+        return result
 
     def gen_code(self, parent):
         ''' Generates GOcean specific invocation code (the subroutine called
@@ -63,11 +91,19 @@ class GOInvoke(Invoke):
                                    args = self.unique_args)
         self.schedule.gen_code(invoke_sub)
         parent.add(invoke_sub)
-        # add the subroutine argument declarations
-        my_decl = DeclGen(invoke_sub, datatype = "REAL", intent = "inout",
-                          kind = "wp", entity_decls = self.unique_args,
-                          dimension = ":,:")
-        invoke_sub.add(my_decl)
+        # add the subroutine argument declarations for arrays
+        if len(self.unique_args_arrays) > 0:
+            my_decl_arrays = DeclGen(invoke_sub, datatype = "REAL",
+                                     intent = "inout", kind = "wp",
+                                     entity_decls = self.unique_args_arrays,
+                                     dimension = ":,:")
+            invoke_sub.add(my_decl_arrays)
+        # add the subroutine argument declarations for scalars
+        if len(self.unique_args_scalars) > 0:
+            my_decl_scalars = DeclGen(invoke_sub, datatype = "REAL",
+                                      intent = "inout", kind = "wp",
+                                      entity_decls = self.unique_args_scalars )
+            invoke_sub.add(my_decl_scalars)
 
 class GOSchedule(Schedule):
     ''' The GOcean specific schedule class. This passes the GOcean specific
@@ -75,15 +111,17 @@ class GOSchedule(Schedule):
         ones we require.'''
     def __init__(self, arg):
         Schedule.__init__(self, GODoubleLoop, GOInf, arg)
-
-class GODoubleLoop(object):
+from psyGen import Node
+class GODoubleLoop(Node):
     ''' A GOcean specific double loop class that supports the lat/lon loops
-        required for direct addressing. '''
+        required for direct addressing. Currently not sure whether this is
+        a good solution or not. The alternative is to just have two GOLoops. '''
     def __init__(self, call = None, parent = None, variable_name = "",
                  topology_name = ""):
-        self._outer_loop = GOLoop(call = None, parent = parent,
+        self._outer_loop = GOLoop(call = None, parent = self,
                                   variable_name = "i")
         self._outer_loop.set_bounds(start="1",end="idim1")
+        Node.__init__(self,children=[self._outer_loop],parent=parent)
         self._inner_loop = GOLoop(call = None, parent = self._outer_loop,
                                   variable_name = "j")
         self._inner_loop.set_bounds(start="1",end="idim2")
