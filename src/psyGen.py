@@ -1,55 +1,78 @@
+''' This module provides generic support for PSyclone's PSy code optimisation
+    and generation. The classes in this method need to be specialised for a
+    particular API and implementation. '''
+
 # Copyright 2013 STFC, all rights reserved
+
 import abc
 
 class GenerationError(Exception):
+    ''' Provides a PSyclone specific error class for errors found during PSy
+        code generation. '''
     def __init__(self, value):
+        Exception.__init__(self, value)
         self.value = "Generation Error: "+value
     def __str__(self):
         return repr(self.value)
 
 class PSyFactory(object):
-    def __init__(self,api=""):
-        if api=="":
+    ''' Creates a specific version of the PSy. If a particular api is not
+        provided then the default api, as specified in the configs.py file,
+        is chosen. '''
+    def __init__(self, api = ""):
+        if api == "":
             from config import DEFAULTAPI
-            self._type=DEFAULTAPI
+            self._type = DEFAULTAPI
         else:
-            from config import SUPPORTEDAPIS as supportedTypes
-            self._type=api
-            if self._type not in supportedTypes:
-                raise GenerationError("PSyFactory: Unsupported API '{0}' specified. Supported types are {1}.".format(self._type, supportedTypes))
+            from config import SUPPORTEDAPIS as supported_types
+            self._type = api
+            if self._type not in supported_types:
+                raise GenerationError("PSyFactory: Unsupported API '{0}' "
+                                      "specified. Supported types are "
+                                      "{1}.".format(self._type,
+                                                    supported_types))
 
-    def create(self,invoke_info):
-        if self._type=="gunghoproto":
+    def create(self, invoke_info):
+        ''' Return the specified version of PSy. '''
+        if self._type == "gunghoproto":
             from ghproto import GHProtoPSy
             return GHProtoPSy(invoke_info)
-        elif self._type=="dynamo0.1":
+        elif self._type == "dynamo0.1":
             from dynamo0p1 import DynamoPSy
             return DynamoPSy(invoke_info)
-        elif self._type=="gocean":
+        elif self._type == "gocean":
             from gocean0p1 import GOPSy
             return GOPSy(invoke_info)
         else:
-            raise GenerationError("PSyFactory: Internal Error: Unsupported api type '{0}' found. Should not be possible.".format(self._myType))
+            raise GenerationError("PSyFactory: Internal Error: Unsupported "
+                                  "api type '{0}' found. Should not be "
+                                  "possible.".format(self._type))
 
 class PSy(object):
     '''
-    Manage and generate PSy code for a single algorithm file. Takes the invocation information output from the function :func:`parse.parse` as it's input and stores this is a way suitable for optimisation and code generation.
+    Manage and generate PSy code for a single algorithm file. Takes the
+    invocation information output from the function :func:`parse.parse` as
+    it's input and stores this is a way suitable for optimisation and code
+    generation.
 
-    :param FileInfo invoke_info: An object containing the required invocation information for code optimisation and generation. Produced by the function :func:`parse.parse`.
+    :param FileInfo invoke_info: An object containing the required invocation
+                                 information for code optimisation and
+                                 generation. Produced by the function
+                                 :func:`parse.parse`.
 
     For example:
 
     >>> from parse import parse
-    >>> ast,info=parse("argspec.F90")
+    >>> ast, info = parse("argspec.F90")
     >>> from psyGen import PSy
-    >>> psy=PSy(info)
+    >>> psy = PSy(info)
     >>> print(psy.gen)
 
     '''
-    def __init__(self,invoke_info):
+    def __init__(self, invoke_info):
 
-        self._name=invoke_info.name
-        self._invokes=None
+        self._name = invoke_info.name
+        self._invokes = None
 
     def __str__(self):
         return "PSy"
@@ -61,77 +84,61 @@ class PSy(object):
         return "psy_"+self._name
     @property
     def gen(self):
-        raise NotImplementedError("Error: PSy.gen() must be implemented by subclass")
+        raise NotImplementedError("Error: PSy.gen() must be implemented "
+                                  "by subclass")
 
 class Invokes(object):
     ''' Manage the invoke calls '''
-    def __init__(self,alg_calls,Invoke):
-        self.invokeMap={}
-        self.invokeList=[]
-        for idx,alg_invocation in enumerate(alg_calls.values()):
-            myInvoke=Invoke(alg_invocation,idx)
-            self.invokeMap[myInvoke.name]=myInvoke
-            self.invokeList.append(myInvoke)
+    def __init__(self, alg_calls, Invoke):
+        self.invoke_map = {}
+        self.invoke_list = []
+        for idx, alg_invocation in enumerate(alg_calls.values()):
+            my_invoke = Invoke(alg_invocation, idx)
+            self.invoke_map[my_invoke.name] = my_invoke
+            self.invoke_list.append(my_invoke)
     def __str__(self):
         return "Invokes object containing "+str(self.names)
     @property
     def names(self):
-        return self.invokeMap.keys()
-    def get(self,invokeName):
+        return self.invoke_map.keys()
+    def get(self, invoke_name):
         # add a try here for keyerror
-        return self.invokeMap[invokeName]
-    def gen_code(self,parent):
-        for invoke in self.invokeList:
+        return self.invoke_map[invoke_name]
+    def gen_code(self, parent):
+        for invoke in self.invoke_list:
             invoke.gen_code(parent)
 
 class Dependencies(object):
-    def __init__(self,thisArg):
-        self._arg=thisArg
-        self._precedes=[]
-        self._follows=[]
+    def __init__(self, this_arg):
+        self._arg = this_arg
+        self._precedes = []
+        self._follows = []
     def set(self):
-        if self.isLiteral:
+        if self._arg.is_literal:
             pass
         else:
-            for following_call in self._call.followingCalls:
+            for following_call in self._arg._call.following_calls:
                 for argument in following_call.arguments._args:
-                    if argument.name==self._name:
-                        self._addFollows(argument)
-            for preceding_call in self._call.precedingCalls:
+                    if argument.name == self._arg._name:
+                        self.add_follows(argument)
+            for preceding_call in self._arg._call.preceding_calls:
                 for argument in preceding_call.arguments._args:
-                    if argument.name==self._name:
-                        self._addPrecedes(argument)
+                    if argument.name == self._arg._name:
+                        self.add_precedes(argument)
 
-    def addPrecedes(self,obj):
+    def add_precedes(self, obj):
         self._precedes.append(obj)
-    def addFollows(self,obj):
+    def add_follows(self, obj):
         self._follows.append(obj)
-    def getPrecedes():
+    def get_precedes(self):
         return self._precedes
-    def getFollows():
+    def get_follows(self):
         return self._follows
-
-class DependenciesOLD(object):
-    from collections import defaultdict
-    def __init_(self):
-        self._precedes=defaultdict(list)
-        self._follows=defaultdict(list)
-    def addPrecedes(self,obj1,obj2):
-        # obj1 precedes obj2
-        self._precedes[obj1].append(obj2)
-        # obj2 follows obj1
-        self._follows[obj2].append(obj1)
-    def addFollows(self,obj1,obj2):
-        self.add_precedes(obj2,obj1)
-    def getPrecedes(obj1):
-        return self._precedes[obj1]
-    def getFollows(obj1):
-        return self._follows[obj1]
 
 class NameSpaceFactory(object):
         # storage for the instance reference
     _instance = None
-    def __init__(self,reset=False):
+    def __init__(self, reset = False):
         """ Create singleton instance """
         # Check whether we already have an instance
         if NameSpaceFactory._instance is None or reset:
@@ -141,54 +148,62 @@ class NameSpaceFactory(object):
         return NameSpaceFactory._instance
 
 class NameSpace(object):
-    ''' keeps a record of reserved names and currently used names to check for clashes and provides a
-        new name if there is a clash. Reserved names are ones already allocated to the infrastructure. '''
+    ''' keeps a record of reserved names and currently used names to check
+        for clashes and provides a new name if there is a clash. Reserved
+        names are ones already allocated to the infrastructure. '''
     def __init__(self):
-        self._reservedNames=[]
-        self._argNames={}
-    def addReserved(self,names):
-        if len(self._argNames)>0:
-            raise Exception("Error: NameSpace class: not coded for adding reserved names after used names")
+        self._reserved_names = []
+        self._arg_names = {}
+    def add_reserved(self, names):
+        if len(self._arg_names) > 0:
+            raise Exception("Error: NameSpace class: not coded for adding "
+                            "reserved names after used names")
         for name in names:
-            if not name in self._reservedNames: # silently ignore if this is already a reserved name
-                self._reservedNames.append(name.lower()) # fortran is not case sensitive
-    def addArg(self,name):
-        if name in self._argNames.keys():
-            return self._argNames[name]
-        elif name in self._reservedNames:
-            count=1
-            proposedName=name+"_"+str(count)
-            while proposedName in self._argNames.values() or proposedName in self._reservedNames:
-                proposedName=name+"_"+str(++count)
-            self._argNames[name]=proposedName
+            if not name in self._reserved_names:
+                # silently ignore if this is already a reserved name
+                # fortran is not case sensitive
+                self._reserved_names.append(name.lower())
+    def add_arg(self, name):
+        if name in self._arg_names.keys():
+            return self._arg_names[name]
+        elif name in self._reserved_names:
+            count = 1
+            proposed_name = name+"_"+str(count)
+            while proposed_name in self._arg_names.values() or \
+                  proposed_name in self._reserved_names:
+                count+=1
+                proposed_name = name+"_"+str(count)
+            self._arg_names[name] = proposed_name
         else:
-            self._argNames[name]=name
-        return self._argNames[name]
+            self._arg_names[name] = name
+        return self._arg_names[name]
 
 class Invoke(object):
 
     def __str__(self):
         return self._name+"("+self.unique_args+")"
-    def __init__(self,alg_invocation,idx,Schedule,reservedNames=[]):
+    def __init__(self, alg_invocation, idx, Schedule, reserved_names = []):
 
-        if alg_invocation==None and idx==None: return
+        if alg_invocation == None and idx == None: return
 
-        # create our namespace manager - must be done before creating the schedule
-        self._nameSpaceManager=NameSpaceFactory(reset=True).create()
-        self._nameSpaceManager.addReserved(reservedNames)
+        # create our namespace manager - must be done before creating the
+        # schedule
+        self._name_space_manager = NameSpaceFactory(reset = True).create()
+        self._name_space_manager.add_reserved(reserved_names)
 
         # create the schedule
-        self._schedule=Schedule(alg_invocation.kcalls)
+        self._schedule = Schedule(alg_invocation.kcalls)
 
         # Set up the ordering constraints between the calls in the schedule
         # Obviously the schedule must be created first
         for call in self._schedule.calls():
-            call.setConstraints()
+            call.set_constraints()
 
         # create a name for the call if one does not already exist
         if alg_invocation.name is not None:
             self._name = alg_invocation.name
-        elif len(alg_invocation.kcalls)==1 and alg_invocation.kcalls[0].type=="kernelCall":
+        elif len(alg_invocation.kcalls) == 1 and \
+                 alg_invocation.kcalls[0].type == "kernelCall":
             # use the name of the kernel call
             self._name = "invoke_"+alg_invocation.kcalls[0].ktype.name
         else:
@@ -197,26 +212,26 @@ class Invoke(object):
 
         # work out the argument list. It needs to be unique and should
         # not contain any literals.
-        self._unique_args=[]
-        self._orig_unique_args=[]
+        self._unique_args = []
+        self._orig_unique_args = []
         for call in alg_invocation.kcalls:
             for arg in call.args:
-                if not arg.isLiteral(): # skip literals
+                if not arg.is_literal(): # skip literals
                     if arg.value not in self._unique_args:
                         self._orig_unique_args.append(arg.value)
-                        self._unique_args.append(self._nameSpaceManager.addArg(arg.value))
+                        self._unique_args.append(
+                            self._name_space_manager.add_arg(arg.value))
 
         # work out the unique dofs required in this subroutine
-        self._dofs={}
-        for kernCall in self._schedule.kernCalls():
-            dofs=kernCall.arguments.dofs
+        self._dofs = {}
+        for kern_call in self._schedule.kern_calls():
+            dofs = kern_call.arguments.dofs
             for dof in dofs:
                 if not self._dofs.has_key(dof):
-                    # only keep the first occurence for the moment.
-                    # we will need to change this logic at some point
-                    # as we need to cope with writes determining the
-                    # dofs that are used.
-                    self._dofs[dof]=[kernCall,dofs[dof][0]]
+                    # Only keep the first occurence for the moment. We will
+                    # need to change this logic at some point as we need to
+                    # cope with writes determining the dofs that are used.
+                    self._dofs[dof] = [kern_call, dofs[dof][0]]
     @property
     def name(self):
         return self._name
@@ -232,53 +247,72 @@ class Invoke(object):
 
     def gen(self):
         from f2pygen import ModuleGen
-        module=ModuleGen("container")
+        module = ModuleGen("container")
         self.gen_code(module)
         return module.root
 
-    def gen_code(self,parent):
-        from f2pygen import SubroutineGen,TypeDeclGen,DeclGen,SelectionGen,AssignGen
+    def gen_code(self, parent):
+        from f2pygen import SubroutineGen, TypeDeclGen, DeclGen, \
+                            SelectionGen, AssignGen
         # create the subroutine
-        invoke_sub=SubroutineGen(parent,name=self.name,args=self.unique_args)
+        invoke_sub = SubroutineGen(parent, name = self.name,
+                                   args = self.unique_args)
         # add the subroutine argument declarations
-        my_typedecl=TypeDeclGen(invoke_sub,datatype="field_type",entity_decls=self.unique_args,intent="inout")
+        my_typedecl = TypeDeclGen(invoke_sub, datatype = "field_type",
+                                  entity_decls = self.unique_args,
+                                  intent = "inout")
         invoke_sub.add(my_typedecl)
         # declare field-type, column topology and function-space types
-        column_topology_name="topology"
-        my_typedecl=TypeDeclGen(invoke_sub,datatype="ColumnTopology",entity_decls=[column_topology_name],pointer=True)
+        column_topology_name = "topology"
+        my_typedecl = TypeDeclGen(invoke_sub, datatype = "ColumnTopology",
+                                  entity_decls = [column_topology_name],
+                                  pointer = True)
         invoke_sub.add(my_typedecl)
         # declare any basic types required
-        my_decl=DeclGen(invoke_sub,datatype="integer",entity_decls=["nlayers"])
+        my_decl = DeclGen(invoke_sub, datatype = "integer",
+                          entity_decls = ["nlayers"])
         invoke_sub.add(my_decl)
 
-        for (idx,dof) in enumerate(self._dofs):
-            call=self._dofs[dof][0]
-            arg=self._dofs[dof][1]
-            # declare a type select clause which is used to map from a base class to FunctionSpace_type
-            type_select=SelectionGen(invoke_sub,expr=arg.name+"_space=>"+arg.name+"%function_space",typeselect=True)
+        for (idx, dof) in enumerate(self._dofs):
+            call = self._dofs[dof][0]
+            arg = self._dofs[dof][1]
+            # declare a type select clause which is used to map from a base
+            # class to FunctionSpace_type
+            type_select = SelectionGen(invoke_sub,
+                expr = arg.name+"_space=>"+arg.name+"%function_space",
+                typeselect = True)
             invoke_sub.add(type_select)
 
-            my_typedecl=TypeDeclGen(invoke_sub,datatype="FunctionSpace_type",entity_decls=[arg.name+"_space"],pointer=True)
+            my_typedecl = TypeDeclGen(invoke_sub,
+                                      datatype = "FunctionSpace_type",
+                                      entity_decls = [arg.name+"_space"],
+                                      pointer = True)
             invoke_sub.add(my_typedecl)
 
-            content=[]
-            if idx==0:
+            content = []
+            if idx == 0:
                 # use the first model to provide nlayers
-                # *** assumption that all fields operate over the same number of layers
-                assign1=AssignGen(type_select,lhs="topology",rhs=arg.name+"_space%topology",pointer=True)
-                assign2=AssignGen(type_select,lhs="nlayers",rhs="topology%layer_count()")
-                content.append(assign1)
-                content.append(assign2)
-            iterates_over=call.iterates_over
-            #if iterates_over!="cells":
-            #    print type(iterates_over)
-            #    print iterates_over
-            stencil=arg.stencil
-            assign3=AssignGen(type_select,lhs=dof+"dofmap",rhs=arg.name+"_space%dof_map("+iterates_over+", "+stencil+")",pointer=True)
-            content.append(assign3)
-            type_select.addcase(["FunctionSpace_type"],content=content)
+                # *** assumption that all fields operate over the same number
+                # of layers
+                assign_1 = AssignGen(type_select, lhs = "topology",
+                                     rhs = arg.name+"_space%topology",
+                                     pointer = True)
+                assign_2 = AssignGen(type_select, lhs = "nlayers",
+                                  rhs = "topology%layer_count()")
+                content.append(assign_1)
+                content.append(assign_2)
+            iterates_over = call.iterates_over
+            stencil = arg.stencil
+            assign_3 = AssignGen(type_select, lhs = dof+"dofmap",
+                                 rhs = arg.name+ \
+                                 "_space%dof_map("+iterates_over+", "+ \
+                                                 stencil+")",
+                pointer = True)
+            content.append(assign_3)
+            type_select.addcase(["FunctionSpace_type"], content = content)
             # declare our dofmap
-            my_decl=DeclGen(invoke_sub,datatype="integer",entity_decls=[dof+"dofmap(:,:)"],pointer=True)
+            my_decl = DeclGen(invoke_sub, datatype = "integer",
+                            entity_decls = [dof+"dofmap(:,:)"], pointer = True)
             invoke_sub.add(my_decl)
 
         # create the subroutine kernel call content
@@ -289,26 +323,29 @@ class Node(object):
     ''' baseclass for a node in a schedule '''
 
     def view(self):
-        raise NotImplementedError("BaseClass of a Node must implement the view method")
+        raise NotImplementedError("BaseClass of a Node must implement the "
+                                  "view method")
 
-    def indent(self,count,indent="    "):
-        result=""
+    def indent(self, count, indent = "    "):
+        result = ""
         for i in range(count):
-            result+=indent
+            result += indent
         return result
 
-    def list(self,indent=0):
+    def list(self, indent = 0):
+        result=""
         for entity in self._children:
-            result+=str(entity)+"\n"
+            result += str(entity)+"\n"
+        return result
 
-    def __init__(self,children=[],parent=None):
-        self._children=children
-        self._parent=parent
+    def __init__(self, children = [], parent = None):
+        self._children = children
+        self._parent = parent
 
     def __str__(self):
         raise NotImplementedError("Please implement me")
 
-    def addchild(self,child):
+    def addchild(self, child):
         self._children.append(child)
 
     @property
@@ -324,101 +361,105 @@ class Node(object):
         if self.parent is None: return 0
         return self.parent.children.index(self)
 
-        current=self.root
-        position=0
+        current = self.root
+        position = 0
 
     @property
-    def absPosition(self):
-        ''' Find my position in the schedule. Needs to be computed dynamically as my position may change. '''
+    def abs_position(self):
+        ''' Find my position in the schedule. Needs to be computed
+            dynamically as my position may change. '''
 
-        if self.root==self: return 0
-        found,position=self._findPosition(self.root.children,0)
-        if not found: raise Exception("Error in search for my position in the tree")
+        if self.root == self: return 0
+        found, position = self._find_position(self.root.children, 0)
+        if not found: raise Exception("Error in search for my position in "
+                                      "the tree")
         return position
 
-    def _findPosition(self,children,position):
-        ''' Recurse through the tree depth first returning position if found.'''
+    def _find_position(self, children, position):
+        ''' Recurse through the tree depth first returning position if
+            found.'''
         for child in children:
-            position+=1
-            if child==self:
-                return True,position
-            if isinstance(child,Loop):
-                found,position=self._findPosition(child.children,position)
-                if found: return True,position
-        return False,position
+            position += 1
+            if child == self:
+                return True, position
+            if isinstance(child, Loop):
+                found, position = self._find_position(child.children, position)
+                if found: return True, position
+        return False, position
 
     @property
     def root(self):
-        node=self
+        node = self
         while node.parent is not None:
-            node=node.parent
+            node = node.parent
         return node
 
-    def sameRoot(self,node2):
-        if self.root==node2.root: return True
+    def sameRoot(self, node_2):
+        if self.root == node_2.root: return True
         return False
 
-    def sameParent(self,node2):
-        if self.parent is None or node2.parent is None: return False
-        if self.parent==node2.parent: return True
+    def sameParent(self, node_2):
+        if self.parent is None or node_2.parent is None: return False
+        if self.parent == node_2.parent: return True
         return False
 
-    def walk(self,children,mytype):
+    def walk(self, children, my_type):
         ''' recurse through tree and return objects of mytype '''
-        localList=[]
+        local_list = []
         for child in children:
-            if isinstance(child,mytype):
-                localList.append(child)
-            if isinstance(child,Loop):
-                localList+=self.walk(child.children,mytype)
-        return localList
+            if isinstance(child, my_type):
+                local_list.append(child)
+            if isinstance(child, Loop):
+                local_list += self.walk(child.children, my_type)
+        return local_list
 
     def calls(self):
         ''' return all calls in this schedule '''
-        return self.walk(self.root.children,Call)
+        return self.walk(self.root.children, Call)
 
     @property
-    def followingCalls(self):
+    def following_calls(self):
         ''' return all calls after me in the schedule '''
-        allcalls=self.calls()
-        position=allcalls.index(self)
-        return allcalls[position+1:]
+        all_calls = self.calls()
+        position = all_calls.index(self)
+        return all_calls[position+1:]
 
     @property
-    def precedingCalls(self):
+    def preceding_calls(self):
         ''' return all calls before me in the schedule '''
-        allcalls=self.calls()
-        position=allcalls.index(self)
-        return allcalls[:position-1]
+        all_calls = self.calls()
+        position = all_calls.index(self)
+        return all_calls[:position-1]
 
-    def kernCalls(self):
+    def kern_calls(self):
         ''' return all kernel calls in this schedule '''
         #print "looking for kernCalls"
-        return self.walk(self._children,Kern)
+        return self.walk(self._children, Kern)
 
-    def infCalls(self):
+    def inf_calls(self):
         ''' return all infrastructure calls in this schedule '''
-        return self.walk(self._children,Inf)
+        return self.walk(self._children, Inf)
 
     def loops(self):
         ''' return all loops currently in this schedule '''
-        return self.walk(self._children,Loop)
+        return self.walk(self._children, Loop)
 
     def gen_code(self):
         raise NotImplementedError("Please implement me")
 
 class Schedule(Node):
 
-    ''' Stores schedule information for an invocation call. Schedules can be optimised using transformations.
+    ''' Stores schedule information for an invocation call. Schedules can be
+        optimised using transformations.
         
         >>> from parse import parse
-        >>> ast,info=parse("algorithm.f90")
+        >>> ast, info = parse("algorithm.f90")
         >>> from psyGen import PSy
-        >>> psy=PSy(info)
-        >>> invokes=psy.invokes
+        >>> psy = PSy(info)
+        >>> invokes = psy.invokes
         >>> invokes.names
-        >>> invoke=invokes.get("name")
-        >>> schedule=invoke.schedule
+        >>> invoke = invokes.get("name")
+        >>> schedule = invoke.schedule
         >>> print schedule
 
     '''
@@ -427,57 +468,58 @@ class Schedule(Node):
         for entity in self._children:
             entity.tkinter_delete()
 
-    def tkinter_display(self,canvas,x,y):
-        yOffset=0
+    def tkinter_display(self, canvas, x, y):
+        y_offset = 0
         for entity in self._children:
-            entity.tkinter_display(canvas,x,y+yOffset)
-            yOffset=yOffset+entity.height
+            entity.tkinter_display(canvas, x, y+y_offset)
+            y_offset = y_offset+entity.height
         
-    def __init__(self,Loop,Inf,alg_calls=[]):
+    def __init__(self, Loop, Inf, alg_calls = []):
             
-        # we need to separate calls into loops (an iteration space really) and calls
-        # so that we can perform optimisations separately on the two entities.
-        sequence=[]
+        # we need to separate calls into loops (an iteration space really)
+        # and calls so that we can perform optimisations separately on the
+        # two entities.
+        sequence = []
         from parse import InfCall
         for call in alg_calls:
-            if isinstance(call,InfCall):
-                sequence.append(Inf.create(call,parent=self))
+            if isinstance(call, InfCall):
+                sequence.append(Inf.create(call, parent = self))
             else:
-                sequence.append(Loop(call,parent=self))
+                sequence.append(Loop(call, parent = self))
         #for call in alg_calls:
-        #    sequence.append(Loop(call,parent=self))
-        Node.__init__(self,children=sequence)
+        #    sequence.append(Loop(call, parent = self))
+        Node.__init__(self, children = sequence)
 
-    def view(self,indent=0):
+    def view(self, indent = 0):
         print self.indent(indent)+"Schedule"
         for entity in self._children:
-            entity.view(indent=indent+1)
+            entity.view(indent = indent+1)
         print self.indent(indent)+"End Schedule"
 
     def __str__(self):
-        result="Schedule:\n"
+        result = "Schedule:\n"
         for entity in self._children:
-            result+=str(entity)+"\n"
-        result+="End Schedule"
+            result += str(entity)+"\n"
+        result += "End Schedule"
         return result
 
-    def gen_code(self,parent):
+    def gen_code(self, parent):
         for entity in self._children:
             entity.gen_code(parent)
 
 class Loop(Node):
 
-    def view(self,indent=0):
+    def view(self, indent = 0):
         print self.indent(indent)+"LoopOver["+self.iterates_over+"]"
         for entity in self._children:
-            entity.view(indent=indent+1)
+            entity.view(indent = indent+1)
 
     @property
     def height(self):
-        callsHeight=0
+        calls_height = 0
         for child in self.children:
-            callsHeight+=child.height
-        return self._height+callsHeight
+            calls_height += child.height
+        return self._height+calls_height
 
     def tkinter_delete(self):
         if self._shape is not None:
@@ -489,90 +531,104 @@ class Loop(Node):
         for child in self.children:
             child.tkinter_delete()
 
-    def tkinter_display(self,canvas,x,y):
+    def tkinter_display(self, canvas, x, y):
         self.tkinter_delete()
-        self._canvas=canvas
+        self._canvas = canvas
         from Tkinter import ROUND
-        name="Loop"
-        minCallWidth=100
-        maxCallsWidth=minCallWidth
-        callsHeight=0
+        name = "Loop"
+        min_call_width = 100
+        max_calls_width = min_call_width
+        calls_height = 0
         for child in self.children:
-            callsHeight+=child.height
-            maxCallsWidth=max(maxCallsWidth,child.width)
+            calls_height += child.height
+            max_calls_width = max(max_calls_width, child.width)
 
-        self._shape = canvas.create_polygon(x,y, \
-                                                x+self._width+maxCallsWidth,y, \
-                                                x+self._width+maxCallsWidth,y+self._height, \
-                                                x+self._width,y+self._height, \
-                                                x+self._width,y+self._height+callsHeight, \
-                                                x,y+self._height+callsHeight, \
-                                                outline="red",fill="green",width=2,activeoutline="blue",joinstyle=ROUND)
-        self._text = canvas.create_text(x+(self._width+maxCallsWidth)/2, y+self._height/2, text=name)
+        self._shape = canvas.create_polygon(x, y,
+                          x+self._width+max_calls_width, y,
+                          x+self._width+max_calls_width, y+self._height,
+                          x+self._width, y+self._height,
+                          x+self._width, y+self._height+calls_height,
+                          x, y+self._height+calls_height,
+                          outline = "red", fill = "green", width = 2,
+                          activeoutline = "blue", joinstyle = ROUND)
+        self._text = canvas.create_text(x+(self._width+max_calls_width)/2,
+                                        y+self._height/2,  text = name)
 
-        callHeight=0
+        call_height = 0
         for child in self.children:
-            child.tkinter_display(canvas,x+self._width,y+self._height+callHeight)
-            callHeight=callHeight+child.height
+            child.tkinter_display(canvas, x+self._width,
+                                  y+self._height+call_height)
+            call_height += child.height
 
-    def __init__(self,Inf,Kern,call=None,parent=None,variable_name="column",topology_name="topology"):
+    def __init__(self, Inf, Kern, call = None, parent = None,
+                 variable_name = "column", topology_name = "topology"):
 
-        children=[]
-        # we need to determine whether this is an infrastructure or kernel call
-        # so our schedule can do the right thing.
-        self._iteration_space=""
+        children = []
+        # we need to determine whether this is an infrastructure or kernel
+        # call so our schedule can do the right thing.
+        self._iteration_space = ""
         if call is not None:
-            from parse import InfCall,KernelCall
-            if isinstance(call,InfCall):
-                my_call=Inf.create(call,parent=self)
-                self._iterates_over="unknown" # needs to inherit this?
-            elif isinstance(call,KernelCall):
-                my_call=Kern(call,parent=self)
-                self._iterates_over=my_call.iterates_over
+            from parse import InfCall, KernelCall
+            if isinstance(call, InfCall):
+                my_call = Inf.create(call, parent = self)
+                self._iterates_over = "unknown" # needs to inherit this?
+            elif isinstance(call, KernelCall):
+                my_call = Kern(call, parent = self)
+                self._iterates_over = my_call.iterates_over
             else:
                 raise Exception
             children.append(my_call)
-        Node.__init__(self,children=children,parent=parent)
+        Node.__init__(self, children = children, parent = parent)
 
-        self._variable_name=variable_name
+        self._variable_name = variable_name
+
+        self._start = None
+        self._stop = None
+        self._step = None
+        self._id = None
 
         # visual properties
-        self._width=30
-        self._height=30
-        self._shape=None
-        self._text=None
-        self._canvas=None
+        self._width = 30
+        self._height = 30
+        self._shape = None
+        self._text = None
+        self._canvas = None
 
     @property
     def iterates_over(self):
         return self._iterates_over
 
     def __str__(self):
-        result="Loop["+self._id+"]: "+self._variable_name+"="+self._id+" lower="+self._start+","+self._stop+","+self._step+"\n"
+        result = "Loop["+self._id+"]: "+self._variable_name+"="+self._id+ \
+               " lower="+self._start+","+self._stop+","+self._step+"\n"
         for entity in self._children:
-            result+=str(entity)+"\n"
-        result+="EndLoop"
+            result += str(entity)+"\n"
+        result += "EndLoop"
         return result
 
-    def gen_code(self,parent):
-        if self._start=="1" and self._stop=="1": # no need for a loop
-            self.call.gen_code(parent)
+    def gen_code(self, parent):
+        if self._start == "1" and self._stop == "1": # no need for a loop
+            for child in self.children:
+                child.gen_code(parent)
         else:
-            from f2pygen import DoGen,DeclGen
-            do=DoGen(parent,self._variable_name,self._start,self._stop)
-            # need to add do loop before children as children may want to add info outside of do loop
+            from f2pygen import DoGen, DeclGen
+            do = DoGen(parent, self._variable_name, self._start, self._stop)
+            # need to add do loop before children as children may want to add
+            # info outside of do loop
             parent.add(do)
             for child in self.children:
                 child.gen_code(do)
-            my_decl=DeclGen(parent,datatype="integer",entity_decls=[self._variable_name])
+            my_decl = DeclGen(parent, datatype = "integer",
+                            entity_decls = [self._variable_name])
             parent.add(my_decl)
 
 class Call(Node):
 
-    def view(self,indent=0):
-        print self.indent(indent)+"Call",self.name+"("+str(self.arguments.rawArgList)+")"
+    def view(self, indent = 0):
+        print self.indent(indent)+"Call", \
+              self.name+"("+str(self.arguments.raw_arg_list)+")"
         for entity in self._children:
-            entity.view(indent=indent+1)
+            entity.view(indent = indent+1)
 
     @property
     def width(self):
@@ -590,30 +646,35 @@ class Call(Node):
             assert self._canvas is not None, "Error"
             self._canvas.delete(self._text)
 
-    def tkinter_display(self,canvas,x,y):
+    def tkinter_display(self, canvas, x, y):
         self.tkinter_delete()
-        self._canvas=canvas
-        self._x=x
-        self._y=y
-        self._shape=self._canvas.create_rectangle(self._x,self._y,self._x+self._width,self._y+self._height,outline="red",fill="yellow",activeoutline="blue",width=2)
-        self._text=self._canvas.create_text(self._x+self._width/2, self._y+self._height/2, text=self._name)
+        self._canvas = canvas
+        self._x = x
+        self._y = y
+        self._shape = self._canvas.create_rectangle(self._x, self._y,
+                          self._x+self._width, self._y+self._height,
+                          outline = "red", fill = "yellow",
+                          activeoutline = "blue", width = 2)
+        self._text = self._canvas.create_text(self._x+self._width/2,
+                                              self._y+self._height/2,
+                                              text = self._name)
 
-    def __init__(self,parent,call,name,arguments):
-        Node.__init__(self,children=[],parent=parent)
-        self._module_name=call.module_name
-        self._arguments=arguments
-        self._name=name
+    def __init__(self, parent, call, name, arguments):
+        Node.__init__(self, children = [], parent = parent)
+        self._module_name = call.module_name
+        self._arguments = arguments
+        self._name = name
 
         # visual properties
-        self._width=250
-        self._height=30
-        self._shape=None
-        self._text=None
-        self._canvas=None
+        self._width = 250
+        self._height = 30
+        self._shape = None
+        self._text = None
+        self._canvas = None
 
-    def setConstraints(self):
+    def set_constraints(self):
         # first set up the dependencies of my arguments
-        self.arguments.setDependencies
+        self.arguments.set_dependencies
         # TODO: set up constraints between calls
         
     @property
@@ -632,110 +693,122 @@ class Call(Node):
 class Inf(object):
     ''' infrastructure call factory, Used to create a call specific class '''
     @staticmethod
-    def create(call,parent=None):
-        supportedCalls=["set"]
-        if call.func_name not in supportedCalls:
-            raise GenerationError("Unknown infrastructure call. Supported calls are {0} but found {1}".format(str(supportedCalls),call.func_name))
-        if call.func_name=="set": return SetInfCall(call,parent)
+    def create(call, parent = None):
+        supported_calls = ["set"]
+        if call.func_name not in supported_calls:
+            raise GenerationError("Unknown infrastructure call. Supported "
+                                  "calls are {0} but found {1}".format(
+                                  str(supported_calls), call.func_name))
+        if call.func_name == "set": return SetInfCall(call, parent)
 
 class SetInfCall(Call):
     ''' the set infrastructure call '''
-    def __init__(self,call,parent=None):
-        assert call.func_name=="set", "Error"
-        access=["write",None]
-        Call.__init__(self,parent,call,call.func_name,InfArguments(call,self,access))
-        #self._arguments=InfArguments(call,self,access)
+    def __init__(self, call, parent = None):
+        assert call.func_name == "set", "Error"
+        access = ["write", None]
+        Call.__init__(self, parent, call, call.func_name,
+                      InfArguments(call, self, access))
+        #self._arguments = InfArguments(call, self, access)
     def __str__(self):
         return "set inf call"
-    def gen_code(self,parent):
+    def gen_code(self, parent):
         from f2pygen import AssignGen
-        field_name=self._arguments.arglist[0]
-        var_name=field_name+"%data"
-        value=self._arguments.arglist[1]
-        assign2=AssignGen(parent,lhs=var_name,rhs=value)
-        parent.add(assign2)
+        field_name = self._arguments.arglist[0]
+        var_name = field_name+"%data"
+        value = self._arguments.arglist[1]
+        assign_2 = AssignGen(parent, lhs = var_name, rhs = value)
+        parent.add(assign_2)
         return
 
 class Kern(Call):
-    def __init__(self,KernelArguments,call,parent=None):
-        Call.__init__(self,parent,call,call.ktype.procedure.name,KernelArguments(call,self))
-        self._iterates_over=call.ktype.iterates_over
+    def __init__(self, KernelArguments, call, parent = None):
+        Call.__init__(self, parent, call, call.ktype.procedure.name,
+                      KernelArguments(call, self))
+        self._iterates_over = call.ktype.iterates_over
     def __str__(self):
         return "kern call: "+self._name
     @property
     def iterates_over(self):
         return self._iterates_over
-    def gen_code(self,parent):
-        from f2pygen import CallGen,UseGen
-        parent.add(CallGen(parent,self._name,self._arguments.arglist))
-        parent.add(UseGen(parent,name=self._module_name,only=True,funcnames=[self._name]))
+    def gen_code(self, parent):
+        from f2pygen import CallGen, UseGen
+        parent.add(CallGen(parent, self._name, self._arguments.arglist))
+        parent.add(UseGen(parent, name = self._module_name, only = True,
+                          funcnames = [self._name]))
 
 class Arguments(object):
     ''' arguments abstract base class '''
-    def __init__(self,parentCall):
-        self._parentCall=parentCall
-        self._args=[]
+    def __init__(self, parent_call):
+        self._parent_call = parent_call
+        self._args = []
 
     @property
-    def rawArgList(self):
-        ''' returns a comma separated list of the field arguments to the kernel call '''
-        result=""
-        for idx,arg in enumerate(self.args):
-            result+=arg.name
-            if idx<(len(self.args)-1):
-                result+=","
+    def raw_arg_list(self):
+        ''' returns a comma separated list of the field arguments to the
+            kernel call '''
+        result = ""
+        for idx, arg in enumerate(self.args):
+            result += arg.name
+            if idx < (len(self.args) - 1):
+                result += ","
         return result
 
     @property
     def args(self):
         return self._args
-    def it_space_type(self,mapping):
+    def it_space_type(self, mapping):
         for arg in self._args:
-            if arg.access.lower()==mapping["write"] or arg.access.lower()==mapping["readwrite"]:
+            if arg.access.lower() == mapping["write"] or \
+               arg.access.lower() == mapping["readwrite"]:
                 return arg.space
         raise GenerationError("psyGen:arguments:iteration_space_type Error, "
                               "we assume there is at least one writer or "
                               "reader/writer as an argument")
 
-    def it_space_owner_name(self,mapping):
+    def it_space_owner_name(self, mapping):
         for arg in self._args:
-            if arg.access.lower()==mapping["write"] or arg.access.lower()==mapping["readwrite"]:
+            if arg.access.lower() == mapping["write"] or \
+               arg.access.lower() == mapping["readwrite"]:
                 return arg.name
-        raise GenerationError("psyGen:arguments:iterationOwnerName: Error, we assume there is at least one writer or reader/writer as an argument")
+        raise GenerationError("psyGen:arguments:iterationOwnerName: Error, we "
+                              "assume there is at least one writer or "
+                              "reader/writer as an argument")
 
-    def setDependencies(self):
+    def set_dependencies(self):
         for argument in self._args:
-            argument.setDependencies()
+            argument.set_dependencies()
         # TODO create a summary of dependencies
 
 class InfArguments(Arguments):
     ''' arguments associated with an infrastructure call '''
-    def __init__(self,callInfo,parentCall,access):
-        Arguments.__init__(self,parentCall)
-        self._0toN=InfArgument(None,None,None) # only here for pyreverse!
-        for idx,arg in enumerate(callInfo.args):
-            self._args.append(InfArgument(arg,parentCall,access[idx]))
+    def __init__(self, call_info, parent_call, access):
+        Arguments.__init__(self, parent_call)
+        if False:
+            # only here for pyreverse!
+            self._0_to_n = InfArgument(None, None, None)
+        for idx, arg in enumerate(call_info.args):
+            self._args.append(InfArgument(arg, parent_call, access[idx]))
     @property
     def args(self):
         return self._args
     @property
     def arglist(self):
-        myarglist=[]
+        my_arg_list = []
         for arg in self._args:
-            myarglist.append(arg.name)
-        return myarglist
+            my_arg_list.append(arg.name)
+        return my_arg_list
 
 class Argument(object):
     ''' argument base class '''
-    def __init__(self,call,argInfo,access):
-        self._dependencies=Dependencies(self)
-        self._call=call
-        self._origName=argInfo.value
-        self._form=argInfo.form
-        self._isLiteral=argInfo.isLiteral()
-        self._access=access
-        self._nameSpaceManager=NameSpaceFactory().create()
-        self._name=self._nameSpaceManager.addArg(self._origName)
+    def __init__(self, call, arg_info, access):
+        self._dependencies = Dependencies(self)
+        self._call = call
+        self._orig_name = arg_info.value
+        self._form = arg_info.form
+        self._is_literal = arg_info.is_literal()
+        self._access = access
+        self._name_space_manager = NameSpaceFactory().create()
+        self._name = self._name_space_manager.add_arg(self._orig_name)
 
     def __str__(self):
         return self._name
@@ -746,42 +819,46 @@ class Argument(object):
     def form(self):
         return self._form
     @property
-    def isLiteral(self):
-        return self._isLiteral
+    def is_literal(self):
+        return self._is_literal
     @property
     def access(self):
         return self._access
-    def setDependencies(self):
-        writers=["WRITE","INC","SUM"]
-        readers=["READ","INC"]
-        for following_call in self._call.followingCalls:
+    def set_dependencies(self):
+        writers = ["WRITE", "INC", "SUM"]
+        readers = ["READ", "INC"]
+        self._true_dependence=[]
+        self._anti_dependence=[]
+        for following_call in self._call.following_calls:
             for argument in following_call.arguments.args:
-                if argument.name==self._name:
+                if argument.name == self._name:
                     if self.access in writers and argument.access in readers:
-                        self._trueDependence.append(argument)
+                        self._true_dependence.append(argument)
                     if self.access in readers and argument.access in writers:
-                        self._antiDependence.append(argument)
-    def hasTrueDependence():
-        if len(self._trueDependence)>0: return True
+                        self._anti_dependence.append(argument)
+    def has_true_dependence(self):
+        if len(self._true_dependence) > 0:
+            return True
         return False
-    def hasAntiDependence():
-        if len(self._antiDependence)>0: return True
+    def has_anti_dependence(self):
+        if len(self._anti_dependence) > 0:
+            return True
         return False
-    def hasDependence():
-        if hasAntiDependence or hasTrueDependence: return True
+    def has_dependence(self):
+        if self.has_anti_dependence() or self.has_true_dependence():
+            return True
         return False
-    def trueDependencies():
-        return self._trueDependence
-    def antiDependencies():
-        return self._antiDependence
-    def dependencies():
-        return trueDependencies+antiDependencies
+    def true_dependencies(self):
+        return self._true_dependence
+    def anti_dependencies(self):
+        return self._anti_dependence
+    def dependencies(self):
+        return self.true_dependencies()+self.anti_dependencies()
 
 class KernelArgument(Argument):
-    def __init__(self,arg,argInfo,call):
-        if arg==None and argInfo==None and call==None:return
-        self._arg=arg
-        Argument.__init__(self,call,argInfo,arg.access)
+    def __init__(self, arg, arg_info, call):
+        self._arg = arg
+        Argument.__init__(self, call, arg_info, arg.access)
     @property
     def space(self):
         return self._arg.function_space
@@ -791,102 +868,116 @@ class KernelArgument(Argument):
 
 class InfArgument(Argument):
     ''' infrastructure call argument '''
-    def __init__(self,argInfo,call,access):
-        if access==None and argInfo==None and call==None:return
-        Argument.__init__(self,call,argInfo,access)
+    def __init__(self, arg_info, call, access):
+        Argument.__init__(self, call, arg_info, access)
 
-class transformations(object):
+class TransInfo(object):
     '''
-    This class provides information about, and access, to the available transformations in this implementation of PSyclone. New transformations will be picked up automatically as long as they subclass the abstract Transformation class.
+    This class provides information about, and access, to the available
+    transformations in this implementation of PSyclone. New transformations
+    will be picked up automatically as long as they subclass the abstract
+    Transformation class.
 
     For example:
 
-    >>> from psyGen import transformations
-    >>> t=transformations()
+    >>> from psyGen import TransInfo
+    >>> t = TransInfo()
     >>> print t.list
     There is 1 transformation available:
       1: SwapTrans, A test transformation
-    >>> t.getTransNum(1)
-    >>> t.getTransName("SwapTrans")
+    >>> t.get_trans_num(1)
+    >>> t.get_trans_name("SwapTrans")
 
-'''
+    '''
 
-    def __init__(self,module=None,baseclass=None):
-        ''' if module and/or baseclass are provided then use these else use the default module "transformations" and the default base_class "transformation"'''
+    def __init__(self, module = None, base_class = None):
+        ''' if module and/or baseclass are provided then use these else use
+            the default module "Transformations" and the default base_class
+            "Transformation"'''
 
-        self._0toN=DummyTransformation() # only here for pyreverse!
+        if False:
+            self._0_to_n = DummyTransformation() # only here for pyreverse!
 
         if module is None:
             # default to the transformation module
             import transformations
-            module=transformations
-        if baseclass is None:
+            module = transformations
+        if base_class is None:
             import psyGen
-            baseclass=psyGen.transformation
+            baseclass = psyGen.Transformation
         # find our transformations
-        self._classes=self._find_subclasses(module,baseclass)
+        self._classes = self._find_subclasses(module, base_class)
 
         # create our transformations
-        self._objects=[]
-        self._objmap={}
-        for myclass in self._classes:
-            myobject=myclass()
-            self._objects.append(myobject)
-            self._objmap[myobject.name]=myobject
+        self._objects = []
+        self._obj_map = {}
+        for my_class in self._classes:
+            my_object = my_class()
+            self._objects.append(my_object)
+            self._obj_map[my_object.name] = my_object
 
     @property
     def list(self):
-        ''' return a string with a human readable list of the available transformations '''
+        ''' return a string with a human readable list of the available
+            transformations '''
         import os
-        if len(self._objects)==1:
-            s="There is 1 transformation available:"
+        if len(self._objects) == 1:
+            result = "There is 1 transformation available:"
         else:
-            s="There are {0} transformations available:".format(len(self._objects))
-        s+=os.linesep
-        for idx,myobject in enumerate(self._objects):
-            s+="  "+str(idx+1)+": "+myobject.name+": "+str(myobject)+os.linesep
-        return s
+            result = "There are {0} transformations available:".format(
+                     len(self._objects))
+        result += os.linesep
+        for idx, my_object in enumerate(self._objects):
+            result += "  "+str(idx+1)+": "+my_object.name+": "+ \
+                      str(my_object)+os.linesep
+        return result
 
     @property
-    def numTrans(self):
+    def num_trans(self):
         ''' return the number of transformations available '''
         return len(self._objects)
 
-    def getTransNum(self,number):
-        ''' return the transformation with this number (use list() first to see available transformations) '''
-        if number<1 or number>len(self._objects):
+    def get_trans_num(self, number):
+        ''' return the transformation with this number (use list() first to
+            see available transformations) '''
+        if number < 1 or number > len(self._objects):
             raise GenerationError("Invalid transformation number supplied")
         return self._objects[number-1]
 
-    def getTransName(self,name):
-        ''' return the transformation with this name (use list() first to see available transformations) '''
+    def get_trans_name(self, name):
+        ''' return the transformation with this name (use list() first to see
+            available transformations) '''
         try:
-            return self._objmap[name]
+            return self._obj_map[name]
         except KeyError:
             raise GenerationError("Invalid transformation name supplied")
 
-    def _find_subclasses(self,module,baseclass):
-        ''' return a list of classes defined within the specified module that are a subclass of the specified baseclass. '''
+    def _find_subclasses(self, module, base_class):
+        ''' return a list of classes defined within the specified module that
+            are a subclass of the specified baseclass. '''
         import inspect
         return [
             cls
                 for name, cls in inspect.getmembers(module)
-                    if inspect.isclass(cls) and issubclass(cls, baseclass) and not cls is baseclass
+                    if inspect.isclass(cls) and \
+                       issubclass(cls, base_class) and not cls is base_class
             ]
 
-class transformation(object):
-    ''' abstract baseclass for a transformation. Uses the abc module so it can not be instantiated.
-    '''
+class Transformation(object):
+    ''' abstract baseclass for a transformation. Uses the abc module so it
+        can not be instantiated. '''
     __metaclass__ = abc.ABCMeta
     @abc.abstractproperty
     def name(self):
         return
     @abc.abstractmethod
     def apply(self):
-        return schedule,memento
+        schedule = None
+        momento = None
+        return schedule, momento
 
-class DummyTransformation(transformation):
+class DummyTransformation(Transformation):
     def name(self):
         return
     def apply(self):
-        return None,None
+        return None, None

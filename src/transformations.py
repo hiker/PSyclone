@@ -1,6 +1,6 @@
-from psyGen import transformation
+from psyGen import Transformation
 
-class SwapTrans(transformation):
+class SwapTrans(Transformation):
     ''' A test transformation. This swaps two entries in a schedule. These entries must be siblings and next to eachother in the schedule.
 
         For example:
@@ -69,7 +69,7 @@ class SwapTrans(transformation):
 #        # analyse loop - start off with only reads and writes
 #        # add appropriate openmp directive
 
-class LoopFuseTrans(transformation):
+class LoopFuseTrans(Transformation):
 
     def __str__(self):
         return "Fuse two adjacent loops together"

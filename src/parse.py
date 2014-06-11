@@ -446,7 +446,7 @@ class Arg(object):
     @property
     def value(self):
         return self._value
-    def isLiteral(self):
+    def is_literal(self):
         if self._form=="literal":
             return True
         return False
@@ -509,7 +509,12 @@ def parse(filename, api="", invoke_name="invoke", inf_name="inf"):
     fparser.logging.disable('CRITICAL')
     if not os.path.isfile(filename):
         raise IOError("File %s not found" % filename)
-    ast = fpapi.parse(filename, ignore_comments=False)
+    try:
+        ast = fpapi.parse(filename, ignore_comments=False)
+    except:
+        import traceback
+        traceback.print_exc()
+	raise ParseError("Fatal error in external fparser tool")
     name_to_module = {}
     try:
         from collections import OrderedDict

@@ -50,7 +50,7 @@ class GOInvoke(Invoke):
         if False:
             self._schedule = GOSchedule(None) # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, GOSchedule,
-                        reservedNames = ["cf", "ct", "cu", "cv"])
+                        reserved_names = ["cf", "ct", "cu", "cv"])
 
     def gen_code(self, parent):
         ''' Generates GOcean specific invocation code (the subroutine called
