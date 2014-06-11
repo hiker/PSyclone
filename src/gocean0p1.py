@@ -28,6 +28,10 @@ class GOPSy(PSy):
         # include the kind_params module
         kp_use = UseGen(psy_module, name = "kind_params_mod")
         psy_module.add(kp_use)
+        # include the field_mod module in case we have any r-space variables
+        fm_use = UseGen(psy_module, name = "field_mod",
+                        only=["scalar_field_type"])
+        psy_module.add(fm_use)
         # add in the subroutines for each invocation
         self.invokes.gen_code(psy_module)
         return psy_module.root
@@ -53,6 +57,8 @@ class GOInvoke(Invoke):
             self._schedule = GOSchedule(None) # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, GOSchedule,
                         reserved_names = ["cf", "ct", "cu", "cv"])
+
+
 
     @property
     def unique_args_arrays(self):
@@ -85,7 +91,7 @@ class GOInvoke(Invoke):
             by the associated invoke call in the algorithm layer). This
             consists of the PSy invocation subroutine and the declaration of
             its arguments.'''
-        from f2pygen import SubroutineGen, DeclGen
+        from f2pygen import SubroutineGen, DeclGen, TypeDeclGen
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name = self.name,
                                    args = self.unique_args)
@@ -100,9 +106,10 @@ class GOInvoke(Invoke):
             invoke_sub.add(my_decl_arrays)
         # add the subroutine argument declarations for scalars
         if len(self.unique_args_scalars) > 0:
-            my_decl_scalars = DeclGen(invoke_sub, datatype = "REAL",
-                                      intent = "inout", kind = "wp",
-                                      entity_decls = self.unique_args_scalars )
+            my_decl_scalars = TypeDeclGen(invoke_sub,
+                                  datatype = "scalar_field_type",
+                                  entity_decls = self.unique_args_scalars,
+                                  intent = "inout")
             invoke_sub.add(my_decl_scalars)
 
 class GOSchedule(Schedule):
@@ -208,7 +215,10 @@ class GOKern(Kern):
         from f2pygen import CallGen, UseGen
         arguments = ["i", "j"]
         for arg in self._arguments.args:
-            arguments.append(arg.name)
+            if arg.space.lower() == "r":
+                arguments.append(arg.name + "%data")
+            else:
+                arguments.append(arg.name)
         parent.add(CallGen(parent, self._name, arguments))
         parent.add(UseGen(parent, name = self._module_name, only = True,
                           funcnames = [self._name]))
