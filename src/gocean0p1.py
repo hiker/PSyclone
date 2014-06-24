@@ -3,7 +3,7 @@
     Inf, Arguments and KernelArgument). '''
 
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
-                   KernelArgument, Inf
+                   KernelArgument, Inf, Node
 
 class GOPSy(PSy):
     ''' The GOcean specific PSy class. This creates a GOcean specific
@@ -65,7 +65,7 @@ class GOInvoke(Invoke):
         ''' find unique arguments that are arrays (defined as those that are
             not rspace). GOcean needs to kow this as we are dealing with
             arrays directly so need to declare them correctly. '''
-        result=[]
+        result = []
         for call in self._schedule.calls():
             for arg in call.arguments.args:
                 if not arg.is_literal and not arg.space.lower()=="r" and \
@@ -78,7 +78,7 @@ class GOInvoke(Invoke):
         ''' find unique arguments that are scalars (defined as those that are
             rspace). GOcean needs to kow this as we are dealing with arrays
             directly so need to declare them correctly. '''
-        result=[]
+        result = []
         for call in self._schedule.calls():
             for arg in call.arguments.args:
                 if not arg.is_literal and arg.space.lower()=="r" and \
@@ -118,7 +118,7 @@ class GOSchedule(Schedule):
         ones we require.'''
     def __init__(self, arg):
         Schedule.__init__(self, GODoubleLoop, GOInf, arg)
-from psyGen import Node
+
 class GODoubleLoop(Node):
     ''' A GOcean specific double loop class that supports the lat/lon loops
         required for direct addressing. Currently not sure whether this is
@@ -127,14 +127,20 @@ class GODoubleLoop(Node):
                  topology_name = ""):
         self._outer_loop = GOLoop(call = None, parent = self,
                                   variable_name = "i")
-        self._outer_loop.set_bounds(start="1",end="idim1")
-        Node.__init__(self,children=[self._outer_loop],parent=parent)
+        self._outer_loop.set_bounds(start = "1", end = "idim1")
+        Node.__init__(self, children=[self._outer_loop], parent = parent)
         self._inner_loop = GOLoop(call = None, parent = self._outer_loop,
                                   variable_name = "j")
-        self._inner_loop.set_bounds(start="1",end="idim2")
+        self._inner_loop.set_bounds(start = "1", end = "idim2")
         self._outer_loop.addchild(self._inner_loop)
         self._call = GOKern(call, parent = self._inner_loop)
         self._inner_loop.addchild(self._call)
+
+    def view(self,indent=0):
+        print self.indent(indent)+"GOcean Double Loop"
+        for entity in self._children:
+            entity.view(indent = indent+1)
+        print self.indent(indent)+"End Double Loop"
     def gen_code(self, parent):
         ''' Creates the required loop structure including variable names. If
             the iteration space is for all elements (every) then the bounds

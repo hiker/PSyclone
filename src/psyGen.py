@@ -347,16 +347,27 @@ class Node(object):
     def __str__(self):
         raise NotImplementedError("Please implement me")
 
-    def addchild(self, child):
-        self._children.append(child)
+    def addchild(self, child, index = None):
+        if index is not None:
+            self._children.insert(index,child)
+        else:
+            self._children.append(child)
 
     @property
     def children(self):
         return self._children
 
+    @children.setter
+    def children(self,my_children):
+        self._children=my_children
+
     @property
     def parent(self):
         return self._parent
+
+    @parent.setter
+    def parent(self,my_parent):
+        self._parent=my_parent
 
     @property
     def position(self):
@@ -494,8 +505,8 @@ class Schedule(Node):
     def view(self, indent = 0):
         print self.indent(indent)+"Schedule"
         for entity in self._children:
-            entity.view(indent = indent+1)
-        print self.indent(indent)+"End Schedule"
+            entity.view(indent = indent + 1)
+        #print self.indent(indent)+"End Schedule"
 
     def __str__(self):
         result = "Schedule:\n"
@@ -508,12 +519,28 @@ class Schedule(Node):
         for entity in self._children:
             entity.gen_code(parent)
 
+class LoopDirective(Node):
+
+    def view(self,indent = 0):
+        print self.indent(indent)+"LoopDirective"
+        for entity in self._children:
+            entity.view(indent = indent + 1)
+
+class OMPLoopDirective(LoopDirective):
+
+    def gen_code(self,parent):
+        from f2pygen import CommentGen
+        parent.add(CommentGen(parent, "$omp parallel do default(shared), private()"))
+        for child in self.children:
+            child.gen_code(parent)
+        parent.add(CommentGen(parent, "$omp end parallel do"))
+
 class Loop(Node):
 
     def view(self, indent = 0):
         print self.indent(indent)+"LoopOver["+self.iterates_over+"]"
         for entity in self._children:
-            entity.view(indent = indent+1)
+            entity.view(indent = indent + 1)
 
     @property
     def height(self):
@@ -625,11 +652,28 @@ class Loop(Node):
 
 class Call(Node):
 
+    # added this functionality to the f2pycodegen
+    #def before_parent_loop(self,node):
+    #    ''' A call may want to add some content immediately before its parent
+    #        loop(s). However the number of loops and whether the top loop has
+    #        a directive before it is not known. This routine recurses up to
+    #        the top loop and returns a position before any directives.
+    #    '''
+    #    return node
+    #def after_parent_loop(self,node):
+    #    ''' A call may want to add some content immediately after its parent
+    #        loop(s). However the number of loops and whether the top loop has
+    #        a directive after it is not known by the call. This routine
+    #        recurses up to the top loop and returns a position after any
+    #        directives that follow the top loop.
+    #    '''
+    #    return node
+
     def view(self, indent = 0):
         print self.indent(indent)+"Call", \
               self.name+"("+str(self.arguments.raw_arg_list)+")"
         for entity in self._children:
-            entity.view(indent = indent+1)
+            entity.view(indent = indent + 1)
 
     @property
     def width(self):
@@ -905,7 +949,7 @@ class TransInfo(object):
             module = transformations
         if base_class is None:
             import psyGen
-            baseclass = psyGen.Transformation
+            base_class = psyGen.Transformation
         # find our transformations
         self._classes = self._find_subclasses(module, base_class)
 

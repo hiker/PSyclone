@@ -52,23 +52,6 @@ class SwapTrans(Transformation):
 
         return schedule,keep
 
-#class OpenMPTrans(Transform):
-#
-#    def __str__(self):
-#        return "Add OpenMP to a loop"
-#
-#    @property
-#    def name(self):
-#        return "OpenMP"
-#
-#    def apply(self,node):
-#
-#        assert False, "Not yet implemented"
-#        # check node is a loop
-#        # create memento
-#        # analyse loop - start off with only reads and writes
-#        # add appropriate openmp directive
-
 class LoopFuseTrans(Transformation):
 
     def __str__(self):
@@ -103,5 +86,54 @@ class LoopFuseTrans(Transformation):
 
         # remove node2
         node2.parent.children.remove(node2)
+
+        return schedule,keep
+
+class OpenMPLoop(Transformation):
+    ''' Adds an OMP directive to a loop. 
+
+        For example:
+
+        >>> from parse import parse
+        >>> from psyGen import PSyFactory
+        >>> ast,invokeInfo=parse("dynamo.F90")
+        >>> psy=PSyFactory("dynamo0.1").create(invokeInfo)
+        >>> schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
+        >>> schedule.view()
+        >>>
+        >>> from transformations import OpenMPLoop
+        >>> trans=OpenMPLoop()
+        >>> new_schedule,memento=trans.apply(schedule.children[0])
+        >>> new_schedule.view()
+
+    '''
+
+    @property
+    def name(self):
+        return "OpenMPLoop"
+
+    def __str__(self):
+        return "Add an OpenMP directive to a loop"
+    def apply(self,node):
+
+        # check node is a loop
+        from psyGen import Loop
+        if not isinstance(node,Loop):
+            raise Exception("Error in "+self.name+" transformation. The node is not a loop.")
+
+        schedule=node.root
+        # create a memento of the schedule and the proposed transformation
+        from undoredo import Memento
+        keep=Memento(schedule,self,[node])
+
+        # add our OpenMP loop directive and the loop as its child just before
+        # the current loop location
+        from psyGen import OMPLoopDirective
+        node.parent.addchild(OMPLoopDirective(parent = node.parent,
+                                              children = [node] ),
+                             index = node.position)
+
+        # remove the original loop
+        node.parent.children.remove(node)
 
         return schedule,keep

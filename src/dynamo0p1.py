@@ -147,7 +147,8 @@ class DynKern(Kern):
                 parent.parent.add(CallGen(parent.parent,
                                           field_name+"%vspace%get_basis",
                                           [basis_name]),
-                                  position = ["before", parent])
+                                  position = ["before",
+                                              parent.start_parent_loop()])
                 parent.add(DeclGen(parent, datatype = "real", kind = "dp",
                                    pointer = True,
                                    entity_decls = [basis_name+"(:,:,:,:,:)"]))
@@ -178,10 +179,10 @@ class DynKern(Kern):
                            entity_decls = ["nlayers", "ndf"]))
         parent.parent.add(AssignGen(parent.parent, lhs = "nlayers",
                                     rhs = field_name+"%get_nlayers()"),
-                          position = ["before", parent])
+                          position = ["before", parent.start_parent_loop()])
         parent.parent.add(AssignGen(parent.parent, lhs = "ndf",
                                     rhs = field_name+"%vspace%get_ndf()"),
-                          position = ["before", parent])
+                          position = ["before", parent.start_parent_loop()])
 
 class DynKernelArguments(Arguments):
     ''' Provides information about Dynamo kernel call arguments collectively,

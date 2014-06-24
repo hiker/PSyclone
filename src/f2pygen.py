@@ -1,3 +1,6 @@
+''' Fortran code-generation library. This wraps the f2pygen fortran parser to
+    provide routines which can be used to generate fortran code. This library
+    includes pytest tests. '''
 # Copyright 2013 STFC, all rights reserved
 
 from fparser.readfortran import FortranStringReader
@@ -16,6 +19,24 @@ class BaseGen(object):
     @property
     def root(self):
         return self._root
+    def start_parent_loop(self):
+        ''' Returns the first location before a loop nest where code can be
+            added. Takes loop directives into account. '''
+        print "iterate up loop hierarchy to top loop"
+        current=self
+        while isinstance(current.parent,DoGen):
+            current=current.parent
+        print type(current)
+        print type(current.parent)
+        print "now for any directives"
+        my_index = current.parent.children.index(current)
+        while my_index>0 and isinstance(current.parent.children[my_index-1],
+                                        CommentGen):
+            print "skipping comment"
+            my_index -= 1
+
+        return current.parent.children[my_index]
+
     def add(self,new_object,position=["append"]):
         if position[0]=="auto":
             raise Exception('Error: BaseGen:add: auto option must be implemented by the sub class!')
@@ -46,8 +67,19 @@ class BaseGen(object):
             raise Exception("Error: BaseGen:add: internal error, should not get to here")
         self.children.append(new_object)
             
+class TestComment:
+    ''' pytest tests for comments. '''
+    def test_comment(self):
+        ''' check that a comment gets created succesfully. '''
+        module=ModuleGen(name="testmodule")
+        content="HELLO"
+        comment=CommentGen(module,content)
+        module.add(comment)
+        lines=str(module.root).splitlines()
+        assert "!"+content in lines[3]
+
 class TestAdd:
-    ''' pyunit tests for adding code '''
+    ''' pytest tests for adding code. '''
     def test_add_before(self):
         ''' add the new code before a particular object '''
         module=ModuleGen(name="testmodule")
@@ -62,9 +94,9 @@ class TestAdd:
         assert "SUBROUTINE testsubroutine" in lines[3]
         assert "CALL testcall" in lines[4]
         assert "DO it=1,10" in lines[5]
-        
+
 class TestModuleGen:
-    ''' pyunit tests for the ModuleGen class '''
+    ''' pytest tests for the ModuleGen class '''
     def test_vanilla(self):
         module=ModuleGen()
         lines=str(module.root).splitlines()
@@ -166,6 +198,20 @@ def addexternal(names,parent):
     idx=0
     parent.content.insert(idx,external)
     return external
+
+class CommentGen(BaseGen):
+
+    def __init__(self,parent,content):
+        from fparser import api
+        reader=FortranStringReader("! content\n")
+        reader.set_mode(True, True) # free form, strict
+        subline=reader.next()
+
+        from fparser.block_statements import Comment
+        my_comment=Comment(parent.root,subline)
+        my_comment.content=content
+
+        BaseGen.__init__(self,parent,my_comment)
 
 class SubroutineGen(BaseGen):
 
