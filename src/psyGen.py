@@ -340,6 +340,14 @@ class Node(object):
             result += str(entity)+"\n"
         return result
 
+    def list_to_string(self, my_list):
+        result = ""
+        for idx,value in enumerate(my_list):
+            result += str(value)
+            if idx < (len(my_list) - 1):
+                result += ","
+        return result
+
     def __init__(self, children = [], parent = None):
         self._children = children
         self._parent = parent
@@ -530,10 +538,23 @@ class OMPLoopDirective(LoopDirective):
 
     def gen_code(self,parent):
         from f2pygen import CommentGen
-        parent.add(CommentGen(parent, "$omp parallel do default(shared), private()"))
+        private_str = self.list_to_string(self._get_private_list())
+        parent.add(CommentGen(parent, "$omp parallel do default(shared), private({0})".format(private_str)))
         for child in self.children:
             child.gen_code(parent)
         parent.add(CommentGen(parent, "$omp end parallel do"))
+
+    def _get_private_list(self):
+        # returns the variable name used for any loops within a directive and
+        # any variables that have been declared private by a Call within the directive.
+        result=[]
+        # get variable names from all loops
+        for loop in self.loops():
+            if loop._variable_name.lower() not in result:
+                result.append(loop._variable_name.lower())
+        for call in self.calls():
+            print "FOUND CALL *************************"
+        return result
 
 class Loop(Node):
 

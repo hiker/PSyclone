@@ -136,10 +136,23 @@ TBD
 OpenMP Support
 --------------
 
-Created appropriate classes.
-loop directive is first class object.
-skip specified above required to avoid splitting directives from loop body.
+Loop directives are treated as first class entities in the psyGen
+package. Therefore they can be added to psyGen's high level
+representation of the fortran code structure in the same way as calls
+and loops. Obviously it is only valid to add a loop directive outside
+of a loop.
 
+When adding a call inside a loop the placement of any additional calls
+or declarations must be specified correctly to ensure that they are
+placed at the correct location in the hierarchy. To avoid accidentally
+splitting the loop directive from its loop the start_parent_loop()
+method can be used. This is available as a method in all fortran
+generation calls. ** Could place it in psyGen instead of f2pygen **.
+This method returns the location at the top of any loop hierarchy and
+before any comments immediately before the top level loop.
+
+The OpenMP directive needs to know which variables are shared and whic are private. In the current implementation it has been decided to use default shared and to list any private variables. To pick up any private variables the 
+TBD:
 default shared and auto pick up private variables
 1: pick up all loop indices - recurse somehow?
 2: pick up any private variables. I think these are the ones that get promoted. We should somehow keep tabs on which variables are declared within the loop (and subsequently promoted).

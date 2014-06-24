@@ -115,6 +115,10 @@ class DynKern(Kern):
             self._arguments = DynKernelArguments(None, None) # for pyreverse
         Kern.__init__(self, DynKernelArguments, call, parent)
         self._arglist = []
+
+    def local_vars(self):
+        return ["cell","map"]
+
     def gen_code(self, parent):
         ''' Generates dynamo version 0.1 specific psy code for a call to
             the dynamo kernel instance. '''
