@@ -147,17 +147,27 @@ or declarations must be specified correctly to ensure that they are
 placed at the correct location in the hierarchy. To avoid accidentally
 splitting the loop directive from its loop the start_parent_loop()
 method can be used. This is available as a method in all fortran
-generation calls. ** Could place it in psyGen instead of f2pygen **.
-This method returns the location at the top of any loop hierarchy and
-before any comments immediately before the top level loop.
+generation calls. ** We could have placed it in psyGen instead of
+f2pygen **.  This method returns the location at the top of any loop
+hierarchy and before any comments immediately before the top level
+loop.
 
-The OpenMP directive needs to know which variables are shared and whic are private. In the current implementation it has been decided to use default shared and to list any private variables. To pick up any private variables the 
-TBD:
-default shared and auto pick up private variables
-1: pick up all loop indices - recurse somehow?
-2: pick up any private variables. I think these are the ones that get promoted. We should somehow keep tabs on which variables are declared within the loop (and subsequently promoted).
+The OpenMPLoopDirective object needs to know which variables are
+shared and which are private. In the current implementation default
+shared is used and private variables are listed. To determine the
+objects private variables the OpenMP implementation uses its internal
+_get_private_list() method. This method first finds all loops
+contained within the directive and adds each loops variable name as a
+private variable. this method then finds all calls contained within
+the directive and adds each calls list of private variables, returned
+with the local_vars() method. Therefore the OpenMPLoopDirective object
+relies on calls specifying which variables they require being local.
+
+Next ...
 
 Update transformation for colours
+
+OpenMPLoop transformation in transformations.py. 
 
 Create third transformtion which goes over all loops in a schedule and
 applies the OpenMP loop transformation.

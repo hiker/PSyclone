@@ -548,12 +548,15 @@ class OMPLoopDirective(LoopDirective):
         # returns the variable name used for any loops within a directive and
         # any variables that have been declared private by a Call within the directive.
         result=[]
-        # get variable names from all loops
+        # get variable names from all loops that are a child of this node
         for loop in self.loops():
             if loop._variable_name.lower() not in result:
                 result.append(loop._variable_name.lower())
+        # get variable names from all calls that are a child of this node
         for call in self.calls():
-            print "FOUND CALL *************************"
+            for variable_name in call.local_vars():
+                if variable_name.lower() not in result:
+                    result.append(variable_name.lower())
         return result
 
 class Loop(Node):
@@ -753,6 +756,8 @@ class Call(Node):
         raise NotImplementedError("Call.__str__ should be implemented")
     def iterates_over(self):
         raise NotImplementedError("Call.iterates_over should be implemented")
+    def local_vars(self):
+        raise NotImplementedError("Call.local_vars should be implemented")
     def gen_code(self):
         raise NotImplementedError("Call.gen_code should be implemented")
 

@@ -90,6 +90,7 @@ class LoopFuseTrans(Transformation):
         return schedule,keep
 
 class OpenMPLoop(Transformation):
+
     ''' Adds an OMP directive to a loop. 
 
         For example:
@@ -114,6 +115,7 @@ class OpenMPLoop(Transformation):
 
     def __str__(self):
         return "Add an OpenMP directive to a loop"
+
     def apply(self,node):
 
         # check node is a loop
@@ -125,6 +127,9 @@ class OpenMPLoop(Transformation):
         # create a memento of the schedule and the proposed transformation
         from undoredo import Memento
         keep=Memento(schedule,self,[node])
+
+        # colour logic here??
+        
 
         # add our OpenMP loop directive and the loop as its child just before
         # the current loop location
