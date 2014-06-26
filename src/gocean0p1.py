@@ -113,12 +113,32 @@ class GOInvoke(Invoke):
             invoke_sub.add(my_decl_scalars)
 
 class GOSchedule(Schedule):
-    ''' The GOcean specific schedule class. This passes the GOcean specific
-        loop and infrastructure classes to the base class so it creates the
-        ones we require.'''
-    def __init__(self, arg):
-        Schedule.__init__(self, GODoubleLoop, GOInf, arg)
 
+    ''' The GOcean specific schedule class. The PSyclone schedule class assumes
+        that a call has one parent loop. Therefore we override the _init_ method
+        and add in our two loops. '''
+
+    def __init__(self, alg_calls):
+        sequence = []
+        from parse import InfCall
+        for call in alg_calls:
+            if isinstance(call, InfCall):
+                sequence.append(GOInf.create(call, parent = self))
+            else:
+                outer_loop = GOLoop(call = None, parent = self,
+                                          variable_name = "i")        
+                sequence.append(outer_loop)
+                outer_loop.set_bounds("1", "idim1")
+                outer_loop.loop_type = "outer"
+                self._inner_loop = GOLoop(call = None, parent = outer_loop,
+                                          variable_name = "j")
+                self._inner_loop.set_bounds("1", "idim2")
+                inner_loop.loop_type = "inner"
+                outer_loop.addchild(self._inner_loop)
+                self._call = GOKern(call, parent = self._inner_loop)
+                self._inner_loop.addchild(self._call)
+        Node.__init__(self, children = sequence)
+        
 class GODoubleLoop(Node):
     ''' A GOcean specific double loop class that supports the lat/lon loops
         required for direct addressing. Currently not sure whether this is
@@ -185,9 +205,11 @@ class GOLoop(Loop):
                  topology_name = "topology"):
         Loop.__init__(self, GOInf, GOKern, call, parent, variable_name,
                       topology_name)
-        self._start = None
-        self._stop = None
-        self._step = None
+        # all loops will have the following information (or will be subclassed)
+        self._loop_type==None # inner, outer, colour, colours
+        self._iteration_space="unknown" # unknown, cu, cv, ...
+        self._field_space="cu" # any, cu, cv, ...
+
     def set_bounds(self, start, end, step = ""):
         ''' The loop does not know what to iterate over. This method allows an
             external object to provide the start, end, and step of the loop.
@@ -195,6 +217,14 @@ class GOLoop(Loop):
         self._start = start
         self._stop = end
         self._step = step
+
+    def gen_code(self,parent):
+        from f2pygen import DeclGen, AssignGen, UseGen
+        if self._loop_type=="every":
+            decl = DeclGen(parent, datatype = "INTEGER", entity_decls = [self._stop])
+            parent.add(decl)
+            
+        Loop.gen_code(self,parent)
 
 class GOInf(Inf):
     ''' A GOcean specific infrastructure call factory. No infrastructure
@@ -248,18 +278,28 @@ class GOKernelArguments(Arguments):
             sense for GOcean. Need to refactor the invoke class and pull out
             dofs into the gunghoproto api '''
         return self._dofs
-    def iteration_space_type(self):
+
+    # TODO replace with a single call returning a field?????
+    def it_space_type(self,mapping=[]):
         ''' Returns the type of an argument that determines the kernels
             iteration space. Uses a mapping from the GOcean terminology to
             the one used by the base class. '''
-        mapping = {"read":"read", "write":"write", "readwrite":"readwrite"}
-        return Arguments.it_space_type(self, mapping)
-    def iteration_space_owner_name(self):
+        if mapping == []:
+            my_mapping = {"read":"read", "write":"write", "readwrite":"readwrite"}
+        else:
+            my_mapping = mapping
+        return Arguments.it_space_type(self, my_mapping)
+
+    def iteration_space_owner_name(self,mapping=[]):
         ''' Returns the name of an argument that determines the kernels
             iteration space. Uses a mapping from the GOcean terminology to
             the one used by the base class. '''
+        if mapping == []:
+            my_mapping = {"read":"read", "write":"write", "readwrite":"readwrite"}
+        else:
+            my_mapping = mapping
         mapping = {"read":"read", "write":"write", "readwrite":"readwrite"}
-        return Arguments.it_space_owner_name(self, mapping)
+        return Arguments.it_space_owner_name(self, my_mapping)
 
 class GOKernelArgument(KernelArgument):
     ''' Provides information about individual GOcean kernel call arguments

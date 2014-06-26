@@ -52,6 +52,39 @@ class SwapTrans(Transformation):
 
         return schedule,keep
 
+class GOLoopFuseTrans(Transformation):
+
+    def __str__(self):
+        return "Fuse two adjacent loops together"
+
+    @property
+    def name(self):
+        return "DoubleLoopFuse"
+
+    def apply(self,node1,node2):
+
+        from gocean0p1 import GODoubleLoop
+        if not isinstance(node1,GODoubleLoop) or not isinstance(node2,GODoubleLoop):
+            raise Exception("Error in LoopFuse transformation. at least one of the nodes is not a GODoubleLoop")
+        # check node1 and node2 have the same parent
+        if not node1.sameParent(node2):
+            raise Exception("Error in LoopFuse transformation. nodes do not have the same parent")
+        # check node1 and node2 are next to each other
+        if abs(node1.position-node2.position)!=1:
+            raise Exception("Error in LoopFuse transformation. nodes are not siblings who are next to eachother")
+        # TBD Check iteration space is the same
+
+        schedule=node1.root
+
+        inner_loop1=node1.children[0].children[0]
+        inner_loop2=node2.children[0].children[0]
+
+        inner_loop1.children.extend(inner_loop2.children)
+
+        node2.parent.children.remove(node2)
+
+        return schedule,None
+
 class LoopFuseTrans(Transformation):
 
     def __str__(self):

@@ -561,6 +561,62 @@ class OMPLoopDirective(LoopDirective):
 
 class Loop(Node):
 
+    @property
+    def loop_type(self):
+        assert self._loop_type is not None, "Error, loop_type has not yet been set"
+        return self._loop_type
+
+    @loop_type.setter
+    def loop_type(self,value):
+        assert value in valid_loop_types, "Error, loop_type value is invalid"
+        self._loop_type=value
+
+    def __init__(self, Inf, Kern, call = None, parent = None,
+                 variable_name = "column", topology_name = "topology", valid_loop_types=[]):
+
+        children = []
+        # we need to determine whether this is an infrastructure or kernel
+        # call so our schedule can do the right thing.
+
+        self._valid_loop_types = valid_loop_types
+        self._loop_type = None       # inner, outer, colour, colours, ...
+        # TODO Perhaps store a field, so we can get field.name as well as field.space?????
+        self._field_space = None     # v0, v1, ...,     cu, cv, ...
+        self._iteration_space = None # cells, ...,      cu, cv, ...
+
+        # TODO replace iterates_over with iteration_space
+        self._iterates_over = "unknown"
+        if call is not None:
+            from parse import InfCall, KernelCall
+            if isinstance(call, InfCall):
+                my_call = Inf.create(call, parent = self)
+                self._iteration_space = "unknown"
+                self._iterates_over = "unknown" # needs to inherit this?
+                self._field_space = "any"
+            elif isinstance(call, KernelCall):
+                my_call = Kern(call, parent = self)
+                self._iterates_over = my_call.iterates_over
+                self._iteration_space = my_call.iterates_over
+                self._field_space = my_call.arguments.iteration_space_type()
+            else:
+                raise Exception
+            children.append(my_call)
+        Node.__init__(self, children = children, parent = parent)
+
+        self._variable_name = variable_name
+
+        self._start = None
+        self._stop = None
+        self._step = None
+        self._id = None
+
+        # visual properties
+        self._width = 30
+        self._height = 30
+        self._shape = None
+        self._text = None
+        self._canvas = None
+
     def view(self, indent = 0):
         print self.indent(indent)+"LoopOver["+self.iterates_over+"]"
         for entity in self._children:
@@ -612,43 +668,13 @@ class Loop(Node):
                                   y+self._height+call_height)
             call_height += child.height
 
-    def __init__(self, Inf, Kern, call = None, parent = None,
-                 variable_name = "column", topology_name = "topology"):
-
-        children = []
-        # we need to determine whether this is an infrastructure or kernel
-        # call so our schedule can do the right thing.
-        self._iteration_space = ""
-        if call is not None:
-            from parse import InfCall, KernelCall
-            if isinstance(call, InfCall):
-                my_call = Inf.create(call, parent = self)
-                self._iterates_over = "unknown" # needs to inherit this?
-            elif isinstance(call, KernelCall):
-                my_call = Kern(call, parent = self)
-                self._iterates_over = my_call.iterates_over
-            else:
-                raise Exception
-            children.append(my_call)
-        Node.__init__(self, children = children, parent = parent)
-
-        self._variable_name = variable_name
-
-        self._start = None
-        self._stop = None
-        self._step = None
-        self._id = None
-
-        # visual properties
-        self._width = 30
-        self._height = 30
-        self._shape = None
-        self._text = None
-        self._canvas = None
-
     @property
     def iterates_over(self):
         return self._iterates_over
+
+    @iterates_over.setter
+    def iterates_over(self,it_over):
+        self._iterates_over = it_over
 
     def __str__(self):
         result = "Loop["+self._id+"]: "+self._variable_name+"="+self._id+ \
@@ -827,6 +853,17 @@ class Arguments(object):
     @property
     def args(self):
         return self._args
+
+    def it_space_arg(self, mapping):
+        for arg in self._args:
+            if arg.access.lower() == mapping["write"] or \
+               arg.access.lower() == mapping["readwrite"]:
+                return arg
+        raise GenerationError("psyGen:arguments:iteration_space_arg Error, "
+                              "we assume there is at least one writer or "
+                              "reader/writer as an argument")
+
+    #TODO REMOVE THIS
     def it_space_type(self, mapping):
         for arg in self._args:
             if arg.access.lower() == mapping["write"] or \
@@ -836,6 +873,7 @@ class Arguments(object):
                               "we assume there is at least one writer or "
                               "reader/writer as an argument")
 
+    #TODO REMOVE THIS
     def it_space_owner_name(self, mapping):
         for arg in self._args:
             if arg.access.lower() == mapping["write"] or \
