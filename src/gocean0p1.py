@@ -285,7 +285,7 @@ class GOKernelArguments(Arguments):
             iteration space. Uses a mapping from the GOcean terminology to
             the one used by the base class. '''
         if mapping == []:
-            my_mapping = {"read":"read", "write":"write", "readwrite":"readwrite"}
+            my_mapping = {"read":"read", "write":"write", "readwrite":"readwrite", "inc":"inc"}
         else:
             my_mapping = mapping
         return Arguments.it_space_type(self, my_mapping)

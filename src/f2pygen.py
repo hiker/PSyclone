@@ -22,17 +22,14 @@ class BaseGen(object):
     def start_parent_loop(self):
         ''' Returns the first location before a loop nest where code can be
             added. Takes loop directives into account. '''
-        print "iterate up loop hierarchy to top loop"
+        # iterate up loop hierarchy to top loop
         current=self
         while isinstance(current.parent,DoGen):
             current=current.parent
-        print type(current)
-        print type(current.parent)
-        print "now for any directives"
+        # now skip any directives (actually we just skip comments)
         my_index = current.parent.children.index(current)
         while my_index>0 and isinstance(current.parent.children[my_index-1],
                                         CommentGen):
-            print "skipping comment"
             my_index -= 1
 
         return current.parent.children[my_index]

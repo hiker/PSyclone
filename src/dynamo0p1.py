@@ -114,7 +114,6 @@ class DynKern(Kern):
         if False:
             self._arguments = DynKernelArguments(None, None) # for pyreverse
         Kern.__init__(self, DynKernelArguments, call, parent)
-        self._arglist = []
 
     def local_vars(self):
         return ["cell","map"]
@@ -138,16 +137,17 @@ class DynKern(Kern):
 
         # create the argument list on the fly so we can also create
         # appropriate variables and lookups
-        self._arglist.append("nlayers")
-        self._arglist.append("ndf")
-        self._arglist.append("map")
+        arglist = []
+        arglist.append("nlayers")
+        arglist.append("ndf")
+        arglist.append("map")
 
         found_gauss_quad = False
         gauss_quad_arg = None
         for arg in self._arguments.args:
             if arg.requires_basis:
                 basis_name = arg.function_space+"_basis_"+arg.name
-                self._arglist.append(basis_name)
+                arglist.append(basis_name)
                 parent.parent.add(CallGen(parent.parent,
                                           field_name+"%vspace%get_basis",
                                           [basis_name]),
@@ -166,14 +166,14 @@ class DynKern(Kern):
                 found_gauss_quad = True
                 gauss_quad_arg = arg
             dataref = "%data"
-            self._arglist.append(arg.name+dataref)
+            arglist.append(arg.name+dataref)
 
         if found_gauss_quad:
             gq_name = "gaussian_quadrature"
-            self._arglist.append(gauss_quad_arg.name+"%"+gq_name)
+            arglist.append(gauss_quad_arg.name+"%"+gq_name)
 
         # generate the kernel call and associated use statement
-        parent.add(CallGen(parent, self._name, self._arglist))
+        parent.add(CallGen(parent, self._name, arglist))
         parent.parent.add(UseGen(parent.parent, name = self._module_name,
                                  only = True, funcnames = [self._name]))
 
@@ -202,6 +202,15 @@ class DynKernelArguments(Arguments):
             self._args.append(DynKernelArgument(arg, call.args[idx],
                                                 parent_call))
         self._dofs = []
+
+    def iteration_space_arg(self, mapping={}):
+        if mapping != {}:
+            my_mapping = mapping
+        else:
+            my_mapping = {"write":"gh_write", "read":"gh_read","readwrite":"gh_rw", "inc":"gh_inc"}
+        arg = Arguments.iteration_space_arg(self,my_mapping)
+        return arg
+
     @property
     def dofs(self):
         ''' Currently required for invoke base class although this makes no

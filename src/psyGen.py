@@ -597,7 +597,7 @@ class Loop(Node):
                 my_call = Kern(call, parent = self)
                 self._iterates_over = my_call.iterates_over
                 self._iteration_space = my_call.iterates_over
-                self._field_space = my_call.arguments.iteration_space_type()
+                self._field_space = my_call.arguments.iteration_space_arg().function_space
             else:
                 raise Exception
             children.append(my_call)
@@ -618,7 +618,7 @@ class Loop(Node):
         self._canvas = None
 
     def view(self, indent = 0):
-        print self.indent(indent)+"LoopOver["+self.iterates_over+"]"
+        print self.indent(indent)+"Loop[type='{0}',field_space='{1}',it_space='{2}']".format(self._loop_type,self._field_space,self.iteration_space)
         for entity in self._children:
             entity.view(indent = indent + 1)
 
@@ -669,12 +669,16 @@ class Loop(Node):
             call_height += child.height
 
     @property
-    def iterates_over(self):
-        return self._iterates_over
+    def field_space(self):
+        return self._field_space
 
-    @iterates_over.setter
-    def iterates_over(self,it_over):
-        self._iterates_over = it_over
+    @property
+    def iteration_space(self):
+        return self._iteration_space
+
+    @iteration_space.setter
+    def iteration_space(self,it_space):
+        self._iteration_space = it_space
 
     def __str__(self):
         result = "Loop["+self._id+"]: "+self._variable_name+"="+self._id+ \
@@ -854,34 +858,16 @@ class Arguments(object):
     def args(self):
         return self._args
 
-    def it_space_arg(self, mapping):
+    def iteration_space_arg(self, mapping={}):
+        assert mapping != {}, "psyGen:Arguments:iteration_space_arg: Error a mapping needs to be provided"
         for arg in self._args:
             if arg.access.lower() == mapping["write"] or \
-               arg.access.lower() == mapping["readwrite"]:
+               arg.access.lower() == mapping["readwrite"] or \
+               arg.access.lower() == mapping["inc"] :
                 return arg
-        raise GenerationError("psyGen:arguments:iteration_space_arg Error, "
-                              "we assume there is at least one writer or "
-                              "reader/writer as an argument")
-
-    #TODO REMOVE THIS
-    def it_space_type(self, mapping):
-        for arg in self._args:
-            if arg.access.lower() == mapping["write"] or \
-               arg.access.lower() == mapping["readwrite"]:
-                return arg.space
-        raise GenerationError("psyGen:arguments:iteration_space_type Error, "
-                              "we assume there is at least one writer or "
-                              "reader/writer as an argument")
-
-    #TODO REMOVE THIS
-    def it_space_owner_name(self, mapping):
-        for arg in self._args:
-            if arg.access.lower() == mapping["write"] or \
-               arg.access.lower() == mapping["readwrite"]:
-                return arg.name
-        raise GenerationError("psyGen:arguments:iterationOwnerName: Error, we "
-                              "assume there is at least one writer or "
-                              "reader/writer as an argument")
+        raise GenerationError("psyGen:Arguments:iteration_space_arg Error, "
+                              "we assume there is at least one writer, "
+                              "reader/writer, or increment as an argument")
 
     def set_dependencies(self):
         for argument in self._args:
