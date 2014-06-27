@@ -563,12 +563,12 @@ class Loop(Node):
 
     @property
     def loop_type(self):
-        assert self._loop_type is not None, "Error, loop_type has not yet been set"
+        #assert self._loop_type is not None, "Error, loop_type has not yet been set"
         return self._loop_type
 
     @loop_type.setter
     def loop_type(self,value):
-        assert value in valid_loop_types, "Error, loop_type value is invalid"
+        assert value in self._valid_loop_types, "Error, loop_type value is invalid"
         self._loop_type=value
 
     def __init__(self, Inf, Kern, call = None, parent = None,
@@ -581,6 +581,7 @@ class Loop(Node):
         self._valid_loop_types = valid_loop_types
         self._loop_type = None       # inner, outer, colour, colours, ...
         # TODO Perhaps store a field, so we can get field.name as well as field.space?????
+        self._field_name = None      # name of the field
         self._field_space = None     # v0, v1, ...,     cu, cv, ...
         self._iteration_space = None # cells, ...,      cu, cv, ...
 
@@ -598,6 +599,7 @@ class Loop(Node):
                 self._iterates_over = my_call.iterates_over
                 self._iteration_space = my_call.iterates_over
                 self._field_space = my_call.arguments.iteration_space_arg().function_space
+                self._field_name = my_call.arguments.iteration_space_arg().name
             else:
                 raise Exception
             children.append(my_call)
@@ -671,6 +673,14 @@ class Loop(Node):
     @property
     def field_space(self):
         return self._field_space
+
+    @field_space.setter
+    def field_space(self,my_field_space):
+        self._field_space = my_field_space
+
+    @property
+    def field_name(self):
+        return self._field_name
 
     @property
     def iteration_space(self):

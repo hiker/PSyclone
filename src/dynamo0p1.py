@@ -77,24 +77,26 @@ class DynSchedule(Schedule):
 class DynLoop(Loop):
     ''' The Dynamo specific Loop class. This passes the Dynamo specific
         loop information to the base class so it creates the one we require.
-        Adds a Dynamo specific topology_name method which tells the loop what
-        to iterate over. '''
-    def __init__(self, call = None, parent = None, variable_name = "cell",
-                 topology_name = "unset"):
-        Loop.__init__(self, DynInf, DynKern, call, parent, variable_name,
-                      topology_name)
-        # hack: need to sort out the line below
-        topology_name = self.children[0].arguments.args[0].name
+        Creates Dynamo specific loop bounds when the code is being generated.
+    '''
+    def __init__(self, call = None, parent = None):
+        Loop.__init__(self, DynInf, DynKern, call = call, parent = parent,
+                      valid_loop_types=["colours", "colour"])
+    def gen_code(self,parent):
+        ''' Work out the appropriate loop bounds and variable name depending
+            on the loop type and then call the base class to generate the
+            code '''
         self._start = "1"
-        self._stop = topology_name+"%get_ncell()"
-        self._step = ""
-        self._id = "TBD"
-    def topology_name(self, value):
-        ''' The loop does not know what to iterate over. This method sets
-            the name of the argument from which to determine the iteration
-            space. This approach needs to be changed as it only supports
-            iteration over all cells. '''
-        self._stop = value+"%get_ncell()"
+        if self._loop_type == "colours":
+            self._variable_name = "colour"
+            self._stop = "ncolour"
+        elif self._loop_type == "colour":
+            self._variable_name = "cell"
+            self._stop = "ncp_ncolour(colour)"
+        else:
+            self._variable_name = "cell"
+            self._stop = self.field_name+"%get_ncell()"
+        Loop.gen_code(self,parent)
 
 class DynInf(Inf):
     ''' A Dynamo 0.1 specific infrastructure call factory. No infrastructure
@@ -123,11 +125,11 @@ class DynKern(Kern):
             the dynamo kernel instance. '''
         from f2pygen import CallGen, DeclGen, AssignGen, UseGen
 
-        # hack: we simply choose the first field as the lookup for the moment
+        # TODO: we simply choose the first field as the lookup for the moment
         field_name = self.arguments.args[0].name
 
         # add a dofmap lookup using first field.
-        # This needs to be generalised to work for multiple dofmaps
+        # TODO: This needs to be generalised to work for multiple dofmaps
         parent.add(CallGen(parent, field_name+"%vspace%get_cell_dofmap",
                            ["cell", "map"]))
         parent.add(DeclGen(parent, datatype = "integer",
@@ -148,11 +150,13 @@ class DynKern(Kern):
             if arg.requires_basis:
                 basis_name = arg.function_space+"_basis_"+arg.name
                 arglist.append(basis_name)
-                parent.parent.add(CallGen(parent.parent,
-                                          field_name+"%vspace%get_basis",
-                                          [basis_name]),
-                                  position = ["before",
-                                              parent.start_parent_loop()])
+                position = parent.start_parent_loop()
+                new_parent = position.parent
+                new_parent.add(CallGen(new_parent,
+                                       field_name+"%vspace%get_basis",
+                                       [basis_name]),
+                               position = ["before",
+                                           position])
                 parent.add(DeclGen(parent, datatype = "real", kind = "dp",
                                    pointer = True,
                                    entity_decls = [basis_name+"(:,:,:,:,:)"]))
@@ -181,12 +185,14 @@ class DynKern(Kern):
         # of degrees of freedom. Needs to be generalised.
         parent.add(DeclGen(parent, datatype = "integer",
                            entity_decls = ["nlayers", "ndf"]))
-        parent.parent.add(AssignGen(parent.parent, lhs = "nlayers",
+        position = parent.start_parent_loop()
+        new_parent=position.parent
+        new_parent.add(AssignGen(new_parent, lhs = "nlayers",
                                     rhs = field_name+"%get_nlayers()"),
-                          position = ["before", parent.start_parent_loop()])
-        parent.parent.add(AssignGen(parent.parent, lhs = "ndf",
-                                    rhs = field_name+"%vspace%get_ndf()"),
-                          position = ["before", parent.start_parent_loop()])
+                          position = ["before", position])
+        new_parent.add(AssignGen(new_parent, lhs = "ndf",
+                                 rhs = field_name+"%vspace%get_ndf()"),
+                       position = ["before", position])
 
 class DynKernelArguments(Arguments):
     ''' Provides information about Dynamo kernel call arguments collectively,

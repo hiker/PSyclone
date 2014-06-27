@@ -128,9 +128,12 @@ class OpenMPLoop(Transformation):
         if not node.iteration_space == "cells":
             raise Exception("Error in "+self.name+" transformation. The iteration space is not 'cells'.")
         # Check we do not need colouring
-        if node.field_space != "v3":
+        if node.field_space != "v3" and node.loop_type is None:
             raise Exception("Error in "+self.name+" transformation. The field space written to by the kernel is not 'v3'. Colouring is required.")
-
+        # Check we are not a sequential loop
+        if node.loop_type == 'colours':
+            raise Exception("Error in "+self.name+" transformation. The requested loop is over colours and must be computed serially.")
+            
         schedule=node.root
         # create a memento of the schedule and the proposed transformation
         from undoredo import Memento
@@ -170,21 +173,40 @@ class ColourTrans(Transformation):
         if node.field_space == "v3":
             raise Exception("Error in "+self.name+" transformation. The field space written to by the kernel is 'v3'. Colouring is not required.")
 
+        # Check this is a kernel loop
+        if node.loop_type is not None:
+            raise Exception("Error in "+self.name+" transformation. The loop is not the correct type for colouring.")
+
         schedule=node.root
 
         # create a memento of the schedule and the proposed transformation
         from undoredo import Memento
         keep=Memento(schedule,self,[node])
 
-        # CAN WE CREATE A GENERIC LOOP OR DO WE NEED SPECIFIC GH or GO LOOPS?
-        # create a colours loop
-        # create a colour loop
-        # add content to colour loop
-        # remove original loop
-        # add loop contents of node2 to node1
-        #node1.children.extend(node2.children)
+        # TODO CAN WE CREATE A GENERIC LOOP OR DO WE NEED SPECIFIC GH or GO LOOPS?
+        from dynamo0p1 import DynLoop
 
-        # remove node2
-        #node2.parent.children.remove(node2)
+        # create a colours loop. This loops over colours and must be run
+        # sequentially
+        colours_loop = DynLoop(parent = node.parent)
+        colours_loop.loop_type="colours"
+        colours_loop.field_space=node.field_space
+        colours_loop.iteration_space=node.iteration_space
+        node.parent.addchild(colours_loop,
+                             index = node.position)
+
+        # create a colour loop. This loops over a particular colour and
+        # can be run in parallel
+        colour_loop = DynLoop(parent = colours_loop)
+        colour_loop.loop_type="colour"
+        colour_loop.field_space=node.field_space
+        colour_loop.iteration_space=node.iteration_space
+        colours_loop.addchild(colour_loop)
+
+        # add contents of node to colour loop
+        colour_loop.children.extend(node.children)
+
+        # remove original loop
+        node.parent.children.remove(node)
 
         return schedule,keep

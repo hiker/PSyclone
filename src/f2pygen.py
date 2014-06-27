@@ -53,11 +53,11 @@ class BaseGen(object):
             try:
                 self.root.content.insert(self.root.content.index(position[1].root),new_object.root)
             except ValueError:
-                print "inserting:"
+                print "ValueError when inserting:"
                 print str(new_object),str(new_object.root)
                 print "parent is: "
                 print str(self.root)
-                print "looking for: "
+                print "looking for this as one of the children: "
                 print str(position[1].root)
                 exit(1)
         else:
