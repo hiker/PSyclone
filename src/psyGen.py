@@ -194,6 +194,9 @@ class Invoke(object):
         # create the schedule
         self._schedule = Schedule(alg_invocation.kcalls)
 
+        # let the schedule have access to me
+        self._schedule.invoke = self
+
         # Set up the ordering constraints between the calls in the schedule
         # Obviously the schedule must be created first
         for call in self._schedule.calls():
@@ -493,7 +496,14 @@ class Schedule(Node):
         for entity in self._children:
             entity.tkinter_display(canvas, x, y+y_offset)
             y_offset = y_offset+entity.height
-        
+
+    @property
+    def invoke(self):
+        return self._invoke
+    @invoke.setter
+    def invoke(self,my_invoke):
+        self._invoke = my_invoke
+
     def __init__(self, Loop, Inf, alg_calls = []):
             
         # we need to separate calls into loops (an iteration space really)
@@ -509,12 +519,12 @@ class Schedule(Node):
         #for call in alg_calls:
         #    sequence.append(Loop(call, parent = self))
         Node.__init__(self, children = sequence)
+        self._invoke = None
 
     def view(self, indent = 0):
-        print self.indent(indent)+"Schedule"
+        print self.indent(indent)+"Schedule[invoke='"+self.invoke.name+"']"
         for entity in self._children:
             entity.view(indent = indent + 1)
-        #print self.indent(indent)+"End Schedule"
 
     def __str__(self):
         result = "Schedule:\n"
@@ -681,6 +691,10 @@ class Loop(Node):
     @property
     def field_name(self):
         return self._field_name
+
+    @field_name.setter
+    def field_name(self,my_field_name):
+        self._field_name = my_field_name
 
     @property
     def iteration_space(self):

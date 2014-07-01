@@ -17,7 +17,7 @@ class SwapTrans(Transformation):
     def __init__(self):
         pass
     def __str__(self):
-        return "A test transformation that swaps to adjacent elements in a schedule"
+        return "A test transformation that swaps two adjacent elements in a schedule"
     @property
     def name(self):
         return "SwapTrans"
@@ -42,7 +42,7 @@ class SwapTrans(Transformation):
         from undoredo import Memento
         keep=Memento(schedule,self,[node1,node2])
 
-        # find the nodes in the schedule
+        # find the position of nodes in the schedule
         index1=node1.parent.children.index(node1)
         index2=node2.parent.children.index(node2)
 
@@ -86,6 +86,10 @@ class LoopFuseTrans(Transformation):
         # add loop contents of node2 to node1
         node1.children.extend(node2.children)
 
+        # change the parent of the loop contents of node2 to node1
+        for child in node2.children:
+            child.parent = node1
+
         # remove node2
         node2.parent.children.remove(node2)
 
@@ -116,10 +120,52 @@ class OpenMPLoop(Transformation):
         return "OpenMPLoop"
 
     def __str__(self):
-        return "Add an OpenMP directive to a loop"
+        return "Add an OpenMP directive with no validity checks"
 
     def apply(self,node):
 
+        schedule=node.root
+        # create a memento of the schedule and the proposed transformation
+        from undoredo import Memento
+        keep=Memento(schedule,self,[node])
+
+        # keep a reference to the node's original parent and its index as these
+        # are required and will change when we change the node's location
+        node_parent = node.parent
+        node_position = node.position
+
+        # add our OpenMP loop directive setting its parent to the node's
+        # parent and its children to the node
+        from psyGen import OMPLoopDirective
+        directive = OMPLoopDirective(parent = node_parent, children = [node] )
+
+        # add the OpenMP loop directive as a child of the node's parent
+        node_parent.addchild(directive, index = node_position)
+
+        # change the node's parent to be the loop directive
+        node.parent = directive
+
+        # remove the original loop
+        node_parent.children.remove(node)
+
+        return schedule,keep
+
+class DynamoOpenMPLoop(OpenMPLoop):
+
+    ''' Dynamo specific OpenMP loop transformation. Adds Dynamo specific
+        validity checks. Actual transformation is done by parent class. '''
+
+    @property
+    def name(self):
+        return "DynamoOpenMPLoop"
+
+    def __str__(self):
+        return "Add an OpenMP directive to a Dynamo loop"
+
+    def apply(self,node):
+
+        ''' Perform Dynamo specific loop validity checks then call the parent
+            class. '''
         # check node is a loop
         from psyGen import Loop
         if not isinstance(node,Loop):
@@ -133,23 +179,33 @@ class OpenMPLoop(Transformation):
         # Check we are not a sequential loop
         if node.loop_type == 'colours':
             raise Exception("Error in "+self.name+" transformation. The requested loop is over colours and must be computed serially.")
-            
-        schedule=node.root
-        # create a memento of the schedule and the proposed transformation
-        from undoredo import Memento
-        keep=Memento(schedule,self,[node])
+        return OpenMPLoop.apply(self,node)
 
-        # add our OpenMP loop directive and the loop as its child just before
-        # the current loop location
-        from psyGen import OMPLoopDirective
-        node.parent.addchild(OMPLoopDirective(parent = node.parent,
-                                              children = [node] ),
-                             index = node.position)
+class GOceanOpenMPLoop(OpenMPLoop):
 
-        # remove the original loop
-        node.parent.children.remove(node)
+    ''' GOcean specific OpenMP loop transformation. Adds GOcean specific
+        validity checks. Actual transformation is done by parent class. '''
 
-        return schedule,keep
+    @property
+    def name(self):
+        return "GOceanOpenMPLoop"
+
+    def __str__(self):
+        return "Add an OpenMP directive to a GOcean loop"
+
+    def apply(self,node):
+
+        ''' Perform GOcean specific loop validity checks then call the parent
+            class. '''
+        # check node is a loop
+        from psyGen import Loop
+        if not isinstance(node,Loop):
+            raise Exception("Error in "+self.name+" transformation. The node is not a loop.")
+        # Check we are either an inner or outer loop
+        if node.loop_type not in ["inner","outer"]:
+            raise Exception("Error in "+self.name+" transformation. The requested loop is not of type inner or outer.")
+
+        return OpenMPLoop.apply(self,node)
 
 class ColourTrans(Transformation):
 
@@ -172,7 +228,6 @@ class ColourTrans(Transformation):
         # Check we need colouring
         if node.field_space == "v3":
             raise Exception("Error in "+self.name+" transformation. The field space written to by the kernel is 'v3'. Colouring is not required.")
-
         # Check this is a kernel loop
         if node.loop_type is not None:
             raise Exception("Error in "+self.name+" transformation. The loop is not the correct type for colouring.")
@@ -184,16 +239,19 @@ class ColourTrans(Transformation):
         keep=Memento(schedule,self,[node])
 
         # TODO CAN WE CREATE A GENERIC LOOP OR DO WE NEED SPECIFIC GH or GO LOOPS?
+        node_parent = node.parent
+        node_position = node.position
+
         from dynamo0p1 import DynLoop
 
         # create a colours loop. This loops over colours and must be run
         # sequentially
-        colours_loop = DynLoop(parent = node.parent)
+        colours_loop = DynLoop(parent = node_parent)
         colours_loop.loop_type="colours"
         colours_loop.field_space=node.field_space
         colours_loop.iteration_space=node.iteration_space
-        node.parent.addchild(colours_loop,
-                             index = node.position)
+        node_parent.addchild(colours_loop,
+                             index = node_position)
 
         # create a colour loop. This loops over a particular colour and
         # can be run in parallel
@@ -206,7 +264,11 @@ class ColourTrans(Transformation):
         # add contents of node to colour loop
         colour_loop.children.extend(node.children)
 
+        # change the parent of the node's contents to the colour loop
+        for child in node.children:
+            child.parent = colour_loop
+
         # remove original loop
-        node.parent.children.remove(node)
+        node_parent.children.remove(node)
 
         return schedule,keep

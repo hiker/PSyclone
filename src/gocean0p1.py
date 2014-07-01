@@ -125,75 +125,25 @@ class GOSchedule(Schedule):
             if isinstance(call, InfCall):
                 sequence.append(GOInf.create(call, parent = self))
             else:
-                outer_loop = GOLoop(call = None, parent = self,
-                                          variable_name = "i")        
+                outer_loop = GOLoop(call = None, parent = self)
                 sequence.append(outer_loop)
-                outer_loop.set_bounds("1", "idim1")
                 outer_loop.loop_type = "outer"
-                self._inner_loop = GOLoop(call = None, parent = outer_loop,
-                                          variable_name = "j")
-                self._inner_loop.set_bounds("1", "idim2")
+                inner_loop = GOLoop(call = None, parent = outer_loop)
                 inner_loop.loop_type = "inner"
-                outer_loop.addchild(self._inner_loop)
-                self._call = GOKern(call, parent = self._inner_loop)
-                self._inner_loop.addchild(self._call)
+                outer_loop.addchild(inner_loop)
+                call = GOKern(call, parent = inner_loop)
+                inner_loop.addchild(call)
+                # determine inner and outer loops space information from the
+                # child kernel call. This is only picked up automatically (by
+                # the inner loop) if the kernel call is passed into the inner
+                # loop.
+                inner_loop.iteration_space = call.iterates_over
+                outer_loop.iteration_space = inner_loop.iteration_space
+                inner_loop.field_space = call.arguments.iteration_space_arg().function_space
+                outer_loop.field_space = inner_loop.field_space
+                inner_loop.field_name = call.arguments.iteration_space_arg().name
+                outer_loop.field_name = inner_loop.field_name
         Node.__init__(self, children = sequence)
-        
-class GODoubleLoop(Node):
-    ''' A GOcean specific double loop class that supports the lat/lon loops
-        required for direct addressing. Currently not sure whether this is
-        a good solution or not. The alternative is to just have two GOLoops. '''
-    def __init__(self, call = None, parent = None, variable_name = "",
-                 topology_name = ""):
-        self._outer_loop = GOLoop(call = None, parent = self,
-                                  variable_name = "i")
-        self._outer_loop.set_bounds(start = "1", end = "idim1")
-        Node.__init__(self, children=[self._outer_loop], parent = parent)
-        self._inner_loop = GOLoop(call = None, parent = self._outer_loop,
-                                  variable_name = "j")
-        self._inner_loop.set_bounds(start = "1", end = "idim2")
-        self._outer_loop.addchild(self._inner_loop)
-        self._call = GOKern(call, parent = self._inner_loop)
-        self._inner_loop.addchild(self._call)
-
-    def view(self,indent=0):
-        print self.indent(indent)+"GOcean Double Loop"
-        for entity in self._children:
-            entity.view(indent = indent+1)
-        print self.indent(indent)+"End Double Loop"
-    def gen_code(self, parent):
-        ''' Creates the required loop structure including variable names. If
-            the iteration space is for all elements (every) then the bounds
-            are the size of the array, otherwise an infrastructure look-up
-            is used based on the grid position that the loops iterates
-            over. '''
-        from f2pygen import DeclGen, AssignGen, UseGen
-        arg_space = self._call.arguments.iteration_space_type()
-        if arg_space == "every":
-            # access all elements so use the size of the input data
-            dim1_name = "idim1"
-            dim2_name = "idim2"
-            dims = DeclGen(parent, datatype = "INTEGER",
-                           entity_decls = [dim1_name, dim2_name])
-            parent.add(dims)
-            # choose iteration space owner as the field name.
-            field_name = self._call.arguments.iteration_space_owner_name()
-            dim1 = AssignGen(parent, lhs = dim1_name,
-                             rhs = "SIZE("+field_name+", 1)")
-            parent.add(dim1)
-            self._outer_loop.set_bounds("1", dim1_name)
-            dim2 = AssignGen(parent, lhs = dim2_name,
-                             rhs = "SIZE("+field_name+", 2)")
-            parent.add(dim2)
-            self._inner_loop.set_bounds("1", dim2_name)
-        else: # one of our spaces so use values provided by the infrastructure
-            use = UseGen(parent, "topology_mod", only = [arg_space])
-            parent.add(use)
-            self._outer_loop.set_bounds(arg_space+"%istart",
-                                        arg_space+"%istop")
-            self._inner_loop.set_bounds(arg_space+"%jstart",
-                                        arg_space+"%jstop")
-        self._outer_loop.gen_code(parent)
 
 class GOLoop(Loop):
     ''' The GOcean specific Loop class. This passes the GOcean specific
@@ -202,29 +152,58 @@ class GOLoop(Loop):
         what to iterate over. Need to harmonise with the topology_name method
         in the Dynamo api. '''
     def __init__(self, call = None, parent = None, variable_name = "",
-                 topology_name = "topology"):
-        Loop.__init__(self, GOInf, GOKern, call, parent, variable_name,
-                      topology_name)
-        # all loops will have the following information (or will be subclassed)
-        self._loop_type==None # inner, outer, colour, colours
-        self._iteration_space="unknown" # unknown, cu, cv, ...
-        self._field_space="cu" # any, cu, cv, ...
+                 topology_name = ""):
+        Loop.__init__(self, GOInf, GOKern, call = call, parent = parent,
+                      valid_loop_types = ["inner", "outer"])
 
-    def set_bounds(self, start, end, step = ""):
-        ''' The loop does not know what to iterate over. This method allows an
-            external object to provide the start, end, and step of the loop.
-        '''
-        self._start = start
-        self._stop = end
-        self._step = step
+        # all loops will have the following information (or will be subclassed)
+        #self._loop_type==None # inner, outer, colour, colours
+        #self._iteration_space="unknown" # unknown, cu, cv, ...
+        #self._field_space="cu" # any, cu, cv, ...
 
     def gen_code(self,parent):
-        from f2pygen import DeclGen, AssignGen, UseGen
-        if self._loop_type=="every":
-            decl = DeclGen(parent, datatype = "INTEGER", entity_decls = [self._stop])
-            parent.add(decl)
+
+        if self._loop_type == "inner":
+            self._variable_name = "i"
+        elif self._loop_type == "outer":
+            self._variable_name = "j"
+
+        if self.field_space=="every":
+            from f2pygen import DeclGen, AssignGen
+            dim_var = DeclGen(parent, datatype = "INTEGER",
+                           entity_decls = [self._variable_name])
+            parent.add(dim_var)
+            #
+            position = parent.start_parent_loop()
+            new_parent=position.parent
+            dim_size = AssignGen(new_parent, lhs = self._variable_name,
+                             rhs = "SIZE("+self.field_name+", 1)")
+            new_parent.add(dim_size, position = ["before", position])
+
+            ***************** error here for some reason ***********
+
+            # loop bounds
+            self._start = "1"
+            if self._loop_type == "inner":
+                self._stop = "idim2"
+            elif self._loop_type == "outer":
+                self._stop = "idim1"
+
+            dims = DeclGen(parent, datatype = "INTEGER",
+                           entity_decls = [self._stop])
+            parent.add(dims)
+
+        else: # one of our spaces so use values provided by the infrastructure
             
-        Loop.gen_code(self,parent)
+            # loop bounds
+            if self._loop_type == "inner":
+                self._start= self.field_space+"%istart"
+                self._stop = self.field_space+"%istop"
+            elif self._loop_type == "outer":
+                self._start= self.field_space+"%jstart"
+                self._stop = self.field_space+"%jstop"
+
+        Loop.gen_code(self, parent)
 
 class GOInf(Inf):
     ''' A GOcean specific infrastructure call factory. No infrastructure
@@ -245,6 +224,10 @@ class GOKern(Kern):
         if False:
             self._arguments = GOKernelArguments(None, None) # for pyreverse
         Kern.__init__(self, GOKernelArguments, call, parent)
+
+    def local_vars(self):
+        return []
+
     def gen_code(self, parent):
         ''' Generates GOcean specific psy code for a call to the dynamo
             kernel instance. '''
@@ -279,31 +262,23 @@ class GOKernelArguments(Arguments):
             dofs into the gunghoproto api '''
         return self._dofs
 
-    # TODO replace with a single call returning a field?????
-    def it_space_type(self,mapping=[]):
-        ''' Returns the type of an argument that determines the kernels
-            iteration space. Uses a mapping from the GOcean terminology to
-            the one used by the base class. '''
-        if mapping == []:
-            my_mapping = {"read":"read", "write":"write", "readwrite":"readwrite", "inc":"inc"}
-        else:
+    def iteration_space_arg(self, mapping={}):
+        if mapping != {}:
             my_mapping = mapping
-        return Arguments.it_space_type(self, my_mapping)
-
-    def iteration_space_owner_name(self,mapping=[]):
-        ''' Returns the name of an argument that determines the kernels
-            iteration space. Uses a mapping from the GOcean terminology to
-            the one used by the base class. '''
-        if mapping == []:
-            my_mapping = {"read":"read", "write":"write", "readwrite":"readwrite"}
         else:
-            my_mapping = mapping
-        mapping = {"read":"read", "write":"write", "readwrite":"readwrite"}
-        return Arguments.it_space_owner_name(self, my_mapping)
+            my_mapping = {"write":"write", "read":"read","readwrite":"readwrite", "inc":"inc"}
+        arg = Arguments.iteration_space_arg(self,my_mapping)
+        return arg
 
 class GOKernelArgument(KernelArgument):
     ''' Provides information about individual GOcean kernel call arguments
         as specified by the kernel argument metadata. Only passes information
         onto the base class. '''
     def __init__(self, arg, arg_info, call):
+        self._arg = arg
         KernelArgument.__init__(self, arg, arg_info, call)
+    @property
+    def function_space(self):
+        ''' Returns the expected finite difference space for this
+            argument as specified by the kernel argument metadata.'''
+        return self._arg.function_space

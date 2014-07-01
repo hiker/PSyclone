@@ -81,7 +81,7 @@ class DynLoop(Loop):
     '''
     def __init__(self, call = None, parent = None):
         Loop.__init__(self, DynInf, DynKern, call = call, parent = parent,
-                      valid_loop_types=["colours", "colour"])
+                      valid_loop_types = ["colours", "colour"])
     def gen_code(self,parent):
         ''' Work out the appropriate loop bounds and variable name depending
             on the loop type and then call the base class to generate the
