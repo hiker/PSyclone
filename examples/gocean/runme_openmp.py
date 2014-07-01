@@ -14,10 +14,10 @@ from psyGen import TransInfo
 t=TransInfo()
 print t.list
 lf=t.get_trans_name('LoopFuse')
-ol=t.get_trans_name('OpenMPLoop')
+ol=t.get_trans_name('GOceanOpenMPLoop')
 
 # invoke0
-# inline all outer loops
+# fuse all outer loops
 lf1_schedule,memento = lf.apply(schedule.children[0],schedule.children[1])
 lf2_schedule,memento = lf.apply(lf1_schedule.children[0],
                                 lf1_schedule.children[1])
@@ -25,7 +25,7 @@ lf3_schedule,memento = lf.apply(lf2_schedule.children[0],
                                 lf2_schedule.children[1])
 lf3_schedule.view()
 
-# inline all inner loops
+# fuse all inner loops
 lf4_schedule,memento = lf.apply(lf3_schedule.children[0].children[0],
                                 lf3_schedule.children[0].children[1])
 lf5_schedule,memento = lf.apply(lf4_schedule.children[0].children[0],

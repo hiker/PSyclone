@@ -173,21 +173,20 @@ class GOLoop(Loop):
             dim_var = DeclGen(parent, datatype = "INTEGER",
                            entity_decls = [self._variable_name])
             parent.add(dim_var)
-            #
-            position = parent.start_parent_loop()
-            new_parent=position.parent
-            dim_size = AssignGen(new_parent, lhs = self._variable_name,
-                             rhs = "SIZE("+self.field_name+", 1)")
-            new_parent.add(dim_size, position = ["before", position])
-
-            ***************** error here for some reason ***********
 
             # loop bounds
             self._start = "1"
             if self._loop_type == "inner":
-                self._stop = "idim2"
-            elif self._loop_type == "outer":
                 self._stop = "idim1"
+                dim_size = AssignGen(parent.parent, lhs = self._stop,
+                                     rhs = "SIZE("+self.field_name+", 1)")
+                parent.parent.add(dim_size, position=["before",parent])
+            elif self._loop_type == "outer":
+                self._stop = "idim2"
+                dim_size = AssignGen(parent, lhs = self._stop,
+                                     rhs = "SIZE("+self.field_name+", 2)")
+                parent.add(dim_size)
+
 
             dims = DeclGen(parent, datatype = "INTEGER",
                            entity_decls = [self._stop])
