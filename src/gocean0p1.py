@@ -28,6 +28,9 @@ class GOPSy(PSy):
         # include the kind_params module
         kp_use = UseGen(psy_module, name = "kind_params_mod")
         psy_module.add(kp_use)
+        # include the topology_mod module for loop bounds
+        tp_use = UseGen(psy_module, name="topology_mod")
+        psy_module.add(tp_use)
         # include the field_mod module in case we have any r-space variables
         fm_use = UseGen(psy_module, name = "field_mod",
                         only=["scalar_field_type"])
