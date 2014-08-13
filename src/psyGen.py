@@ -1100,3 +1100,76 @@ class DummyTransformation(Transformation):
         return
     def apply(self):
         return None, None
+
+class transInfo_tests:
+    ''' transInfo class unit tests '''
+
+    def test_new_module(self):
+        ''' check that we can change the module where we look for transformations.
+            There should be no transformations available as the new module uses a
+            different transformation base class '''
+        import dummy_transformations
+        t=TransInfo(module=dummy_transformations)
+        self.assertTrue(t.numTrans==0)
+
+    def test_new_baseclass(self):
+        ''' check that we can change the transformations baseclass. There should
+            be no transformations available as the default transformations module
+            does not use the specified base class '''
+        from dummy_transformations import LocalTransformation
+        t=TransInfo(baseclass=LocalTransformation)
+        self.assertTrue(t.numTrans==0)
+
+    def test_new_module_and_baseclass(self):
+        ''' check that we can change the module where we look for transformations
+            and the baseclass. There should be one transformation available as the
+            module specifies one test transformation using the specified base
+            class '''
+        import dummy_transformations
+        t=TransInfo(module=dummy_transformations,baseclass=dummy_transformations.LocalTransformation)
+        self.assertTrue(t.numTrans==1)
+
+    def test_list_valid_return_object(self):
+        ''' check the list method returns the valid type '''
+        t=TransInfo()
+        self.assertTrue(isinstance(t.list,str))
+
+    def test_list_return_data(self):
+        ''' check the list method returns sensible information '''
+        t=TransInfo()
+        self.assertTrue(t.list.find("available")!=-1)
+
+    def test_invalid_low_number(self):
+        ''' check an out-of-range low number for getTransNum method raises correct exception '''
+        t=TransInfo()
+        with self.assertRaises(GenerationError):
+            transform=t.getTransNum(0)
+
+    def test_invalid_high_number(self):
+        ''' check an out-of-range high number for getTransNum method raises correct exception '''
+        t=TransInfo()
+        with self.assertRaises(GenerationError):
+            transform=t.getTransNum(999)
+
+************************************
+
+    def test_valid_return_object_from_number(self):
+        t=transformations()
+        transform=t.getTransNum(1)
+        self.assertTrue(isinstance(transform,transformation))
+
+    def test_invalid_name(self):
+        t=transformations()
+        with self.assertRaises(GenerationError):
+            transform=t.getTransName("fail")
+
+    def test_valid_return_object_from_name(self):
+        t=transformations()
+        transform=t.getTransName("SwapTrans")
+        self.assertTrue(isinstance(transform,transformation))
+
+    # transformation class
+    def test_base_class_not_callable(self):
+        with self.assertRaises(TypeError):        
+            t=transformation()
+
