@@ -33,16 +33,6 @@ class AlgGeneratorTestCases(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def test_non_existant_file(self):
-        with self.assertRaises(IOError):
-            generate("nofile.f90")
-
-    def test_single_invoke(self):
-        # single function specified in an invoke call
-        alg,psy=generate("1_single_function.f90")
-        self.assertTrue(str(alg).find("USE psy_single_function, ONLY: invoke_testkern_type")!=-1 and \
-                        str(alg).find("CALL invoke_testkern_type(f1, f2, m1)")!=-1)
-
     def test_single_invoke_undeclared(self):
         #with self.assertRaises(AssertionError):
         with self.assertRaises(ParseError):

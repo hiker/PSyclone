@@ -1111,6 +1111,7 @@ class TestPSyFactoryClass:
     ''' PSyFactory class unit tests '''
 
     def test_invalid_api(self):
+        ''' test that psyfactory raises appropriate error when an invalid api is supplied '''
         import pytest
         with pytest.raises(GenerationError):
             psy_factory = PSyFactory(api = "invalid")
@@ -1123,7 +1124,7 @@ class TestPSyFactoryClass:
             psy_factory = PSyFactory(api = api)
             assert isinstance(psy_factory,PSyFactory)
 
-    # need to find a way to create a valid info object to pass to create
+    # TBD need to find a way to create a valid info object to pass to create so we can check creation
     #def test_create_valid_return_object(self):
     #    from ghproto import GHProtoPSy
     #    psy = PSyFactory().create(None)
@@ -1145,7 +1146,7 @@ class TestTransInfoClass:
         ''' check that we can change the module where we look for transformations.
             There should be no transformations available as the new module uses a
             different transformation base class '''
-        import dummy_transformations
+        from test_files import dummy_transformations
         t=TransInfo(module=dummy_transformations)
         assert t.num_trans==0
 
@@ -1153,7 +1154,7 @@ class TestTransInfoClass:
         ''' check that we can change the transformations baseclass. There should
             be no transformations available as the default transformations module
             does not use the specified base class '''
-        from dummy_transformations import LocalTransformation
+        from test_files.dummy_transformations import LocalTransformation
         t=TransInfo(base_class=LocalTransformation)
         assert t.num_trans==0
 
@@ -1162,7 +1163,7 @@ class TestTransInfoClass:
             and the baseclass. There should be one transformation available as the
             module specifies one test transformation using the specified base
             class '''
-        import dummy_transformations
+        from test_files import dummy_transformations
         t=TransInfo(module=dummy_transformations,base_class=dummy_transformations.LocalTransformation)
         assert t.num_trans==1
 
