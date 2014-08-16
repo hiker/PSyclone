@@ -48,26 +48,4 @@ class Alg(object):
           idx+=1
     return self._ast
 
-class TestAlgGenClass:
-  ''' AlgGen class unit tests. We use the generate function as parse and PSyFactory need to be called
-  before AlgGen so it is simpler to use the generate function '''
-
-  def test_single_invoke_gunghoproto(self):
-    ''' test for correct code transformation for a single function specified in an invoke call for the
-        gunghoproto api '''
-    import os
-    from generator import generate
-    alg,psy=generate(os.path.join("test_files","gunghoproto","1_single_function.f90"),api="gunghoproto")
-    assert (str(alg).find("USE psy_single_function, ONLY: invoke_testkern_type")!=-1 and \
-            str(alg).find("CALL invoke_testkern_type(f1, f2, m1)")!=-1)
-
-  def test_single_invoke_dynamo0p1(self):
-    ''' test for correct code transformation for a single function specified in an invoke call for the
-        gunghoproto api '''
-    import os
-    from generator import generate
-    alg,psy=generate(os.path.join("test_files","dynamo0p1","1_single_function.f90"),api="dynamo0.1")
-    assert (str(alg).find("USE psy_single_function, ONLY: invoke_testkern_type")!=-1 and \
-            str(alg).find("CALL invoke_testkern_type(f1, f2, m1)")!=-1)
-
 

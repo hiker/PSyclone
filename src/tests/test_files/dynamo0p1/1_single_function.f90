@@ -7,8 +7,8 @@ program single_function
   implicit none
   type(field_type) :: f1, f2, m1
 
-  call invoke(                                                          &
-       testkern_type(f1,f2,m1)                                       &
+  call invoke(                   &
+       testkern_type(f1,f2,m1)   &
           )
 
 end program single_function
