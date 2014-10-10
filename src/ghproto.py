@@ -4,7 +4,7 @@
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 #-------------------------------------------------------------------------------
-# Author R. Ford STFC Darsebury Lab
+# Author R. Ford STFC Daresbury Lab
 
 from psyGen import PSy,Invokes,Invoke,Schedule,Loop,Kern,Arguments,Argument,Inf
 
