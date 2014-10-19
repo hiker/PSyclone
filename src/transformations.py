@@ -272,3 +272,33 @@ class ColourTrans(Transformation):
         node_parent.children.remove(node)
 
         return schedule,keep
+
+class KernelModuleInlineTrans(Transformation):
+
+    def __str__(self):
+        return "Inline (or cancel inline of) a kernel subroutine into the PSy module"
+
+    @property
+    def name(self):
+        return "KernelModuleInline"
+
+    def apply(self, node, inline = True):
+
+        # check node is a kernel
+        from psyGen import Kern
+        if not isinstance(node, Kern):
+            raise Exception("Error in KernelModuleInline transformation. The node is not a Kernel")
+
+        schedule=node.root
+
+        # create a memento of the schedule and the proposed transformation
+        from undoredo import Memento
+        keep=Memento(schedule,self,[node])
+
+        # set kernel's inline status
+        if node.module_inline == inline:
+            print "Warning, Kernel inline is already set to "+str(inline)
+        else:
+            node.module_inline = inline
+
+        return schedule, keep

@@ -86,6 +86,16 @@ class PSy(object):
     def gen(self):
         raise NotImplementedError("Error: PSy.gen() must be implemented "
                                   "by subclass")
+    def inline(self, module):
+        print "HELLO FROM INLINE"
+        for invoke in self.invokes.invoke_list:
+            schedule = invoke.schedule
+            for kernel in schedule.walk(schedule.children, Kern):
+                print "found "+str(kernel)+" with module_inline="+str(kernel.module_inline)
+                print dir(kernel)
+        exit(1)
+        # for each kernel in schedule that is inline
+
 
 class Invokes(object):
     ''' Manage the invoke calls '''
@@ -852,11 +862,24 @@ class Kern(Call):
         Call.__init__(self, parent, call, call.ktype.procedure.name,
                       KernelArguments(call, self))
         self._iterates_over = call.ktype.iterates_over
+        self._module_inline = False
     def __str__(self):
         return "kern call: "+self._name
     @property
     def iterates_over(self):
         return self._iterates_over
+    @property
+    def module_inline(self):
+        return self._module_inline
+    @module_inline.setter
+    def module_inline(self,value):
+        self._module_inline = value
+    def view(self, indent = 0):
+        print self.indent(indent)+"KernCall", \
+              self.name+"("+str(self.arguments.raw_arg_list)+")", \
+              "[module_inline="+str(self._module_inline)+"]"
+        for entity in self._children:
+            entity.view(indent = indent + 1)
     def gen_code(self, parent):
         from f2pygen import CallGen, UseGen
         parent.add(CallGen(parent, self._name, self._arguments.arglist))
