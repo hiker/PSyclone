@@ -87,15 +87,12 @@ class PSy(object):
         raise NotImplementedError("Error: PSy.gen() must be implemented "
                                   "by subclass")
     def inline(self, module):
-        print "HELLO FROM INLINE"
+        ''' inline all kernel subroutines into the module that are marked for inlining '''
         for invoke in self.invokes.invoke_list:
             schedule = invoke.schedule
             for kernel in schedule.walk(schedule.children, Kern):
-                print "found "+str(kernel)+" with module_inline="+str(kernel.module_inline)
-                print dir(kernel)
-        exit(1)
-        # for each kernel in schedule that is inline
-
+                if kernel.module_inline:
+                    module.add_raw_subroutine(kernel._kernel_code)
 
 class Invokes(object):
     ''' Manage the invoke calls '''
@@ -862,6 +859,8 @@ class Kern(Call):
         Call.__init__(self, parent, call, call.ktype.procedure.name,
                       KernelArguments(call, self))
         self._iterates_over = call.ktype.iterates_over
+        self._module_code = call.ktype._ast
+        self._kernel_code = call.ktype.procedure
         self._module_inline = False
     def __str__(self):
         return "kern call: "+self._name

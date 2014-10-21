@@ -186,7 +186,16 @@ end module vanilla
         endmod=module.content[len(module.content)-1]
         endmod.name=name
         BaseGen.__init__(self,None,module)
-
+    def add_raw_subroutine(self,content):
+        ''' adds a subroutine to the module that is a raw f2py parse object.
+            This is used for inlining kernel subroutines into a module.
+        '''
+        from parse import KernelProcedure
+        if not isinstance(content,KernelProcedure):
+            raise Exception("Expecting a KernelProcedure type but received "+str(type(content)))
+        content.ast.parent=self.root
+        index=len(self.root.content)-1 # append
+        self.root.content.insert(index,content.ast)
     def add(self,content):
         if not content.parent==self:
             #print "****",content.root, "***",self._module
