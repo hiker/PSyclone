@@ -1,8 +1,45 @@
 from parse import parse
 from psyGen import PSyFactory
-from transformations import SwapTrans, LoopFuseTrans, GOceanOpenMPLoop
+from transformations import SwapTrans, LoopFuseTrans, GOceanOpenMPLoop, \
+                            KernelModuleInlineTrans
 import os
 import pytest
+
+class TestTransformationsDynamo0p1:
+
+    def test_kernel_module_inline_trans(self):
+        ''' test of the inlining of a kernel into a PSy module. There
+            are three tests in one. 1: set inlining directly 2: unset
+            inlining via a transformation 3: set inlining via a
+            transformation '''
+        directory = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p1")
+        inlined = open(os.path.join(directory,"1_kg_inline.f90"),'r')
+        inlined_known_good = inlined.read()
+        original = open(os.path.join(directory,"1_kg_orig.f90"),'r')
+        original_known_good = original.read()
+        ast, info = parse(os.path.join(directory,"1_single_function.f90"),
+                          api="dynamo0.1")
+        psy = PSyFactory("dynamo0.1").create(info)
+        invokes = psy.invokes
+        invoke = invokes.get("invoke_testkern_type")
+        schedule = invoke.schedule
+        kern = schedule.children[0].children[0]
+        # setting module inline directly
+        kern.module_inline = True
+        result1 = str(psy.gen)
+        assert result1+"\n" == inlined_known_good
+        # unsetting module inline via a transformation
+        trans = KernelModuleInlineTrans()
+        schedule, memento = trans.apply(kern, inline=False)
+        result2 = str(psy.gen)
+        assert result2+"\n" == original_known_good
+        # setting module inline via a transformation
+        schedule, memento = trans.apply(kern)
+        result3 = str(psy.gen)
+        assert result3+"\n" == inlined_known_good
+        inlined.close()
+        original.close()
 
 class TestTransformationsGHProto:
 

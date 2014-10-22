@@ -179,8 +179,9 @@ class DynKern(Kern):
 
         # generate the kernel call and associated use statement
         parent.add(CallGen(parent, self._name, arglist))
-        parent.parent.add(UseGen(parent.parent, name = self._module_name,
-                                 only = True, funcnames = [self._name]))
+        if not self.module_inline:
+            parent.parent.add(UseGen(parent.parent, name = self._module_name,
+                                     only = True, funcnames = [self._name]))
 
         # declare and initialise the number of layers and the number
         # of degrees of freedom. Needs to be generalised.
