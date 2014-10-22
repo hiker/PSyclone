@@ -173,13 +173,11 @@ class TestTransformationsGOcean:
         # setting module inline directly
         kern.module_inline = True
         result1 = str(psy.gen)
-        print result1
         assert result1+"\n" == inlined_known_good
         # unsetting module inline via a transformation
         trans = KernelModuleInlineTrans()
         schedule, memento = trans.apply(kern, inline=False)
         result2 = str(psy.gen)
-        print result2
         assert result2+"\n" == original_known_good
         # setting module inline via a transformation
         schedule, memento = trans.apply(kern)
