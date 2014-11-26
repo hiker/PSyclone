@@ -583,14 +583,25 @@ class Loop(Node):
         assert value in self._valid_loop_types, "Error, loop_type value is invalid"
         self._loop_type=value
 
+    @property
+    def loop_space(self):
+        return self._loop_space
+
+    @loop_space.setter
+    def loop_space(self,value):
+        assert value in self._valid_loop_spaces, "Error, loop_type value is invalid"
+        self._loop_space=value
+
     def __init__(self, Inf, Kern, call = None, parent = None,
-                 variable_name = "unset", topology_name = "topology", valid_loop_types=[]):
+                 variable_name = "unset", topology_name = "topology", valid_loop_types=[],
+                 valid_loop_spaces=[]):
 
         children = []
         # we need to determine whether this is an infrastructure or kernel
         # call so our schedule can do the right thing.
 
         self._valid_loop_types = valid_loop_types
+        self._valid_loop_spaces = valid_loop_spaces
         self._loop_type = None       # inner, outer, colour, colours, ...
         # TODO Perhaps store a field, so we can get field.name as well as field.space?????
         self._field_name = None      # name of the field

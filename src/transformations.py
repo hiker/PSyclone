@@ -272,3 +272,29 @@ class ColourTrans(Transformation):
         node_parent.children.remove(node)
 
         return schedule,keep
+
+class GOceanChangeLoopSpaceTrans(Transformation):
+
+    def __str__(self):
+        return "Change the space that a loop iterates over"
+
+    @property
+    def name(self):
+        return "GOceanChangeLoopSpace"
+
+    def apply(self, node, iteration_space):
+
+        # check node is a loop
+        from psyGen import Loop
+        if not isinstance(node, Loop):
+            raise Exception("Error in GOceanChangeLoopSpace transformation. The node is not a loop")
+
+        # create a memento of the schedule and the proposed transformation
+        from undoredo import Memento
+        keep=Memento(schedule, self, [node, iteration_space])
+
+        # change the loop space
+        node.loop_space = iteration_space
+
+        # return new schedule and a memento
+        return schedule, keep

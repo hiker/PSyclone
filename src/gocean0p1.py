@@ -152,7 +152,8 @@ class GOLoop(Loop):
     def __init__(self, call = None, parent = None, variable_name = "",
                  topology_name = ""):
         Loop.__init__(self, GOInf, GOKern, call = call, parent = parent,
-                      valid_loop_types = ["inner", "outer"])
+                      valid_loop_types = ["inner", "outer"],
+                      valid_loop_spaces = ["cf", "ct", "cu", "cv"] )
 
     def gen_code(self,parent):
 
