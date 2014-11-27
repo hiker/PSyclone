@@ -45,6 +45,32 @@ class TestTransformationsGHProto:
 
 class TestTransformationsGOcean:
 
+    def test_loop_fuse_trans(self):
+        ''' test the loop transformation '''
+        ast, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_files", "gocean0p1", "openmp_fuse_test.f90"), api="gocean" )
+        psy = PSyFactory("gocean").create(info)
+        invokes = psy.invokes
+        invoke_0 = invokes.get("invoke_0")
+        schedule_0 = invoke_0.schedule
+        lftrans = LoopFuseTrans()
+        parent_loop = schedule_0.children[0]
+        child_loop = parent_loop.children[0]
+        kern_call = child_loop.children[0]
+        # error if nodes are not loops
+        with pytest.raises(Exception):
+            schedule, memento = lftrans.apply(parent_loop, kern_call)
+        # error if not same parents
+        with pytest.raises(Exception):
+            schedule, memento = lftrans.apply(parent_loop, child_loop)
+
+        invoke_1 = invokes.get("invoke_1")
+        schedule_1 = invoke_1.schedule
+        u_loop = schedule_1.children[0]
+        v_loop = schedule_1.children[1]
+        # error if iteration space is different
+        with pytest.raises(Exception):
+            schedule, memento = lftrans.apply(u_loop, v_loop)
+
     def test_openmp_loop_fuse_trans(self):
         ''' test of the OpenMP transformation of a fused loop '''
         ast,info=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","gocean0p1","openmp_fuse_test.f90"), api = "gocean")
@@ -76,17 +102,19 @@ class TestTransformationsGOcean:
         # a string
         gen=str(psy.gen)
 
-        # Iterate over the lines of generated code
+        omp_do_idx = -1
+        outer_do_idx = -1
+        inner_do_idx = -1
+        # Iterate over the lines of generated code taking the index of the first match
         for idx,line in enumerate(gen.split('\n')):
-            if '!$omp parallel do' in line: omp_do_idx=idx
-            if 'DO j=' in line: outer_do_idx=idx
-            if 'DO i=' in line: inner_do_idx=idx
+            if '!$omp parallel do' in line and omp_do_idx == -1: omp_do_idx = idx
+            if 'DO j=' in line and  outer_do_idx == -1: outer_do_idx = idx
+            if 'DO i=' in line and inner_do_idx == -1: inner_do_idx = idx
 
         # The OpenMP 'parallel do' directive must occur immediately before
         # the DO loop itself
         assert outer_do_idx-omp_do_idx==1 and outer_do_idx-inner_do_idx==-1
 
-    @pytest.mark.xfail(reason="unknown")
     def test_openmp_loop_trans(self):
         ''' test of the OpenMP transformation of an all-points loop '''
         ast,info=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","gocean0p1","openmp_fuse_test.f90"), api = "gocean")
@@ -105,13 +133,16 @@ class TestTransformationsGOcean:
         # a string
         gen=str(psy.gen)
 
+        omp_do_idx = -1
+        outer_do_idx = -1
+        inner_do_idx = -1
         # Iterate over the lines of generated code
         for idx,line in enumerate(gen.split('\n')):
-            if '!$omp parallel do' in line: omp_do_idx=idx
-            if 'DO j=' in line: outer_do_idx=idx
-            if 'DO i=' in line: inner_do_idx=idx
+            if '!$omp parallel do' in line and omp_do_idx == -1: omp_do_idx = idx
+            if 'DO j=' in line and outer_do_idx == -1: outer_do_idx = idx
+            if 'DO i=' in line and inner_do_idx == -1: inner_do_idx = idx
 
         # The OpenMP 'parallel do' directive must occur immediately before
         # the DO loop itself
-        assert outer_do_idx-omp_do_idx==1 and outer_do_idx-inner_do_idx==1
+        assert outer_do_idx - omp_do_idx == 1 and inner_do_idx - outer_do_idx == 1
 

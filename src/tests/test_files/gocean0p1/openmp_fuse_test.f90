@@ -6,6 +6,8 @@ PROGRAM openmp_fuse_test
 
   use kind_params_mod
   use time_smooth_mod,  only: time_smooth_type
+  use u_mod, only : u_type
+  use v_mod, only : v_type
   implicit none
 
   !> Component of vel in x at current time step
@@ -46,6 +48,9 @@ PROGRAM openmp_fuse_test
       call invoke(time_smooth_type(u,unew,uold),&
                   time_smooth_type(v,vnew,vold),&
                   time_smooth_type(p,pnew,pold))
+
+      call invoke(u_type(u),&
+                  v_type(v))
 
   END DO
 
