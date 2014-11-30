@@ -522,7 +522,7 @@ class Schedule(Node):
         self._invoke = None
 
     def view(self, indent = 0):
-        print self.indent(indent)+"Schedule[invoke='"+self.invoke.name+"']"
+        print self.indent(indent)+"Schedule [invoke='"+self.invoke.name+"']"
         for entity in self._children:
             entity.view(indent = indent + 1)
 
@@ -575,22 +575,34 @@ class Loop(Node):
 
     @property
     def loop_type(self):
-        #assert self._loop_type is not None, "Error, loop_type has not yet been set"
+        ''' loops can be of different types. This returns the type of this particular loop. '''
         return self._loop_type
 
     @loop_type.setter
     def loop_type(self,value):
-        assert value in self._valid_loop_types, "Error, loop_type value is invalid"
+        ''' Loop type is not set by the constructor so this routine is
+        needed to set the initial value. It is also possible that an
+        optimisations will change the loop type. This method allows
+        the loop type to be set or changed.'''
+        assert value in self._valid_loop_types, "Error, loop_type value is invalid. Expected one of "+str(self._valid_loop_types) + " but found " + value
         self._loop_type=value
 
     @property
     def loop_space(self):
-        return self._loop_space
+        return self._iteration_space
 
     @loop_space.setter
     def loop_space(self,value):
-        assert value in self._valid_loop_spaces, "Error, loop_type value is invalid"
-        self._loop_space=value
+        assert value in self._valid_loop_spaces, "Error, loop_type value is invalid. Expected one of "+str(self._valid_loop_spaces) + " but found " + value
+        self._iteration_space=value
+
+    @property
+    def field_space(self):
+        return self._field_space
+
+    @field_space.setter
+    def field_space(self,my_field_space):
+        self._field_space = my_field_space
 
     def __init__(self, Inf, Kern, call = None, parent = None,
                  variable_name = "unset", topology_name = "topology", valid_loop_types=[],
@@ -603,23 +615,18 @@ class Loop(Node):
         self._valid_loop_types = valid_loop_types
         self._valid_loop_spaces = valid_loop_spaces
         self._loop_type = None       # inner, outer, colour, colours, ...
-        # TODO Perhaps store a field, so we can get field.name as well as field.space?????
         self._field_name = None      # name of the field
         self._field_space = None     # v0, v1, ...,     cu, cv, ...
         self._iteration_space = None # cells, ...,      cu, cv, ...
 
-        # TODO replace iterates_over with iteration_space
-        self._iterates_over = "unknown"
         if call is not None:
             from parse import InfCall, KernelCall
             if isinstance(call, InfCall):
                 my_call = Inf.create(call, parent = self)
                 self._iteration_space = "unknown"
-                self._iterates_over = "unknown" # needs to inherit this?
                 self._field_space = "any"
             elif isinstance(call, KernelCall):
                 my_call = Kern(call, parent = self)
-                self._iterates_over = my_call.iterates_over
                 self._iteration_space = my_call.iterates_over
                 self._field_space = my_call.arguments.iteration_space_arg().function_space
                 self._field_name = my_call.arguments.iteration_space_arg().name
@@ -643,7 +650,7 @@ class Loop(Node):
         self._canvas = None
 
     def view(self, indent = 0):
-        print self.indent(indent)+"Loop[type='{0}',field_space='{1}',it_space='{2}']".format(self._loop_type,self._field_space,self.iteration_space)
+        print self.indent(indent)+"Loop [type='{0}',it_space='{1}']".format(self._loop_type,self._iteration_space)
         for entity in self._children:
             entity.view(indent = indent + 1)
 
@@ -694,28 +701,12 @@ class Loop(Node):
             call_height += child.height
 
     @property
-    def field_space(self):
-        return self._field_space
-
-    @field_space.setter
-    def field_space(self,my_field_space):
-        self._field_space = my_field_space
-
-    @property
     def field_name(self):
         return self._field_name
 
     @field_name.setter
     def field_name(self,my_field_name):
         self._field_name = my_field_name
-
-    @property
-    def iteration_space(self):
-        return self._iteration_space
-
-    @iteration_space.setter
-    def iteration_space(self,it_space):
-        self._iteration_space = it_space
 
     def __str__(self):
         result = "Loop["+self._id+"]: "+self._variable_name+"="+self._id+ \
@@ -867,7 +858,14 @@ class Kern(Call):
         return "kern call: "+self._name
     @property
     def iterates_over(self):
+        ''' Returns the space that the kernel expects to be iterated over '''
         return self._iterates_over
+    def view(self, indent = 0):
+        print self.indent(indent)+"KernCall", \
+              self.name+"("+str(self.arguments.raw_arg_list)+")"+ \
+              " [space='"+self._iterates_over+"']"
+        for entity in self._children:
+            entity.view(indent = indent + 1)
     def gen_code(self, parent):
         from f2pygen import CallGen, UseGen
         parent.add(CallGen(parent, self._name, self._arguments.arglist))

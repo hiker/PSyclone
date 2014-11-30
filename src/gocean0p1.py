@@ -135,8 +135,8 @@ class GOSchedule(Schedule):
                 # child kernel call. This is only picked up automatically (by
                 # the inner loop) if the kernel call is passed into the inner
                 # loop.
-                inner_loop.iteration_space = call.iterates_over
-                outer_loop.iteration_space = inner_loop.iteration_space
+                inner_loop.loop_space = call.iterates_over
+                outer_loop.loop_space = inner_loop.loop_space
                 inner_loop.field_space = call.arguments.iteration_space_arg().function_space
                 outer_loop.field_space = inner_loop.field_space
                 inner_loop.field_name = call.arguments.iteration_space_arg().name
@@ -153,7 +153,7 @@ class GOLoop(Loop):
                  topology_name = ""):
         Loop.__init__(self, GOInf, GOKern, call = call, parent = parent,
                       valid_loop_types = ["inner", "outer"],
-                      valid_loop_spaces = ["cf", "ct", "cu", "cv"] )
+                      valid_loop_spaces = ["cf", "ct", "cu", "cv", "dofs"] )
 
     def gen_code(self,parent):
 
@@ -189,11 +189,11 @@ class GOLoop(Loop):
             
             # loop bounds
             if self._loop_type == "inner":
-                self._start= self.field_space+"%istart"
-                self._stop = self.field_space+"%istop"
+                self._start= self.loop_space+"%istart"
+                self._stop = self.loop_space+"%istop"
             elif self._loop_type == "outer":
-                self._start= self.field_space+"%jstart"
-                self._stop = self.field_space+"%jstop"
+                self._start= self.loop_space+"%jstart"
+                self._stop = self.loop_space+"%jstop"
 
         Loop.gen_code(self, parent)
         
@@ -221,11 +221,39 @@ class GOKern(Kern):
     def local_vars(self):
         return []
 
+    def _offset(self, index):
+        ''' computes the offset index when the loop space differs from the kernel space.
+            supports arakawa c-grid and a NE offset
+
+               1 cv____cf
+                 |      |
+            j    |      |
+            ^ 0 ct____cu
+            |    0      1
+            ---> i
+        '''
+        # i-index assumed to be 0 and j-index assumed to be 1
+        positions = {"ct":[0,0], "cv":[0,1], "cu":[1,0], "cf":[1,1]}
+        # for sanity, check parent is a loop, it should be.
+        assert isinstance(self.parent, Loop), "Error in gocean0p1.py:GOcean:_offset(), expecting parent to be a loop."
+        loop_space = self.parent.loop_space
+        if self.iterates_over == "dofs" or loop_space == "dofs":
+            # not sure what needs to be done with dofs
+            return ""
+        result = positions[self.iterates_over][index]-positions[loop_space][index]
+        if result == 0:
+            return ""
+        elif result>0:
+            return "+"+str(result)
+        else:
+            return str(result)
+
     def gen_code(self, parent):
         ''' Generates GOcean specific psy code for a call to the dynamo
             kernel instance. '''
         from f2pygen import CallGen, UseGen
-        arguments = ["i", "j"]
+        
+        arguments = ["i"+self._offset(0), "j"+self._offset(1)]
         for arg in self._arguments.args:
             if arg.space.lower() == "r":
                 arguments.append(arg.name + "%data")

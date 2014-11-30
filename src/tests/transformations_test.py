@@ -1,6 +1,7 @@
 from parse import parse
 from psyGen import PSyFactory
-from transformations import SwapTrans, LoopFuseTrans, GOceanOpenMPLoop
+from transformations import SwapTrans, LoopFuseTrans, GOceanOpenMPLoop, \
+                            GOceanChangeLoopSpaceTrans
 import os
 import pytest
 
@@ -45,6 +46,38 @@ class TestTransformationsGHProto:
 
 class TestTransformationsGOcean:
 
+    def test_loop_space_trans(self):
+        ''' test that the loop space transformation works '''
+        ast, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_files", "gocean0p1", "openmp_fuse_test.f90"), api="gocean" )
+        psy = PSyFactory("gocean").create(info)
+        invokes = psy.invokes
+        invoke_1 = invokes.get("invoke_1")
+        schedule_1 = invoke_1.schedule
+        u_loop_outer = schedule_1.children[0]
+        v_loop_outer = schedule_1.children[1]
+
+        lstrans = GOceanChangeLoopSpaceTrans()
+        lftrans = LoopFuseTrans()
+
+        # error if unknown iteration space
+        with pytest.raises(AssertionError):
+            schedule, memento = lstrans.apply(u_loop_outer, "UNDEF")
+        # change spaces directly. Not recommended as we can end up with
+        # inner and outer iterations not matching if both are not changed.
+        u_loop_outer.loop_space = "ct"
+        u_loop_outer.children[0].loop_space = "ct"
+        # change space via transformation (recommended)
+        schedule, memento = lstrans.apply(v_loop_outer, "ct")
+        # can we successfully fuse?
+        schedule, memento = lftrans.apply(u_loop_outer, v_loop_outer)
+        u_loop_inner = schedule.children[0].children[0]
+        v_loop_inner = schedule.children[0].children[1]
+        schedule, memento = lftrans.apply(u_loop_inner, v_loop_inner)
+        # check correct code is generated with appropriate offsets
+        gen=str(psy.gen)
+        assert gen.rfind("CALL compute_u(i+1, j, u)") != -1 and \
+               gen.rfind("CALL compute_v(i, j+1, v)") != -1
+ 
     def test_loop_fuse_trans(self):
         ''' test the loop transformation '''
         ast, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_files", "gocean0p1", "openmp_fuse_test.f90"), api="gocean" )

@@ -74,7 +74,7 @@ class LoopFuseTrans(Transformation):
         if abs(node1.position-node2.position)!=1:
             raise Exception("Error in LoopFuse transformation. nodes are not siblings who are next to eachother")
         # Check iteration space is the same
-        if not(node1.iteration_space == node2.iteration_space):
+        if not(node1.loop_space == node2.loop_space):
             raise Exception("Error in LoopFuse transformation. loops do not have the same iteration space")
 
         schedule=node1.root
@@ -171,7 +171,7 @@ class DynamoOpenMPLoop(OpenMPLoop):
         if not isinstance(node,Loop):
             raise Exception("Error in "+self.name+" transformation. The node is not a loop.")
         # Check iteration space is supported - only cells at the moment
-        if not node.iteration_space == "cells":
+        if not node.loop_space == "cells":
             raise Exception("Error in "+self.name+" transformation. The iteration space is not 'cells'.")
         # Check we do not need colouring
         if node.field_space != "v3" and node.loop_type is None:
@@ -223,7 +223,7 @@ class ColourTrans(Transformation):
         if not isinstance(node,Loop):
             raise Exception("Error in LoopColour transformation. The node is not a loop")
         # Check iteration space is supported - only cells at the moment
-        if not node.iteration_space == "cells":
+        if not node.loop_space == "cells":
             raise Exception("Error in "+self.name+" transformation. The iteration space is not 'cells'.")
         # Check we need colouring
         if node.field_space == "v3":
@@ -249,7 +249,7 @@ class ColourTrans(Transformation):
         colours_loop = DynLoop(parent = node_parent)
         colours_loop.loop_type="colours"
         colours_loop.field_space=node.field_space
-        colours_loop.iteration_space=node.iteration_space
+        colours_loop.loop_space=node.loop_space
         node_parent.addchild(colours_loop,
                              index = node_position)
 
@@ -258,7 +258,7 @@ class ColourTrans(Transformation):
         colour_loop = DynLoop(parent = colours_loop)
         colour_loop.loop_type="colour"
         colour_loop.field_space=node.field_space
-        colour_loop.iteration_space=node.iteration_space
+        colour_loop.loop_space=node.loop_space
         colours_loop.addchild(colour_loop)
 
         # add contents of node to colour loop
@@ -288,13 +288,25 @@ class GOceanChangeLoopSpaceTrans(Transformation):
         from psyGen import Loop
         if not isinstance(node, Loop):
             raise Exception("Error in GOceanChangeLoopSpace transformation. The node is not a loop")
+        # check node is an outer loop (as we will propogate the change
+        # to the innner loop)
+        if not node.loop_type == "outer":
+            raise Exception("Error in GOceanChangeLoopSpace transformation. The node is not an outer loop")
+        if not len(node.children) == 1:
+            raise Exception("Error in GOceanChangeLoopSpace transformation. The outer loop has more than one child node")
+        elif not isinstance(node.children[0], Loop):
+            raise Exception("Error in GOceanChangeLoopSpace transformation. The child of the outer loop is not a loop")
+        elif not node.children[0].loop_type == "inner":
+            raise Exception("Error in GOceanChangeLoopSpace transformation. The child of the outer loop is not an inner loop")
 
+        schedule = node.root
         # create a memento of the schedule and the proposed transformation
         from undoredo import Memento
         keep=Memento(schedule, self, [node, iteration_space])
 
-        # change the loop space
+        # change the outer loop space
         node.loop_space = iteration_space
-
+        # change the inner loop space
+        node.children[0].loop_space = iteration_space
         # return new schedule and a memento
         return schedule, keep
