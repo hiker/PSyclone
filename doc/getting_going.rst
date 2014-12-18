@@ -8,6 +8,9 @@ PSyclone is available for download from the GungHo repository.
 
 ``svn co https://puma.nerc.ac.uk/svn/GungHo_svn/PSyclone/trunk PSyclone``
 
+Hereon the location where you download PSyclone (including the
+PSyclone directory itself) will be refered to as <PSYCLONEHOME>
+
 Dependencies
 ------------
 
@@ -15,17 +18,34 @@ PSyclone is written in python so needs python to be installed on the
 target machine. PSyclone has been tested under python 2.6.5 and 2.7.3.
 
 PSyclone immediately relies on two external libraries, f2py and
-pyparsing. f2py also requires numpy.
+pyparsing.
 
-f2py
-^^^^
+f2py quick setup
+^^^^^^^^^^^^^^^^
+
+The source code of f2py (revision 88) is provided with PSyclone in the
+sub-directory ``f2py_88``.
+
+To use f2py provided with PSyclone you can simply set up your
+PYTHONPATH variable to include this directory.
+::
+    > export PYTHONPATH=<PSYCLONEHOME>/f2py_88:${PYTHONPATH}
+
+You can now skip the f2py installation section.
+
+f2py installation
+^^^^^^^^^^^^^^^^^
 
 PSyclone requires version 3 of f2py, a library designed to allow
 fortran to be called from python (see
 http://code.google.com/p/f2py/wiki/F2PYDevelopment for more
 information). PSyclone makes use of the fortran parser (fparser)
-contained within. The source code of f2py (revision 88) is provided
-with PSyclone in the sub-directory ``f2py_88``.
+contained within.
+
+The source code of f2py (revision 88) is provided with PSyclone in the
+sub-directory ``f2py_88``. If you would prefer to install f2py rather
+than simply use it as is (see the previous section) then the rest of
+this section explains how to do this.
 
 f2py uses the numpy distutils package to install. In version 1.6.1 of
 distutils (currently the default in Ubuntu) distutils supports
@@ -94,20 +114,27 @@ http://pyparsing.wikispaces.com/Download+and+Installation.
 Run
 ---
 
-The generator.py script can be used to generate the required PSy code as well as the modified algorithm code.
+The generator.py script can be used to generate the required PSy code
+as well as the modified algorithm code.
 ::
+    > cd <PSYCLONEHOME>/src
     > python ./generator.py 
-    usage: generator.py [-h] [-oalg OALG] [-opsy OPSY] filename
+    usage: generator.py [-h] [-oalg OALG] [-opsy OPSY]  [-api API] filename
     generator.py: error: too few arguments
 
-A working example is provided in the example directory. To create the PSy code and modify the algorithm code using the script do the following
+Examples are provided in the example directory. There are 3
+subdirectories in the examples directory corresponding to different
+API's that are supported by PSyclone. In this case we are going to use
+one of the dynamo examples
 ::
-    > cd example
-    > python ../generator.py -oalg integrate_one_alg.F90 -opsy integrate_one_psy.F90 integrate_one.F90
+    > cd <PSYCLONEHOME>/example/dynamo/eg1
+    > python ../../../src/generator.py -oalg dynamo_alg.f90 -opsy dynamo_psy.f90 dynamo.F90
 
-To generate, build and run the example use the Makefile
+You should see two new files created called dynamo_alg.f90 and
+dynamo_psy.f90
+
+You can also run the runme.py example to see the interactive
+API in action
 ::
-    > cd example
-    > make
-    > ./integrate_one_generated 
-    1.0000000000000000     
+    > cd <PSYCLONEHOME>/example/dynamo/eg1
+    > python runme.py
