@@ -60,13 +60,13 @@ Contents:
    :maxdepth: 2
 
    getting_going
-   kernel_layer
-   infrastructure_calls
-   tutorial
-   examples
-   developers
-   FAQS
    api
+..   developers
+..   kernel_layer
+..   infrastructure_calls
+..   tutorial
+..   examples
+..   FAQS
 
 Indices and tables
 ==================
