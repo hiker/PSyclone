@@ -244,6 +244,8 @@ class KernelTypeFactory(object):
             return GHProtoKernelType(name,ast)
         elif self._type=="dynamo0.1":
             return DynKernelType(name,ast)
+        elif self._type=="dynamo0.3":
+            return DynKernelType03(name,ast)
         elif self._type=="gocean":
             return GOKernelType(name,ast)
         else:
@@ -340,6 +342,11 @@ class KernelType(object):
         if ktype is None:
             raise RuntimeError("Kernel type %s not implemented" % name)
         return ktype
+
+class DynKernelType03(KernelType):
+    def __init__(self,name,ast):
+        KernelType.__init__(self,name,ast)
+        self._arg_descriptors.append(DynDescriptor03())
 
 class DynKernelType(KernelType):
     def __init__(self,name,ast):
