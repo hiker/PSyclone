@@ -89,6 +89,7 @@ class DynFuncDescriptor03():
         return res
 
 class DynArgDescriptor03(Descriptor):
+
     def __init__(self, arg_type):
         self._arg_type = arg_type
         if arg_type.name != 'arg_type':
@@ -142,8 +143,16 @@ class DynArgDescriptor03(Descriptor):
         else: # we should never get to here
             raise ParseError("Internal logic error in DynArgDescriptor03")
             
-        Descriptor(arg_type.args[2].name,None,None)
+        Descriptor.__init__(self,self._access_descriptor.name,self._function_space1,None)
         print str(self)
+        #@property
+        #def access(self):
+        #return self._access_descriptor.name
+        #self._access = self._access_descriptor.name
+        #self._space = self._function_space1
+        #self.basis = ".false."
+        #self.diff_basis = ".false."
+        #self.gauss_quad = ".false."
 
     def __str__(self):
         res="DynArgDescriptor03 object"+os.linesep
