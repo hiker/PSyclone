@@ -46,6 +46,125 @@ class GODescriptor(Descriptor):
     def __init__(self, access, space, stencil):
         Descriptor.__init__(self,access,space,stencil)
 
+class DynFuncDescriptor03():
+    ''' The Dynamo 0.3 API has a function space descriptor as well as an argument descriptor. This class captures the information from one of these '''
+
+    def __init__(self,func_type):
+        self._func_type = func_type
+        if func_type.name != 'func_type':
+                raise ParseError("Each meta_func value must be of type 'func_type' for the dynamo0.3 api, but found '{0}'".format(func_type.name))
+        if len(func_type.args) < 2:
+            raise ParseError("Each meta_func value must have at least 2 args for the dynamo0.3 api, but found '{0}'".format(len(func_type.args)))
+        self._operator_names = []
+        self._valid_function_space_names = ["w0","w1","w2","w3"]
+        self._valid_operator_names = ["gh_basis", "gh_diff_basis"]
+        for idx,arg in enumerate(func_type.args):
+            if idx==0:
+                if arg.name not in self._valid_function_space_names:
+                    raise ParseError("Each meta_func 1st argument must be one of {0} for the dynamo0.3 api, but found '{1}' in '{2}".format(self._valid_function_space_names,arg.name,func_type))
+                self._function_space_name=arg.name
+            else:
+                if arg.name not in self._valid_operator_names:
+                    raise ParseError("Each meta_func 2nd argument onwards must be one of {0} for the dynamo0.3 api, but found '{1}' in '{2}".format(self._valid_operator_names,arg.name,func_type))
+                if arg.name in self._operator_names:
+                    raise ParseError("Each meta_func 2nd argument onwards must be unique for the dynamo0.3 api, but found '{0}' specified more than once in '{1}".format(arg.name,func_type))
+                self._operator_names.append(arg.name)
+        self._name = func_type.name
+        print str(self)
+
+    @property
+    def function_space_name(self):
+        return self._function_space_name
+
+    def __repr__(self):
+        return "DynFuncDescriptor03({0})".format(self._func_type)
+
+    def __str__(self):
+        res="DynFuncDescriptor03 object"+os.linesep
+        res += "  name='{0}'".format(self._name)+os.linesep
+        res += "  nargs={0}".format(len(self._operator_names)+1)+os.linesep
+        res += "  function_space_name[{0}] = '{1}'".format(0,self._function_space_name)+os.linesep
+        for idx,arg in enumerate(self._operator_names):
+            res += "  operator_name[{0}] = '{1}'".format(idx+1,arg)+os.linesep
+        return res
+
+class DynArgDescriptor03(Descriptor):
+    def __init__(self, arg_type):
+        self._arg_type = arg_type
+        if arg_type.name != 'arg_type':
+            raise ParseError("Each meta_arg value must be of type 'arg_type' for the dynamo0.3 api, but found '{0}'".format(arg_type.name))
+        # at least 3 args
+        if len(arg_type.args) < 3:
+            raise ParseError("Each meta_arg value must have at least 3 arguments for the dynamo0.3 api")
+        # first arg is the type of field, possibly with a *n appended
+        self._valid_arg_type_names = ["gh_field","gh_operator"]
+        self._vector_size=1
+        if isinstance(arg_type.args[0],expr.BinaryOperator): # we expect 'field_type * n'
+            self._type = arg_type.args[0].toks[0].name
+            operator=arg_type.args[0].toks[1]
+            self._vector_size=arg_type.args[0].toks[2]
+            if not self._type in self._valid_arg_type_names:
+                raise ParseError("Each meta_arg 1st argument must be one of {0} for the dynamo0.3 api, but found '{1}'".format(self._valid_arg_type_names,self._type))
+            if not operator == "*":
+                raise ParseError("Each meta_arg 1st argument must use '*' if it is to be a vector for the dynamo0.3 api, but found '{0}'".format(operator))
+            if not int(self._vector_size)>0:
+                raise ParseError("Each meta_arg 1st argument must use a positive integer if it is to be a vector for the dynamo0.3 api, but found '{0}'".format(self._vector_size))
+                
+        elif isinstance(arg_type.args[0],expr.FunctionVar):
+            if arg_type.args[0].name not in self._valid_arg_type_names:
+                raise ParseError("Each meta_arg 1st argument must be one of {0} for the dynamo0.3 api, but found '{1}'".format(self._valid_arg_type_names,arg_type.args[0].name))
+            self._type = arg_type.args[0].name
+        else:
+            raise ParseError("Internal error in DynArgDescriptor03, should not get to here")
+        # 2nd arg is access descriptor
+        self._valid_access_descriptor_names = ["gh_read","gh_write","gh_inc"]
+        if arg_type.args[1].name not in self._valid_access_descriptor_names:
+            raise ParseError("Each meta_arg 2nd argument must be one of {0} for the dynamo0.3 api, but found '{1}'".format(self._valid_access_descriptor_names,arg_type.args[1].name))
+        self._access_descriptor = arg_type.args[1]
+        self._valid_function_space_names = ["w0","w1","w2","w3"]
+        if self._type == "gh_field":
+            # we expect 3 arguments with the 3rd being a function space
+            if len(arg_type.args) != 3:
+                raise ParseError("Each meta_arg value must have 3 arguments for the dynamo0.3 api if its first argument is gh_field")
+            if arg_type.args[2].name not in self._valid_function_space_names:
+                raise ParseError("Each meta_arg 3rd argument must be one of {0} for the dynamo0.3 api, but found '{1}' in '{2}".format(self._valid_function_space_names,arg_type.args[2].name,arg_type))
+            self._function_space1 = arg_type.args[2].name
+        elif self._type == "gh_operator":
+            # we expect 4 arguments with the 3rd and 4th each being a function space
+            if len(arg_type.args) != 4:
+                raise ParseError("Each meta_arg value must have 4 arguments for the dynamo0.3 api if its first argument is gh_operator")
+            if arg_type.args[2] not in self._valid_function_space_names:
+                raise ParseError("Each meta_arg 3rd argument must be one of {0} in the dynamo0.3 api, but found '{1}' in '{2}".format(self._valid_function_space_names,arg_type.args[2],arg_type))
+            self._function_space1 = arg_type.args[2].name
+            if arg_type.args[3] not in self._valid_function_space_names:
+                raise ParseError("Each meta_arg 4th argument must be one of {0} in the dynamo0.3 api, but found '{1}' in '{2}".format(self._valid_function_space_names,arg_type.args[2],arg_type))
+            self._function_space2 = arg_type.args[3].name
+        else: # we should never get to here
+            raise ParseError("Internal logic error in DynArgDescriptor03")
+            
+        Descriptor(arg_type.args[2].name,None,None)
+        print str(self)
+
+    def __str__(self):
+        res="DynArgDescriptor03 object"+os.linesep
+        res += "  argument_type[0]='{0}'".format(self._type)
+        if int(self._vector_size>1):
+            res += "*"+self._vector_size
+        res += os.linesep
+        res += "  access_descriptor[1]='{0}'".format(self._access_descriptor)+os.linesep
+        if self._type == "gh_field":
+            res += "  function_space[2]='{0}'".format(self._function_space1)+os.linesep
+        elif self._type == "gh_operator":
+            res += "  function_space_out[2]='{0}'".format(self._function_space1)+os.linesep
+            res += "  function_space_in[3]='{0}'".format(self._function_space2)+os.linesep
+        else: # we should never get to here
+            raise ParseError("Internal logic error in DynArgDescriptor03")
+        return res
+        
+    def __repr__(self):
+        return "DynArgDescriptor03({0})".format(self._arg_type)
+        
+
 class DynDescriptor(Descriptor):
     def __init__(self,access,funcspace,stencil,basis,diff_basis,gauss_quad):
         Descriptor.__init__(self,access,funcspace,stencil)
@@ -270,23 +389,23 @@ class KernelType(object):
         self._inits=self.getkerneldescriptors(self._ktype)
         self._arg_descriptors=None # this is set up by the subclasses
         
-    def getkerneldescriptors(self,ast):
-        descs = ast.get_variable('meta_args')
+    def getkerneldescriptors(self,ast, var_name='meta_args'):
+        descs = ast.get_variable(var_name)
         if descs is None:
-            raise ParseError("kernel call does not contain a meta_args type")
+            raise ParseError("kernel call does not contain a {0} type".format(var_name))
         try:
             nargs=int(descs.shape[0])
         except AttributeError as e:
-            raise ParseError("kernel metadata {0}: meta_args variable must be an array".format(self._name))
+            raise ParseError("kernel metadata {0}: {1} variable must be an array".format(self._name, var_name))
         if len(descs.shape) is not 1:
-            raise ParseError("kernel metadata {0}: meta_args variable must be a 1 dimensional array".format(self._name))
+            raise ParseError("kernel metadata {0}: {1} variable must be a 1 dimensional array".format(self._name, var_name))
         if descs.init.find("[") is not -1 and descs.init.find("]") is not -1:
             # there is a bug in f2py
-            raise ParseError("Parser does not currently support [...] initialisation for meta_args, please use (/.../) instead")
+            raise ParseError("Parser does not currently support [...] initialisation for {0}, please use (/.../) instead".format(var_name))
         inits = expr.expression.parseString(descs.init)[0]
         nargs=int(descs.shape[0])
         if len(inits) != nargs:
-            raise ParseError("Error, in meta_args specification, the number of args %s and number of dimensions %s do not match" % (nargs,len(inits)))
+            raise ParseError("Error, in {0} specification, the number of args {1} and number of dimensions {2} do not match".format(var_name, nargs, len(inits)))
         return inits
 
     @property
@@ -346,7 +465,22 @@ class KernelType(object):
 class DynKernelType03(KernelType):
     def __init__(self,name,ast):
         KernelType.__init__(self,name,ast)
-        self._arg_descriptors.append(DynDescriptor03())
+
+        # parse arg_type metadata
+        self._arg_descriptors=[]
+        for arg_type in self._inits:
+            self._arg_descriptors.append(DynArgDescriptor03(arg_type))
+            
+        # parse func_type metadata if it exists
+        descs = self._ktype.get_variable("meta_funcs")
+        if descs is None:
+            func_types = []
+        else:
+            func_types = self.getkerneldescriptors(self._ktype,var_name="meta_funcs")
+        self._func_descriptors=[]
+        for func_type in func_types:
+            self._func_descriptors.append(DynFuncDescriptor03(func_type))
+
 
 class DynKernelType(KernelType):
     def __init__(self,name,ast):
@@ -427,8 +561,10 @@ class KernelCall(object):
         self._module_name = module_name
         self._ktype = ktype
         self._args = args
-        if self._ktype.nargs != len(self._args):
-            raise ParseError("Kernel %s called with incorrect number of arguments (%d not %d)" % (self._ktype, len(self._args), self._ktype.nargs))
+        # this test is not valid for dynamo0.3 as you can have 'qr' passed in
+        # and/or you can have vectors
+        #if self._ktype.nargs != len(self._args):
+        #    raise ParseError("Kernel %s called with incorrect number of arguments (%d not %d)" % (self._ktype, len(self._args), self._ktype.nargs))
 
     @property
     def ktype(self):

@@ -49,6 +49,10 @@ class PSyFactory(object):
         elif self._type == "gocean":
             from gocean0p1 import GOPSy
             return GOPSy(invoke_info)
+        elif self._type == "dynamo0.3":
+            print "psyGen:PSyFactory:create called for dynamo api0.3"
+            print "not yet implemented, exiting"
+            exit(1)
         else:
             raise GenerationError("PSyFactory: Internal Error: Unsupported "
                                   "api type '{0}' found. Should not be "
