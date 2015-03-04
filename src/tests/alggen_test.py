@@ -10,6 +10,17 @@ import os
 from generator import generate
 import pytest
 
+class TestAlgGenClassDynamo0p3:
+    ''' AlgGen class unit tests for the Dynamo0.3 API. We use the
+    generate function, as parse and PSyFactory need to be called before
+    AlgGen so it is simpler to use this'''
+
+    def test_invoke_argnames_dynamo0p3(self):
+        ''' test for correct code transformation for different call arguments '''
+        alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","5_alg_field_array.f90"),api="dynamo0.3")
+        assert (str(alg).find("USE psy_single_function, ONLY: invoke_testkern_type")!=-1 and \
+                  str(alg).find("CALL invoke_testkern_type(f0(1), f1(1, 1), f1(2, index), f1(index, index2(index3))")!=-1)
+
 class TestAlgGenClassGungHoProto:
     ''' AlgGen class unit tests for the GungHoProto API. Tests for
     correct code transformation. We use the generate function as parse

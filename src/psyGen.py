@@ -225,14 +225,21 @@ class Invoke(object):
         # work out the argument list. It needs to be unique and should
         # not contain any literals.
         self._unique_args = []
+        self._orig_unique_args_full = []
         self._orig_unique_args = []
         self._unique_args_dict = {}
         for call in alg_invocation.kcalls:
             for arg in call.args:
                 if not arg.is_literal(): # skip literals
-                    if arg.value not in self._orig_unique_args:
-                        self._orig_unique_args.append(arg.value)
+                    if arg.fullName is not None:
+                        name = arg.fullName
+                    else:
+                        name = arg.value
+                    
+                    if name not in self._orig_unique_args_full:
+                        self._orig_unique_args_full.append(name)
                         value=self._name_space_manager.add_arg(arg.value)
+                        self._orig_unique_args.append(value)
                         self._unique_args.append(value)
                         self._unique_args_dict[arg] = value
                             
@@ -255,6 +262,9 @@ class Invoke(object):
     @property
     def orig_unique_args(self):
         return self._orig_unique_args
+    @property
+    def orig_unique_args_full(self):
+        return self._orig_unique_args_full
     @property
     def schedule(self):
         return self._schedule
