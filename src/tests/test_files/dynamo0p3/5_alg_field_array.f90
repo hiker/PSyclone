@@ -15,7 +15,8 @@ program single_function
   type(field_type) :: f0(2),f1(2,2)
 
   call invoke(                   &
-       testkern_type(f0(1),f1(1,1),f1(2,index),f1(index,index2(index3)))   &
+       testkern_type(f0(1),f1(1,1),f1(2,index),f1(index,index2(index3))),   &
+       testkern_type(f1(index,index2(index3)),f1(2,index),f1(1,1),f0(1))    &
           )
 
 end program single_function

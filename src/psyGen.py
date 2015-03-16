@@ -157,35 +157,48 @@ class NameSpaceFactory(object):
         return NameSpaceFactory._instance
 
 class NameSpace(object):
-    ''' keeps a record of reserved names and currently used names to check
-        for clashes and provides a new name if there is a clash. Reserved
-        names are ones already allocated to the infrastructure. '''
+    ''' keeps a record of reserved names and used names for clashes and provides a
+        new name if there is a clash. '''
     def __init__(self):
         self._reserved_names = []
-        self._arg_names = {}
+        self._added_names = []
+        self._fullTextMap = {}
     def add_reserved(self, names):
-        if len(self._arg_names) > 0:
+        if len(self._added_names) > 0:
             raise Exception("Error: NameSpace class: not coded for adding "
                             "reserved names after used names")
         for name in names:
-            if not name in self._reserved_names:
-                # silently ignore if this is already a reserved name
-                # fortran is not case sensitive
-                self._reserved_names.append(name.lower())
-    def add_arg(self, name):
-        if name in self._arg_names.keys():
-            return self._arg_names[name]
-        elif name in self._reserved_names:
-            count = 1
-            proposed_name = name+"_"+str(count)
-            while proposed_name in self._arg_names.values() or \
-                  proposed_name in self._reserved_names:
-                count+=1
-                proposed_name = name+"_"+str(count)
-            self._arg_names[name] = proposed_name
+            lname = name.lower()
+            # silently ignore if this is already a reserved name
+            if not lname in self._reserved_names:
+                self._reserved_names.append(lname)
+    def add_name(self, name, fullText):
+        # We need to use the same name if fullText has been used before.
+        # If fullText has not been used but the name has been, then we
+        # need to use a new unique name.
+        lFullText = fullText.lower()
+        lname = name.lower()
+        #print "Namespace: Trying to add name '"+lname+"' and fullText '"+lFullText+"'"
+        if lFullText in self._fullTextMap.keys():
+            #print "FullText already used, returning previous name '"+self._fullTextMap[lFullText]+"'"
+            return self._fullTextMap[lFullText]
+        if lname not in self._reserved_names and lname not in self._added_names:
+            self._added_names.append(lname)
+            #print "Name added"
+            self._fullTextMap[lFullText] = name
+            return name
         else:
-            self._arg_names[name] = name
-        return self._arg_names[name]
+            #print "Name is in use"
+            count = 1
+            proposed_lname = lname+"_"+str(count)
+            while proposed_lname in self._reserved_names or proposed_lname in self._added_names:
+                count+=1
+                proposed_lname = lname+"_"+str(count)
+            proposed_name = name + "_" + str(count)
+            self._added_names.append(proposed_name)
+            #print "Using '{0}' in its place".format(proposed_name)
+            self._fullTextMap[lFullText] = proposed_name
+            return proposed_name
 
 class Invoke(object):
 
@@ -222,27 +235,18 @@ class Invoke(object):
             # use the position of the invoke
             self._name = "invoke_"+str(idx)
 
-        # work out the argument list. It needs to be unique and should
-        # not contain any literals.
-        self._unique_args = []
-        self._orig_unique_args_full = []
-        self._orig_unique_args = []
-        self._unique_args_dict = {}
-        for call in alg_invocation.kcalls:
-            for arg in call.args:
-                if not arg.is_literal(): # skip literals
-                    if arg.fullName is not None:
-                        name = arg.fullName
-                    else:
-                        name = arg.value
-                    
-                    if name not in self._orig_unique_args_full:
-                        self._orig_unique_args_full.append(name)
-                        value=self._name_space_manager.add_arg(arg.value)
-                        self._orig_unique_args.append(value)
-                        self._unique_args.append(value)
-                        self._unique_args_dict[arg] = value
-                            
+        # extract the argument list for the algorithm call and psy
+        # layer subroutine.
+        self._alg_unique_args = []
+        self._psy_unique_vars = []
+        for call in self.schedule.calls():
+            for arg in call.arguments.args:
+                #print "arg text "+arg.text+" name "+arg.name
+                if not arg.text in self._alg_unique_args:
+                    self._alg_unique_args.append(arg.text)
+                if not arg.name in self._psy_unique_vars:
+                    self._psy_unique_vars.append(arg.name)
+
         # work out the unique dofs required in this subroutine
         self._dofs = {}
         for kern_call in self._schedule.kern_calls():
@@ -257,14 +261,20 @@ class Invoke(object):
     def name(self):
         return self._name
     @property
-    def unique_args(self):
-        return self._unique_args
+    def alg_unique_args(self):
+        return self._alg_unique_args
     @property
-    def orig_unique_args(self):
-        return self._orig_unique_args
-    @property
-    def orig_unique_args_full(self):
-        return self._orig_unique_args_full
+    def psy_unique_vars(self):
+        return self._psy_unique_vars
+    #@property
+    #def unique_args(self):
+    #    return self._unique_args
+    #@property
+    #def orig_unique_args(self):
+    #    return self._orig_unique_args
+    #@property
+    #def orig_unique_args_full(self):
+    #    return self._orig_unique_args_full
     @property
     def schedule(self):
         return self._schedule
@@ -943,18 +953,22 @@ class Argument(object):
     def __init__(self, call, arg_info, access):
         self._dependencies = Dependencies(self)
         self._call = call
-        self._orig_name = arg_info.value
+        self._text = arg_info.text
+        self._orig_name = arg_info.varName
         self._form = arg_info.form
         self._is_literal = arg_info.is_literal()
         self._access = access
         self._name_space_manager = NameSpaceFactory().create()
-        self._name = self._name_space_manager.add_arg(self._orig_name)
+        self._name = self._name_space_manager.add_name(self._orig_name, self._text)
 
     def __str__(self):
         return self._name
     @property
     def name(self):
         return self._name
+    @property
+    def text(self):
+        return self._text
     @property
     def form(self):
         return self._form

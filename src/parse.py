@@ -596,22 +596,22 @@ class KernelCall(object):
         
 class Arg(object):
     ''' Descriptions of an argument '''
-    def __init__(self,form,value,fullName=None):
-        formOptions=["literal","variable"]
+    def __init__(self,form,text,varName=None):
+        formOptions=["literal","variable","indexed_variable"]
         self._form=form
-        self._value=value
-        self._fullName=fullName
+        self._text=text
+        self._varName=varName
         if form not in formOptions:
             raise ParseError("Unknown arg type provided. Expected one of {0} but found {1}".format(str(formOptions),form))
     @property
     def form(self):
         return self._form
     @property
-    def value(self):
-        return self._value
+    def text(self):
+        return self._text
     @property
-    def fullName(self):
-        return self._fullName
+    def varName(self):
+        return self._varName
     def is_literal(self):
         if self._form=="literal":
             return True
@@ -721,15 +721,16 @@ def parse(filename, api="", invoke_name="invoke", inf_name="inf"):
                     if type(a) is str: # a literal is being passed by argument
                         argargs.append(Arg('literal',a))
                     else: # assume argument parsed as a FunctionVar
+                        variableName = a.name
                         if a.args is not None:
-                            # argument is an indexed array so determine the full name
-                            fullName = ""
+                            # argument is an indexed array so extract the full text
+                            fullText = ""
                             for tok in a.walk2():
-                                fullName+=str(tok)
-                            argargs.append(Arg('variable',a.name,fullName))
+                                fullText+=str(tok)
+                            argargs.append(Arg('indexed_variable',fullText,variableName))
                         else:
                             # argument is a standard variable
-                            argargs.append(Arg('variable',a.name))
+                            argargs.append(Arg('variable',variableName,variableName))
                 if argname in ['set']: # this is an infrastructure call
                     statement_kcalls.append(InfCall(inf_name,argname,argargs))
                 else:

@@ -8,8 +8,9 @@
 
 module testkern
   type, extends(kernel_type) :: testkern_type
-     type(arg_type), dimension(3) :: meta_args =    &
+     type(arg_type), dimension(4) :: meta_args =    &
           (/ arg_type(gh_field,gh_write,w1), &
+             arg_type(gh_field,gh_read, w2), &
              arg_type(gh_field,gh_read, w2), &
              arg_type(gh_field,gh_read, w3)  &
            /)
@@ -24,6 +25,6 @@ module testkern
   end type testkern_type
 contains
 
-  subroutine testkern_code(a,b,c)
+  subroutine testkern_code(a,b,c,d)
   end subroutine testkern_code
 end module testkern
