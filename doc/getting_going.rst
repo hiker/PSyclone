@@ -18,7 +18,7 @@ PSyclone is written in python so needs python to be installed on the
 target machine. PSyclone has been tested under python 2.6.5 and 2.7.3.
 
 PSyclone immediately relies on two external libraries, f2py and
-pyparsing.
+pyparsing. To run the test suite you will require py.test.
 
 f2py quick setup
 ^^^^^^^^^^^^^^^^
@@ -59,11 +59,51 @@ within Ubuntu using the software center (search for the
 do not run Ubuntu you could follow the instructions here
 http://pyparsing.wikispaces.com/Download+and+Installation.
 
+py.test
+^^^^^^^
+
+The PSyclone test suite uses py.test. You can test whether it is already
+installed by simply typing ``py.test`` at a shell prompt. If it is 
+present you will get output that begins with
+::
+
+======================== test session starts ==================
+
+If you do not have it then py.test can be installed from here
+http://pytest.org/latest/ (or specifically here
+http://pytest.org/latest/getting-started.html).
+
+Test
+----
+
+Once you have the necessary dependencies installed, you can test that
+things are working by using the PSyclone test suite:
+::
+    > cd <PSYCLONEHOME>/src/tests
+    > py.test
+
+If everything is working as expected then you should see output similar to:
+::
+
+    ============================= test session starts =========================
+    platform linux2 -- Python 2.7.5 -- py-1.4.26 -- pytest-2.6.4
+    collected 35 items 
+
+    alggen_test.py xxxxx.x.x
+    f2pygen_test.py .x....
+    generator_test.py ..
+    parser_test.py .
+    psyGen_test.py .............
+    transformations_test.py xx.x
+
+    ================== 24 passed, 11 xfailed in 1.21 seconds ==================
+
 Run
 ---
 
-The generator.py script can be used to generate the required PSy code
-as well as the modified algorithm code.
+Having checked things with the test suite you are ready to try running
+PSyclone on the examples. The generator.py script can be used to
+generate the required PSy code as well as the modified algorithm code.
 ::
     > cd <PSYCLONEHOME>/src
     > python ./generator.py 
@@ -71,8 +111,7 @@ as well as the modified algorithm code.
     generator.py: error: too few arguments
 
 Examples are provided in the examples directory. There are 3
-subdirectories (dynamo, gocean and gunghoproto) in the examples 
-directory corresponding to different
+subdirectories (dynamo, gocean and gunghoproto) corresponding to different
 API's that are supported by PSyclone. In this case we are going to use
 one of the dynamo examples
 ::
