@@ -76,6 +76,10 @@ class DynFuncDescriptor03():
     def function_space_name(self):
         return self._function_space_name
 
+    @property
+    def operator_names(self):
+        return self._operator_names
+
     def __repr__(self):
         return "DynFuncDescriptor03({0})".format(self._func_type)
 
@@ -490,6 +494,9 @@ class DynKernelType03(KernelType):
         for func_type in func_types:
             self._func_descriptors.append(DynFuncDescriptor03(func_type))
 
+    @property
+    def func_descriptors(self):
+        return self._func_descriptors
 
 class DynKernelType(KernelType):
     def __init__(self,name,ast):

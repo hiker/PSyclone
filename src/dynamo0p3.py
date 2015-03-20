@@ -11,7 +11,7 @@
     Inf, Arguments and Argument). '''
 
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
-                   Argument, GenerationError, Inf
+                   Argument, GenerationError, Inf, NameSpaceFactory
 
 class DynamoPSy(PSy):
     ''' The Dynamo specific PSy class. This creates a Dynamo specific
@@ -57,6 +57,15 @@ class DynInvoke(Invoke):
         if False:
             self._schedule = DynSchedule(None) # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, DynSchedule)
+        self._alg_unique_qr_args = []
+        self._psy_unique_qr_vars = []
+        for call in self.schedule.calls():
+            if call.qr_required:
+                if not call.qr_text in self._alg_unique_qr_args:
+                    self._alg_unique_qr_args.append(call.qr_text)
+                if not call.qr_name in self._psy_unique_qr_vars:
+                    self._psy_unique_qr_vars.append(call.qr_name)
+        self._alg_unique_args.extend(self._alg_unique_qr_args)
 
     def gen_code(self, parent):
         ''' Generates Dynamo specific invocation code (the subroutine called
@@ -66,7 +75,7 @@ class DynInvoke(Invoke):
         from f2pygen import SubroutineGen, TypeDeclGen
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name = self.name,
-                                   args = self.psy_unique_vars)
+                                   args = self.psy_unique_vars+self._psy_unique_qr_vars)
         self.schedule.gen_code(invoke_sub)
         parent.add(invoke_sub)
         # add the subroutine argument declarations
@@ -74,6 +83,11 @@ class DynInvoke(Invoke):
                                   entity_decls = self.psy_unique_vars,
                                   intent = "inout")
         invoke_sub.add(my_typedecl)
+        if len(self._psy_unique_qr_vars) > 0:
+            my_typedecl = TypeDeclGen(invoke_sub, datatype = "quadrature_type",
+                                      entity_decls = self._psy_unique_qr_vars,
+                                      intent = "in")
+            invoke_sub.add(my_typedecl)
 
 class DynSchedule(Schedule):
     ''' The Dynamo specific schedule class. This passes the Dynamo specific
@@ -125,6 +139,44 @@ class DynKern(Kern):
         if False:
             self._arguments = DynKernelArguments(None, None) # for pyreverse
         Kern.__init__(self, DynKernelArguments, call, parent)
+        # dynamo 0.3 api kernels require quadrature rule arguments to be
+        # passed in if one or more basis functions are used by the kernel.
+        self._qr_required = False
+        for descriptor in call.ktype.func_descriptors:
+            if len(descriptor.operator_names)>0:
+                self._qr_required=True
+                break
+        # if there is a quadrature rule, what is the name of the
+        # algorithm argument? Also perform some consistency checks.
+        self._qr_text=""
+        self._qr_name=""
+        if self._qr_required:
+            # check we have an extra argument in the algorithm call
+            if len(call.ktype.arg_descriptors)+1 !=  len(call.args):
+                raise GenerationError("error: QR is required for kernel '{0}' which means that a QR argument must be passed by the algorithm layer. Therefore the number of arguments specified in the kernel metadata '{1}', must be one less than the number of arguments in the algorithm layer. However, I found '{2}'".format(call.ktype.procedure.name, len(call.ktype.arg_descriptors), len(call.args)))
+            qr_arg = call.args[len(call.args)-1]
+            self._qr_text=qr_arg.text
+            self._name_space_manager = NameSpaceFactory().create()
+            self._qr_name=self._name_space_manager.add_name(self._qr_text, qr_arg.varName)
+        else:
+            # check we have the same number of arguments in the algorithm call
+            if len(call.ktype.arg_descriptors) !=  len(call.args):
+                raise GenerationError("error: QR is not required for kernel '{0}'. Therefore the number of arguments specified in the kernel metadata '{1}', must equal the number of arguments in the algorithm layer. However, I found '{2}'".format(call.ktype.procedure.name, len(call.ktype.arg_descriptors), len(call.args)))
+
+    @property
+    def qr_required(self):
+        # does this kernel make use of a quadrature rule?
+        return self._qr_required
+
+    @property
+    def qr_text(self):
+        # what is the QR argument text used by the algorithm layer?
+        return self._qr_text
+
+    @property
+    def qr_name(self):
+        # what is the QR name to be used by the PSy layer?
+        return self._qr_name
 
     def local_vars(self):
         return ["cell","map"]
