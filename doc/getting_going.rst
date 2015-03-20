@@ -120,10 +120,16 @@ one of the dynamo examples
 
 You should see two new files created called dynamo_alg.f90 (containing
 the re-written algorithm layer) and dynamo_psy.f90 (containing the
-generated PSy layer).
+generated PSy- or middle-layer). Since this is a dynamo example the code
+has dependencies on the dynamo system and therefore cannot be compiled
+stand-alone.
 
 You can also run the runme.py example to see the interactive
 API in action
 ::
     > cd <PSYCLONEHOME>/example/dynamo/eg1
     > python runme.py
+
+To understand this example in more depth it is instructive to
+cut-and-paste from the runme.py file into your own, interactive python
+session.
