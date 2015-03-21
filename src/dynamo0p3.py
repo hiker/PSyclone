@@ -138,7 +138,7 @@ class DynKern(Kern):
     def __init__(self, call, parent = None):
         if False:
             self._arguments = DynKernelArguments(None, None) # for pyreverse
-        Kern.__init__(self, DynKernelArguments, call, parent)
+        Kern.__init__(self, DynKernelArguments, call, parent, check=False)
         # dynamo 0.3 api kernels require quadrature rule arguments to be
         # passed in if one or more basis functions are used by the kernel.
         self._qr_required = False
@@ -146,22 +146,25 @@ class DynKern(Kern):
             if len(descriptor.operator_names)>0:
                 self._qr_required=True
                 break
-        # if there is a quadrature rule, what is the name of the
-        # algorithm argument? Also perform some consistency checks.
-        self._qr_text=""
-        self._qr_name=""
+
+        # perform some consistency checks as we have switched these off in the base class
         if self._qr_required:
             # check we have an extra argument in the algorithm call
             if len(call.ktype.arg_descriptors)+1 !=  len(call.args):
                 raise GenerationError("error: QR is required for kernel '{0}' which means that a QR argument must be passed by the algorithm layer. Therefore the number of arguments specified in the kernel metadata '{1}', must be one less than the number of arguments in the algorithm layer. However, I found '{2}'".format(call.ktype.procedure.name, len(call.ktype.arg_descriptors), len(call.args)))
+        else:
+            # check we have the same number of arguments in the algorithm call and the kernel metadata
+            if len(call.ktype.arg_descriptors) !=  len(call.args):
+                raise GenerationError("error: QR is not required for kernel '{0}'. Therefore the number of arguments specified in the kernel metadata '{1}', must equal the number of arguments in the algorithm layer. However, I found '{2}'".format(alg_call.ktype.procedure.name, len(alg_call.ktype.arg_descriptors), len(call.args)))
+
+        # if there is a quadrature rule, what is the name of the algorithm argument?
+        self._qr_text=""
+        self._qr_name=""
+        if self._qr_required:
             qr_arg = call.args[len(call.args)-1]
             self._qr_text=qr_arg.text
             self._name_space_manager = NameSpaceFactory().create()
             self._qr_name=self._name_space_manager.add_name(self._qr_text, qr_arg.varName)
-        else:
-            # check we have the same number of arguments in the algorithm call
-            if len(call.ktype.arg_descriptors) !=  len(call.args):
-                raise GenerationError("error: QR is not required for kernel '{0}'. Therefore the number of arguments specified in the kernel metadata '{1}', must equal the number of arguments in the algorithm layer. However, I found '{2}'".format(call.ktype.procedure.name, len(call.ktype.arg_descriptors), len(call.args)))
 
     @property
     def qr_required(self):
