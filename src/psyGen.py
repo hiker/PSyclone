@@ -242,10 +242,14 @@ class Invoke(object):
         for call in self.schedule.calls():
             for arg in call.arguments.args:
                 #print "arg text "+arg.text+" name "+arg.name
-                if not arg.text in self._alg_unique_args:
-                    self._alg_unique_args.append(arg.text)
-                if not arg.name in self._psy_unique_vars:
-                    self._psy_unique_vars.append(arg.name)
+                if arg.text is not None:
+                    if not arg.text in self._alg_unique_args:
+                        self._alg_unique_args.append(arg.text)
+                    if not arg.name in self._psy_unique_vars:
+                        self._psy_unique_vars.append(arg.name)
+                else:
+                    # literals have no name
+                    pass
 
         # work out the unique dofs required in this subroutine
         self._dofs = {}
@@ -290,10 +294,10 @@ class Invoke(object):
                             SelectionGen, AssignGen
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name = self.name,
-                                   args = self.unique_args)
+                                   args = self.psy_unique_vars)
         # add the subroutine argument declarations
         my_typedecl = TypeDeclGen(invoke_sub, datatype = "field_type",
-                                  entity_decls = self.unique_args,
+                                  entity_decls = self.psy_unique_vars,
                                   intent = "inout")
         invoke_sub.add(my_typedecl)
         # declare field-type, column topology and function-space types
@@ -963,10 +967,11 @@ class Argument(object):
         self._is_literal = arg_info.is_literal()
         self._access = access
         if self._orig_name is None:
-            # we are an infrastructure call literal argument. Not sure what
-            # to do here in the future. For the moment just use the
-            # existing value as the name
-            self._name = self._text
+            # this is an infrastructure call literal argument. Therefore
+            # we do not want an argument (_text=None) but we do want to
+            # keep the value (_name)
+            self._name = arg_info.text
+            self._text = None
         else:
             self._name_space_manager = NameSpaceFactory().create()
             self._name = self._name_space_manager.add_name(self._orig_name, self._text)
