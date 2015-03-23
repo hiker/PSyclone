@@ -577,10 +577,12 @@ class KernelCall(object):
         self._module_name = module_name
         self._ktype = ktype
         self._args = args
-        # this test is not valid for dynamo0.3 as you can have 'qr' passed in
-        # and/or you can have vectors
-        #if self._ktype.nargs != len(self._args):
-        #    raise ParseError("Kernel %s called with incorrect number of arguments (%d not %d)" % (self._ktype, len(self._args), self._ktype.nargs))
+        if len(self._args) < self._ktype.nargs:
+            # we cannot test for equality here as API's may have extra arguments
+            # passed in from the algorithm layer (e.g. 'QR' in dynamo0.3), but
+            # we do expect there to be at least the same number of real
+            # arguments as arguments specified in the metadata.
+            raise ParseError("Kernel '{0}' called from the algorithm layer with an insufficient number of arguments as specified by the metadata. Expected at least '{1}' but found '{2}'.".format(self._ktype.name, self._ktype.nargs, len(self._args)))
 
     @property
     def ktype(self):
