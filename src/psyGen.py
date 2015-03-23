@@ -962,8 +962,14 @@ class Argument(object):
         self._form = arg_info.form
         self._is_literal = arg_info.is_literal()
         self._access = access
-        self._name_space_manager = NameSpaceFactory().create()
-        self._name = self._name_space_manager.add_name(self._orig_name, self._text)
+        if self._orig_name is None:
+            # we are an infrastructure call literal argument. Not sure what
+            # to do here in the future. For the moment just use the
+            # existing value as the name
+            self._name = self._text
+        else:
+            self._name_space_manager = NameSpaceFactory().create()
+            self._name = self._name_space_manager.add_name(self._orig_name, self._text)
 
     def __str__(self):
         return self._name
