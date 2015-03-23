@@ -15,11 +15,64 @@ class TestAlgGenClassDynamo0p3:
     generate function, as parse and PSyFactory need to be called before
     AlgGen so it is simpler to use this'''
 
-    def test_invoke_argnames_dynamo0p3(self):
-        ''' test for correct code transformation for different call arguments '''
+    def test_single_function_invoke(self):
+        ''' single function specified in an invoke call'''
+        alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","1_single_invoke.f90"), api = "dynamo0.3")
+        assert (str(alg).find("USE psy_single_invoke, ONLY: invoke_testkern_type")!=-1 and \
+                  str(alg).find("CALL invoke_testkern_type(f1, f2, m1, m2)")!=-1)
+
+    def test_single_function_invoke_qr(self):
+        ''' single function specified in an invoke call which requires a quadrature rule'''
+        alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","1.1_single_invoke_qr.f90"), api = "dynamo0.3")
+        assert (str(alg).find("USE testkern_qr, ONLY: testkern_qr_type")!=-1 and \
+                  str(alg).find("CALL invoke_testkern_qr_type(f1, f2, m1, m2, qr)")!=-1)
+
+    def test_multi_function_invoke(self):
+        ''' two functions specified in an invoke call'''
+        alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","1.2_multi_invoke.f90"), api = "dynamo0.3")
+        assert (str(alg).find("USE psy_multi_invoke, ONLY: invoke_0")!=-1 and \
+                  str(alg).find("CALL invoke_0(f1, f2, m1, m2, f3)")!=-1)
+
+    def test_single_function_multi_invokes(self):
+        ''' three invokes, each containing a single function '''
+        alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","3_multi_invokes.f90"), api = "dynamo0.3")
+        assert (str(alg).find("USE testkern, ONLY: testkern_type")!=-1 and \
+                str(alg).find("USE testkern_qr, ONLY: testkern_qr_type")!=-1 and \
+                str(alg).count("CALL invoke_testkern_type(f1, f2, m1, m2)") == 2 and \
+                str(alg).find("CALL invoke_testkern_qr_type(f1, f2, m1, m2, qr)")!=-1)
+
+    def test_multi_function_multi_invokes(self):
+        ''' two invokes, each containing multiple functions '''
+        alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","3.1_multi_functions_multi_invokes.f90"), api = "dynamo0.3")
+        assert (str(alg).find("USE psy_multi_functions_multi_invokes, ONLY: invoke_1")!=-1 and \
+                str(alg).find("USE psy_multi_functions_multi_invokes, ONLY: invoke_0")!=-1 and \
+                str(alg).find("CALL invoke_0(f1, f2, m1, m2, qr)")!=-1 and \
+                str(alg).find("CALL invoke_1(f1, f2, m1, m2, qr)")!=-1)
+
+    def test_multi_function_invoke_qr(self):
+        ''' three functions specified in an invoke call, two of which which requires a quadrature rule'''
+        alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","1.3_multi_invoke_qr.f90"), api = "dynamo0.3")
+        assert (str(alg).find("USE testkern_qr, ONLY: testkern_qr_type")!=-1 and \
+                  str(alg).find("USE testkern, ONLY: testkern_type")!=-1 and \
+                  str(alg).find("CALL invoke_0(f1, f2, m1, m2, m3, f3, qr)")!=-1)
+
+    def test_invoke_argnames(self):
+        ''' invoke call arguments which are arrays '''
         alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","5_alg_field_array.f90"),api="dynamo0.3")
-        assert (str(alg).find("USE psy_single_function, ONLY: invoke_testkern_type")!=-1 and \
-                  str(alg).find("CALL invoke_testkern_type(f0(1), f1(1, 1), f1(2, index), f1(index, index2(index3))")!=-1)
+        assert (str(alg).find("USE psy_single_function, ONLY: invoke_0")!=-1 and \
+                  str(alg).find("CALL invoke_0(f0(1), f1(1, 1), f1(2, index), f1(index, index2(index3)), qr)")!=-1)
+
+    def test_multiple_qr_per_invoke(self):
+        ''' invoke functions require different quadrature rules '''
+        alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","6_multiple_QR_per_invoke.f90"),api="dynamo0.3")
+        assert (str(alg).find("USE psy_multi_qr_per_invoke, ONLY: invoke_0")!=-1 and \
+                  str(alg).find("CALL invoke_0(f1, f2, f3, f4, f0, qr0, qr1)")!=-1)
+
+    def test_qr_argnames(self):
+        ''' qr call arguments which are arrays '''
+        alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","7_QR_field_array.f90"),api="dynamo0.3")
+        assert (str(alg).find("USE psy_qr_field_array, ONLY: invoke_0")!=-1 and \
+                  str(alg).find("CALL invoke_0(f1, f2, f3, f4, f0, qr0(i, j), qr0(i, j + 1), qr1(i, k(l)))")!=-1)
 
 class TestAlgGenClassGungHoProto:
     ''' AlgGen class unit tests for the GungHoProto API. Tests for

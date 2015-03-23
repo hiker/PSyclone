@@ -6,16 +6,26 @@
 !-------------------------------------------------------------------------------
 ! Author R. Ford STFC Daresbury Lab
 
-program single_function
+program multi_invokes
 
-  ! Description: single function specified in an invoke call
+  ! Description: multiple invoke calls, each with a single function
   use testkern, only: testkern_type
+  use testkern_qr, only: testkern_qr_type
   use inf,      only: field_type
   implicit none
-  type(field_type) :: f1, f2, m1
+  type(field_type) :: f1, f2, m1, m2
+  type(quadrature_rule_type) :: qr
 
-  call invoke(                   &
-       testkern_type(f1,f2,m1)   &
-          )
+  call invoke(                      &
+       testkern_type(f1,f2,m1,m2)   &
+       )
 
-end program single_function
+  call invoke(                            &
+       testkern_qr_type(f1,f2,m1,m2,qr)   &
+       )
+
+  call invoke(                      &
+       testkern_type(f1,f2,m1,m2)   &
+       )
+
+end program multi_invokes

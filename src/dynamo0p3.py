@@ -155,7 +155,7 @@ class DynKern(Kern):
         else:
             # check we have the same number of arguments in the algorithm call and the kernel metadata
             if len(call.ktype.arg_descriptors) !=  len(call.args):
-                raise GenerationError("error: QR is not required for kernel '{0}'. Therefore the number of arguments specified in the kernel metadata '{1}', must equal the number of arguments in the algorithm layer. However, I found '{2}'".format(alg_call.ktype.procedure.name, len(alg_call.ktype.arg_descriptors), len(call.args)))
+                raise GenerationError("error: QR is not required for kernel '{0}'. Therefore the number of arguments specified in the kernel metadata '{1}', must equal the number of arguments in the algorithm layer. However, I found '{2}'".format(call.ktype.procedure.name, len(call.ktype.arg_descriptors), len(call.args)))
 
         # if there is a quadrature rule, what is the name of the algorithm argument?
         self._qr_text=""

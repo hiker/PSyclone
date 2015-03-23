@@ -1,23 +1,25 @@
 !-------------------------------------------------------------------------------
 ! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2014.
+! Met Office and NERC 2015.
 ! However, it has been created with the help of the GungHo Consortium,
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
 ! Author R. Ford STFC Daresbury Lab
 
-program single_function
+program multi_invoke_qr
 
-  ! Description: field_type arrays indexed in the invoke
+  ! Description: single function specified in an invoke call
   use testkern_qr, only: testkern_qr_type
+  use testkern, only: testkern_type
   use inf,      only: field_type
   implicit none
-  type(field_type) :: f0(2),f1(2,2)
-  type(quadrature_rule_type) :: qr
+  type(field_type) :: f1, f2, f3, m1, m2, m3
+  type(quadrature_rule) :: qr
 
-  call invoke(                   &
-       testkern_qr_type(f0(1),f1(1,1),f1(2,index),f1(index,index2(index3)),qr),  &
-       testkern_qr_type(f1(index,index2(index3)),f1(2,index),f1(1,1),f0(1),qr)   &
-          )
+  call invoke(                             &
+       testkern_qr_type(f1,f2,m1,m2,qr),   &
+       testkern_type(f1,f2,m1,m3),         &
+       testkern_qr_type(f1,f3,m1,m2,qr)    &
+       )
 
-end program single_function
+end program multi_invoke_qr

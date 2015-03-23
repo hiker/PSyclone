@@ -6,18 +6,17 @@
 !-------------------------------------------------------------------------------
 ! Author R. Ford STFC Daresbury Lab
 
-program single_function
+program single_invoke
 
-  ! Description: field_type arrays indexed in the invoke
+  ! Description: single function specified in an invoke call
   use testkern_qr, only: testkern_qr_type
   use inf,      only: field_type
   implicit none
-  type(field_type) :: f0(2),f1(2,2)
-  type(quadrature_rule_type) :: qr
+  type(field_type) :: f1, f2, m1, m2
+  type(quadrature_rule) :: qr
 
   call invoke(                   &
-       testkern_qr_type(f0(1),f1(1,1),f1(2,index),f1(index,index2(index3)),qr),  &
-       testkern_qr_type(f1(index,index2(index3)),f1(2,index),f1(1,1),f0(1),qr)   &
+       testkern_qr_type(f1,f2,m1,m2,qr)   &
           )
 
-end program single_function
+end program single_invoke

@@ -6,20 +6,25 @@
 !-------------------------------------------------------------------------------
 ! Author R. Ford STFC Daresbury Lab
 
-module testkern
-  type, extends(kernel_type) :: testkern_type
+module testkern_qr
+  type, extends(kernel_type) :: testkern_qr_type
      type(arg_type), dimension(4) :: meta_args =    &
           (/ arg_type(gh_field,gh_write,w1), &
              arg_type(gh_field,gh_read, w2), &
              arg_type(gh_field,gh_read, w2), &
              arg_type(gh_field,gh_read, w3)  &
            /)
+     type(func_type), dimension(3) :: meta_funcs =    &
+          (/ func_type(w1, gh_basis), &
+             func_type(w2, gh_diff_basis), &
+             func_type(w3, gh_basis, gh_diff_basis)  &
+           /)
      integer, parameter :: iterates_over = cells
    contains
-     procedure() :: code => testkern_code
-  end type testkern_type
+     procedure() :: code => testkern_qr_code
+  end type testkern_qr_type
 contains
 
-  subroutine testkern_code(a,b,c,d)
-  end subroutine testkern_code
-end module testkern
+  subroutine testkern_qr_code(a,b,c,d)
+  end subroutine testkern_qr_code
+end module testkern_qr
