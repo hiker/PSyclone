@@ -490,15 +490,10 @@ class DynKernelType03(KernelType):
             if isinstance(line,fparser.typedecl_statements.Type):
                 for entry in line.selector:
                     if entry == "func_type":
-                        if line.entity_decls[0].split()[0] == "meta_funcs":
+                        if line.entity_decls[0].split()[0].split("(")[0] == "meta_funcs":
                             found=True
                             break
-        if found:
-            descs = self._ktype.get_variable("meta_funcs")
-        else:
-            descs = None
-
-        if descs is None:
+        if not found:
             func_types = []
         else:
             func_types = self.getkerneldescriptors(self._ktype,var_name="meta_funcs")
