@@ -57,6 +57,7 @@ class DynInvoke(Invoke):
         if False:
             self._schedule = DynSchedule(None) # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, DynSchedule)
+        # determine the number of qr arguments required and make sure the names are unique
         self._alg_unique_qr_args = []
         self._psy_unique_qr_vars = []
         for call in self.schedule.calls():
@@ -66,18 +67,25 @@ class DynInvoke(Invoke):
                 if not call.qr_name in self._psy_unique_qr_vars:
                     self._psy_unique_qr_vars.append(call.qr_name)
         self._alg_unique_args.extend(self._alg_unique_qr_args)
-        # this api supports vector fields so we need to declare them
+
+        # this api supports vector fields so we need to declare and use them
         # correctly in the psy layer.
         self._psy_unique_declarations = []
+        self._psy_proxy_unique_declarations = []
+        self._psy_field_info = {}
         for call in self.schedule.calls():
             for arg in call.arguments.args:
                 if arg.text is not None:
                     if not arg.name in self._psy_unique_declarations:
                         if arg.vector_size>1:
                             tmp_name = arg.name+"("+str(arg.vector_size)+")"
+                            tmp_name_proxy = arg.name+"_proxy("+str(arg.vector_size)+")"
                         else:
                             tmp_name = arg.name
+                            tmp_name_proxy = arg.name+"_proxy"
                         self._psy_unique_declarations.append(tmp_name)
+                        self._psy_proxy_unique_declarations.append(tmp_name_proxy)
+                        self._psy_field_info[arg.name] = arg
  
 
     def gen_code(self, parent):
@@ -85,22 +93,37 @@ class DynInvoke(Invoke):
             by the associated invoke call in the algorithm layer). This
             consists of the PSy invocation subroutine and the declaration of
             its arguments.'''
-        from f2pygen import SubroutineGen, TypeDeclGen
+        from f2pygen import SubroutineGen, TypeDeclGen, AssignGen
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name = self.name,
                                    args = self.psy_unique_vars+self._psy_unique_qr_vars)
-        self.schedule.gen_code(invoke_sub)
-        parent.add(invoke_sub)
+
         # add the subroutine argument declarations
-        my_typedecl = TypeDeclGen(invoke_sub, datatype = "field_type",
+        invoke_sub.add(TypeDeclGen(invoke_sub, datatype = "field_type",
                                   entity_decls = self._psy_unique_declarations,
-                                  intent = "inout")
-        invoke_sub.add(my_typedecl)
+                                  intent = "inout"))
         if len(self._psy_unique_qr_vars) > 0:
-            my_typedecl = TypeDeclGen(invoke_sub, datatype = "quadrature_type",
+            invoke_sub.add(TypeDeclGen(invoke_sub, datatype = "quadrature_type",
                                       entity_decls = self._psy_unique_qr_vars,
-                                      intent = "in")
-            invoke_sub.add(my_typedecl)
+                                      intent = "in"))
+
+        # declare and initialise proxies for each of the arguments
+        proxy_name_list = []
+        for arg in self.psy_unique_vars:
+            proxy_name = arg+"_proxy"
+            proxy_name_list.append(proxy_name)
+            invoke_sub.add(AssignGen(invoke_sub, lhs = proxy_name,
+                                     rhs = arg+"%get_proxy()"))
+        invoke_sub.add(TypeDeclGen(invoke_sub, datatype = "field_proxy_type",
+                                   entity_decls = self._psy_proxy_unique_declarations))
+
+        # declare and create required basis functions
+        
+        # add content from the schedule
+        self.schedule.gen_code(invoke_sub)
+        # finally, add me to my parent
+        parent.add(invoke_sub)
+
 
 class DynSchedule(Schedule):
     ''' The Dynamo specific schedule class. This passes the Dynamo specific
