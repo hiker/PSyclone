@@ -66,6 +66,19 @@ class DynInvoke(Invoke):
                 if not call.qr_name in self._psy_unique_qr_vars:
                     self._psy_unique_qr_vars.append(call.qr_name)
         self._alg_unique_args.extend(self._alg_unique_qr_args)
+        # this api supports vector fields so we need to declare them
+        # correctly in the psy layer.
+        self._psy_unique_declarations = []
+        for call in self.schedule.calls():
+            for arg in call.arguments.args:
+                if arg.text is not None:
+                    if not arg.name in self._psy_unique_declarations:
+                        if arg.vector_size>1:
+                            tmp_name = arg.name+"("+str(arg.vector_size)+")"
+                        else:
+                            tmp_name = arg.name
+                        self._psy_unique_declarations.append(tmp_name)
+ 
 
     def gen_code(self, parent):
         ''' Generates Dynamo specific invocation code (the subroutine called
@@ -80,7 +93,7 @@ class DynInvoke(Invoke):
         parent.add(invoke_sub)
         # add the subroutine argument declarations
         my_typedecl = TypeDeclGen(invoke_sub, datatype = "field_type",
-                                  entity_decls = self.psy_unique_vars,
+                                  entity_decls = self._psy_unique_declarations,
                                   intent = "inout")
         invoke_sub.add(my_typedecl)
         if len(self._psy_unique_qr_vars) > 0:
@@ -294,6 +307,12 @@ class DynKernelArgument(Argument):
     def __init__(self, arg, arg_info, call):
         self._arg = arg
         Argument.__init__(self, call, arg_info, arg.access)
+        self._vector_size = arg._vector_size
+
+    @property
+    def vector_size(self):
+        return self._vector_size
+
     @property
     def function_space(self):
         ''' Returns the expected finite element function space for this
