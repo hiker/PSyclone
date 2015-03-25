@@ -107,12 +107,12 @@ class DynArgDescriptor03(Descriptor):
         if isinstance(arg_type.args[0],expr.BinaryOperator): # we expect 'field_type * n'
             self._type = arg_type.args[0].toks[0].name
             operator=arg_type.args[0].toks[1]
-            self._vector_size=arg_type.args[0].toks[2]
+            self._vector_size=int(arg_type.args[0].toks[2])
             if not self._type in self._valid_arg_type_names:
                 raise ParseError("Each meta_arg 1st argument must be one of {0} for the dynamo0.3 api, but found '{1}'".format(self._valid_arg_type_names,self._type))
             if not operator == "*":
                 raise ParseError("Each meta_arg 1st argument must use '*' if it is to be a vector for the dynamo0.3 api, but found '{0}'".format(operator))
-            if not int(self._vector_size)>0:
+            if not self._vector_size>0:
                 raise ParseError("Each meta_arg 1st argument must use a positive integer if it is to be a vector for the dynamo0.3 api, but found '{0}'".format(self._vector_size))
                 
         elif isinstance(arg_type.args[0],expr.FunctionVar):
@@ -161,8 +161,8 @@ class DynArgDescriptor03(Descriptor):
     def __str__(self):
         res="DynArgDescriptor03 object"+os.linesep
         res += "  argument_type[0]='{0}'".format(self._type)
-        if int(self._vector_size>1):
-            res += "*"+self._vector_size
+        if self._vector_size>1:
+            res += "*"+str(self._vector_size)
         res += os.linesep
         res += "  access_descriptor[1]='{0}'".format(self._access_descriptor)+os.linesep
         if self._type == "gh_field":

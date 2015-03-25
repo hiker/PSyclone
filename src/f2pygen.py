@@ -469,7 +469,7 @@ def adduse(name,parent,only=False,funcnames=[]):
     return use
 
 class DeclGen(BaseGen):
-    def __init__(self,parent,datatype="",entity_decls=[],intent="",pointer=False,kind="",dimension=""):
+    def __init__(self,parent,datatype="",entity_decls=[],intent="",pointer=False,kind="",dimension="",allocatable=False):
 
         if datatype.lower()=="integer":
             from fparser.typedecl_statements import Integer
@@ -491,6 +491,8 @@ class DeclGen(BaseGen):
             my_attrspec.append("intent({0})".format(intent))
         if pointer is not False:
             my_attrspec.append("pointer")
+        if allocatable is not False:
+            my_attrspec.append("allocatable")
         self._decl.attrspec=my_attrspec
         if dimension != "":
              my_attrspec.append("dimension({0})".format(dimension))

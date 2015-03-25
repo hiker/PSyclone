@@ -73,6 +73,7 @@ class DynInvoke(Invoke):
         self._psy_unique_declarations = []
         self._psy_proxy_unique_declarations = []
         self._psy_field_info = {}
+        self._proxy_name = {}
         for call in self.schedule.calls():
             for arg in call.arguments.args:
                 if arg.text is not None:
@@ -86,6 +87,7 @@ class DynInvoke(Invoke):
                         self._psy_unique_declarations.append(tmp_name)
                         self._psy_proxy_unique_declarations.append(tmp_name_proxy)
                         self._psy_field_info[arg.name] = arg
+                        self._proxy_name[arg.name] = arg.name+"_proxy"
  
 
     def gen_code(self, parent):
@@ -93,7 +95,7 @@ class DynInvoke(Invoke):
             by the associated invoke call in the algorithm layer). This
             consists of the PSy invocation subroutine and the declaration of
             its arguments.'''
-        from f2pygen import SubroutineGen, TypeDeclGen, AssignGen
+        from f2pygen import SubroutineGen, TypeDeclGen, AssignGen, DeclGen
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name = self.name,
                                    args = self.psy_unique_vars+self._psy_unique_qr_vars)
@@ -108,17 +110,35 @@ class DynInvoke(Invoke):
                                       intent = "in"))
 
         # declare and initialise proxies for each of the arguments
-        proxy_name_list = []
         for arg in self.psy_unique_vars:
-            proxy_name = arg+"_proxy"
-            proxy_name_list.append(proxy_name)
-            invoke_sub.add(AssignGen(invoke_sub, lhs = proxy_name,
-                                     rhs = arg+"%get_proxy()"))
+            if self._psy_field_info[arg].vector_size>1:
+                for idx in range(1,self._psy_field_info[arg].vector_size+1):
+                    invoke_sub.add(AssignGen(invoke_sub, lhs = self._proxy_name[arg]+"("+str(idx)+")",
+                                             rhs = arg+"("+str(idx)+")"+"%get_proxy()"))
+            else:
+                invoke_sub.add(AssignGen(invoke_sub, lhs = self._proxy_name[arg],
+                                         rhs = arg+"%get_proxy()"))
         invoke_sub.add(TypeDeclGen(invoke_sub, datatype = "field_proxy_type",
                                    entity_decls = self._psy_proxy_unique_declarations))
 
         # declare and create required basis functions
-        
+        function_spaces = {}
+        for call in self.schedule.calls():
+            for func_descriptor in call.func_descriptors:
+                if func_descriptor.function_space_name not in function_spaces.keys():
+                    function_spaces[func_descriptor.function_space_name] = []
+                for operator_name in func_descriptor.operator_names:
+                    if operator_name not in function_spaces[func_descriptor.function_space_name]:
+                        function_spaces[func_descriptor.function_space_name].append(operator_name)
+        operator_declarations = []
+        for function_space in function_spaces:
+            for operator_name in function_spaces[function_space]:
+                operator_declarations.append(operator_name+"_"+function_space+"(:,:,:,:)")
+        invoke_sub.add(DeclGen(invoke_sub, datatype = "real", allocatable = True,
+                               kind = "r_def", entity_decls = operator_declarations))
+
+        # add nlayers TBD
+
         # add content from the schedule
         self.schedule.gen_code(invoke_sub)
         # finally, add me to my parent
@@ -175,6 +195,7 @@ class DynKern(Kern):
         if False:
             self._arguments = DynKernelArguments(None, None) # for pyreverse
         Kern.__init__(self, DynKernelArguments, call, parent, check=False)
+        self._func_descriptors = call.ktype.func_descriptors
         # dynamo 0.3 api kernels require quadrature rule arguments to be
         # passed in if one or more basis functions are used by the kernel.
         self._qr_required = False
@@ -201,6 +222,10 @@ class DynKern(Kern):
             self._qr_text=qr_arg.text
             self._name_space_manager = NameSpaceFactory().create()
             self._qr_name=self._name_space_manager.add_name(self._qr_text, qr_arg.varName)
+
+    @property
+    def func_descriptors(self):
+        return self._func_descriptors
 
     @property
     def qr_required(self):
