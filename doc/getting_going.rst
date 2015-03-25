@@ -73,14 +73,21 @@ If you do not have it then py.test can be installed from here
 http://pytest.org/latest/ (or specifically here
 http://pytest.org/latest/getting-started.html).
 
+Environment
+-----------
+
+In order to use PSyclone (including running the test suite) you will need
+to tell Python where to find the PSyclone source:
+::
+    > export PYTHONPATH=<PSYCLONEHOME>/src:${PYTHONPATH}
+
+
 Test
 ----
 
-Once you have the necessary dependencies installed, you can test that
-things are working by using the PSyclone test suite:
-::
-    > cd <PSYCLONEHOME>/src/tests
-    > py.test
+Once you have the necessary dependencies installed and your
+environment configured, you can test that things are working by using
+the PSyclone test suite: :: > cd <PSYCLONEHOME>/src/tests > py.test
 
 If everything is working as expected then you should see output similar to:
 ::
@@ -110,6 +117,15 @@ generate the required PSy code as well as the modified algorithm code.
     usage: generator.py [-h] [-oalg OALG] [-opsy OPSY]  [-api API] filename
     generator.py: error: too few arguments
 
+As indicated above, the generator.py script takes the name of the
+(Fortran) source file containing the algorithm specification. It
+parses this, finds the necessary kernel source files and produces two
+Fortran files. The first contains the PSy, middle layer and the second
+a re-write of the algorithm code to use that layer. These files are
+named according to the user-supplied arguments (options -oalg and
+-opsy). If those arguments are not supplied then the script writes the
+generated/re-written Fortran to the terminal.
+
 Examples are provided in the examples directory. There are 3
 subdirectories (dynamo, gocean and gunghoproto) corresponding to different
 API's that are supported by PSyclone. In this case we are going to use
@@ -124,12 +140,74 @@ generated PSy- or middle-layer). Since this is a dynamo example the code
 has dependencies on the dynamo system and therefore cannot be compiled
 stand-alone.
 
-You can also run the runme.py example to see the interactive
-API in action
+You can also use the runme.py example to see the interactive
+API in action. This script contains:
+::
+    from parse import parse
+    from psyGen import PSyFactory
+    
+    # This example uses version 0.1 of the Dynamo API
+    api="dynamo0.1"
+    
+    # Parse the file containing the algorithm specification and
+    # return the Abstract Syntax Tree and invokeInfo objects
+    ast,invokeInfo=parse("dynamo.F90",api=api)
+    
+    # Create the PSy-layer object using the invokeInfo
+    psy=PSyFactory(api).create(invokeInfo)
+    # Generate the Fortran code for the PSy layer
+    print psy.gen
+    
+    # List the invokes that the PSy layer has
+    print psy.invokes.names
+    
+    # Examine the 'schedule' (e.g. loop structure) that each
+    # invoke has
+    schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
+    schedule.view()
+    
+    schedule=psy.invokes.get('invoke_v3_solver_kernel_type').schedule
+    schedule.view()
+
+It can be run non-interactively as follows:
 ::
     > cd <PSYCLONEHOME>/example/dynamo/eg1
     > python runme.py
 
-To understand this example in more depth it is instructive to
+However, to understand this example in more depth it is instructive to
 cut-and-paste from the runme.py file into your own, interactive python
-session.
+session:
+::
+    > cd <PSYCLONEHOME>/example/dynamo/eg1
+    > python
+
+In addition to the runme.py script, there is also runme_openmp.py which
+illustrates how one applies an OpenMP transform to a loop schedule
+within the PSy layer. The initial part of this script is the same as that 
+of runme.py (above) and is therefore omitted here:
+::
+    # List the various invokes that the PSy layer contains
+    print psy.invokes.names
+
+    # Get the loop schedule associated with one of these
+    # invokes
+    schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
+    schedule.view()
+
+    # Get the list of possible loop transformations
+    from psyGen import TransInfo
+    t=TransInfo()
+    print t.list
+
+    # Create an OpenMPLoop-transformation object
+    ol=t.get_trans_name('OpenMPLoop')
+
+    # Apply it to the loop schedule of the selected invoke
+    new_schedule,memento=ol.apply(schedule.children[0])
+    new_schedule.view()
+
+    # Replace the original loop schedule of the selected invoke
+    # with the new, transformed schedule 
+    psy.invokes.get('invoke_v3_kernel_type')._schedule=new_schedule
+    # Generate the Fortran code for the new PSy layer
+    print psy.gen
