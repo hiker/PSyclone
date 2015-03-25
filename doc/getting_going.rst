@@ -29,6 +29,7 @@ sub-directory ``f2py_88``.
 To use f2py provided with PSyclone you can simply set up your
 PYTHONPATH variable to include this directory.
 ::
+
     > export PYTHONPATH=<PSYCLONEHOME>/f2py_88:${PYTHONPATH}
 
 If for some reason you need to install f2py yourself then 
@@ -79,6 +80,7 @@ Environment
 In order to use PSyclone (including running the test suite) you will need
 to tell Python where to find the PSyclone source:
 ::
+
     > export PYTHONPATH=<PSYCLONEHOME>/src:${PYTHONPATH}
 
 
@@ -87,7 +89,11 @@ Test
 
 Once you have the necessary dependencies installed and your
 environment configured, you can test that things are working by using
-the PSyclone test suite: :: > cd <PSYCLONEHOME>/src/tests > py.test
+the PSyclone test suite: 
+::
+
+    > cd <PSYCLONEHOME>/src/tests
+    > py.test
 
 If everything is working as expected then you should see output similar to:
 ::
@@ -109,40 +115,44 @@ Run
 ---
 
 Having checked things with the test suite you are ready to try running
-PSyclone on the examples. The generator.py script can be used to
-generate the required PSy code as well as the modified algorithm code.
+PSyclone on the examples. One way of doing this is to use the
+generator.py script:
 ::
+
     > cd <PSYCLONEHOME>/src
     > python ./generator.py 
     usage: generator.py [-h] [-oalg OALG] [-opsy OPSY]  [-api API] filename
     generator.py: error: too few arguments
 
 As indicated above, the generator.py script takes the name of the
-(Fortran) source file containing the algorithm specification. It
-parses this, finds the necessary kernel source files and produces two
-Fortran files. The first contains the PSy, middle layer and the second
-a re-write of the algorithm code to use that layer. These files are
-named according to the user-supplied arguments (options -oalg and
--opsy). If those arguments are not supplied then the script writes the
-generated/re-written Fortran to the terminal.
+Fortran source file containing the algorithm specification (in terms
+of calls to invoke()). It parses this, finds the necessary kernel
+source files and produces two Fortran files. The first contains the
+PSy, middle layer and the second a re-write of the algorithm code to
+use that layer. These files are named according to the user-supplied
+arguments (options -oalg and -opsy). If those arguments are not
+supplied then the script writes the generated/re-written Fortran to
+the terminal.
 
 Examples are provided in the examples directory. There are 3
 subdirectories (dynamo, gocean and gunghoproto) corresponding to different
 API's that are supported by PSyclone. In this case we are going to use
 one of the dynamo examples
 ::
+
     > cd <PSYCLONEHOME>/examples/dynamo/eg1
     > python ../../../src/generator.py -oalg dynamo_alg.f90 -opsy dynamo_psy.f90 dynamo.F90
 
 You should see two new files created called dynamo_alg.f90 (containing
 the re-written algorithm layer) and dynamo_psy.f90 (containing the
-generated PSy- or middle-layer). Since this is a dynamo example the code
-has dependencies on the dynamo system and therefore cannot be compiled
-stand-alone.
+generated PSy- or middle-layer). Since this is a dynamo example the
+Fortran source code has dependencies on the dynamo system and
+therefore cannot be compiled stand-alone.
 
 You can also use the runme.py example to see the interactive
 API in action. This script contains:
 ::
+
     from parse import parse
     from psyGen import PSyFactory
     
@@ -171,6 +181,7 @@ API in action. This script contains:
 
 It can be run non-interactively as follows:
 ::
+
     > cd <PSYCLONEHOME>/example/dynamo/eg1
     > python runme.py
 
@@ -178,6 +189,7 @@ However, to understand this example in more depth it is instructive to
 cut-and-paste from the runme.py file into your own, interactive python
 session:
 ::
+
     > cd <PSYCLONEHOME>/example/dynamo/eg1
     > python
 
@@ -186,6 +198,7 @@ illustrates how one applies an OpenMP transform to a loop schedule
 within the PSy layer. The initial part of this script is the same as that 
 of runme.py (above) and is therefore omitted here:
 ::
+
     # List the various invokes that the PSy layer contains
     print psy.invokes.names
 
