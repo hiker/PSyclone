@@ -62,6 +62,10 @@ class Alg(object):
           stmt.items=invokeInfo.orig_unique_args
           adduse(psyName,stmt.parent,only=True,funcnames=[invokeInfo.name])
           idx+=1
+
+    if idx==0:
+      raise AlgorithmError, "Algorithm file contains no invoke() calls: refusing to generate empty PSy code"
+
     return self._ast
 
 

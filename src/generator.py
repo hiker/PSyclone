@@ -12,6 +12,7 @@ import os
 import traceback
 from parse import parse,ParseError
 from psyGen import PSyFactory,GenerationError
+from algGen import AlgorithmError
 
 def generate(filename,api=""):
     '''
@@ -62,6 +63,9 @@ if __name__=="__main__":
         exit(1)
     try:
         alg,psy=generate(args.filename,api=args.api)
+    except AlgorithmError as e:
+        print "Warning:",e
+        exit(0)
     except (OSError, IOError, ParseError,GenerationError,RuntimeError) as e:
         print "Error:",e
         exit(1)
