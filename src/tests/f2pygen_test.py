@@ -6,7 +6,7 @@
 #-------------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
-from f2pygen import ModuleGen, CommentGen, SubroutineGen, DoGen, CallGen
+from f2pygen import ModuleGen, CommentGen, SubroutineGen, DoGen, CallGen, AllocateGen, DeallocateGen
 import pytest
 
 class TestComment:
@@ -58,4 +58,62 @@ class TestModuleGen:
         module=ModuleGen(name="test",implicitnone=False)
         assert "IMPLICIT NONE" not in str(module.root)
 
+class TestAllocate:
+    ''' pytest tests for an allocate statement. '''
+    def test_allocate_arg_str(self):
+        ''' check that an allocate gets created succesfully with content being a string. '''
+        module=ModuleGen(name="testmodule")
+        content="hello"
+        allocate=AllocateGen(module,content)
+        module.add(allocate)
+        lines=str(module.root).splitlines()
+        assert "ALLOCATE ("+content+")" in lines[3]
+    def test_allocate_arg_list(self):
+        ''' check that an allocate gets created succesfully with content being a list. '''
+        module=ModuleGen(name="testmodule")
+        content=["hello","how","are","you"]
+        content_str=""
+        for idx,name in enumerate(content):
+            content_str+=name
+            if idx+1<len(content):
+                content_str+=", "
+        allocate=AllocateGen(module,content)
+        module.add(allocate)
+        lines=str(module.root).splitlines()
+        assert "ALLOCATE ("+content_str+")" in lines[3]
+    def test_allocate_incorrect_arg_type(self):
+        ''' check that an allocate raises an error if an unknown type is passed. '''
+        module=ModuleGen(name="testmodule")
+        content=3
+        with pytest.raises(RuntimeError):
+            allocate=AllocateGen(module,content)
 
+class TestDeallocate:
+    ''' pytest tests for a deallocate statement. '''
+    def test_deallocate_arg_str(self):
+        ''' check that a deallocate gets created succesfully with content being a str. '''
+        module=ModuleGen(name="testmodule")
+        content="goodbye"
+        deallocate=DeallocateGen(module,content)
+        module.add(deallocate)
+        lines=str(module.root).splitlines()
+        assert "DEALLOCATE ("+content+")" in lines[3]
+    def test_deallocate_arg_list(self):
+        ''' check that a deallocate gets created succesfully with content being a list. '''
+        module=ModuleGen(name="testmodule")
+        content=["and","now","the","end","is","near"]
+        content_str=""
+        for idx,name in enumerate(content):
+            content_str+=name
+            if idx+1<len(content):
+                content_str+=", "
+        deallocate=DeallocateGen(module,content)
+        module.add(deallocate)
+        lines=str(module.root).splitlines()
+        assert "DEALLOCATE ("+content_str+")" in lines[3]
+    def test_deallocate_incorrect_arg_type(self):
+        ''' check that a deallocate raises an error if an unknown type is passed. '''
+        module=ModuleGen(name="testmodule")
+        content=3
+        with pytest.raises(RuntimeError):
+            allocate=DeallocateGen(module,content)

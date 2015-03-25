@@ -95,7 +95,7 @@ class DynInvoke(Invoke):
             by the associated invoke call in the algorithm layer). This
             consists of the PSy invocation subroutine and the declaration of
             its arguments.'''
-        from f2pygen import SubroutineGen, TypeDeclGen, AssignGen, DeclGen
+        from f2pygen import SubroutineGen, TypeDeclGen, AssignGen, DeclGen, AllocateGen, DeallocateGen, CallGen
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name = self.name,
                                    args = self.psy_unique_vars+self._psy_unique_qr_vars)
@@ -136,11 +136,28 @@ class DynInvoke(Invoke):
                 operator_declarations.append(operator_name+"_"+function_space+"(:,:,:,:)")
         invoke_sub.add(DeclGen(invoke_sub, datatype = "real", allocatable = True,
                                kind = "r_def", entity_decls = operator_declarations))
-
+        for function_space in function_spaces:
+            for operator_name in function_spaces[function_space]:
+                invoke_sub.add(AllocateGen(invoke_sub,operator_name+"_"+function_space+"()"))
+        
+        for function_space in function_spaces:
+            for operator_name in function_spaces[function_space]:
+                args=[]
+                args.append(operator_name+"_"+function_space)
+                args.append("ndf_"+function_space)
+                args.extend(["nqp_h","nqp_v","xp","zp"])
+                invoke_sub.add(CallGen(invoke_sub,name="FIELD"+"%vspace%compute_"+operator_name+"_function",args=args))
         # add nlayers TBD
 
         # add content from the schedule
         self.schedule.gen_code(invoke_sub)
+
+        func_space_var_names=[]
+        for function_space in function_spaces:
+            for operator_name in function_spaces[function_space]:
+                func_space_var_names.append(operator_name+"_"+function_space)
+        invoke_sub.add(DeallocateGen(invoke_sub,func_space_var_names))
+
         # finally, add me to my parent
         parent.add(invoke_sub)
 
@@ -255,19 +272,19 @@ class DynKern(Kern):
 
         # add a dofmap lookup using first field.
         # TODO: This needs to be generalised to work for multiple dofmaps
-        parent.add(CallGen(parent, field_name+"%vspace%get_cell_dofmap",
-                           ["cell", "map"]))
+        #parent.add(CallGen(parent, field_name+"%vspace%get_cell_dofmap",
+        #                   ["cell", "map"]))
         parent.add(DeclGen(parent, datatype = "integer",
                            entity_decls = ["cell"]))
-        parent.add(DeclGen(parent, datatype = "integer", pointer = True,
-                           entity_decls = ["map(:)"]))
+        #parent.add(DeclGen(parent, datatype = "integer", pointer = True,
+        #                   entity_decls = ["map(:)"]))
 
         # create the argument list on the fly so we can also create
         # appropriate variables and lookups
         arglist = []
-        arglist.append("nlayers")
-        arglist.append("ndf")
-        arglist.append("map")
+        #arglist.append("nlayers")
+        #arglist.append("ndf")
+        #arglist.append("map")
 
         found_gauss_quad = False
         gauss_quad_arg = None

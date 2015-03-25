@@ -468,6 +468,36 @@ def adduse(name,parent,only=False,funcnames=[]):
     parent.content.insert(0,use)
     return use
 
+class AllocateGen(BaseGen):
+    def __init__(self,parent,content):
+        from fparser.statements import Allocate
+        reader=FortranStringReader("allocate(dummy)")
+        reader.set_mode(True, False) # free form, strict
+        myline=reader.next()
+        self._decl=Allocate(parent.root,myline)
+        if isinstance(content,str):
+            self._decl.items=[content]
+        elif isinstance(content,list):
+            self._decl.items=content
+        else:
+            raise RuntimeError("AllocateGen expected the content argument to be a str or a list, but found {0}".format(type(content)))
+        BaseGen.__init__(self,parent,self._decl)
+
+class DeallocateGen(BaseGen):
+    def __init__(self,parent,content):
+        from fparser.statements import Deallocate
+        reader=FortranStringReader("deallocate(dummy)")
+        reader.set_mode(True, False) # free form, strict
+        myline=reader.next()
+        self._decl=Deallocate(parent.root,myline)
+        if isinstance(content,str):
+            self._decl.items=[content]
+        elif isinstance(content,list):
+            self._decl.items=content
+        else:
+            raise RuntimeError("DeallocateGen expected the content argument to be a str or a list, but found {0}".format(type(content)))
+        BaseGen.__init__(self,parent,self._decl)
+
 class DeclGen(BaseGen):
     def __init__(self,parent,datatype="",entity_decls=[],intent="",pointer=False,kind="",dimension="",allocatable=False):
 
