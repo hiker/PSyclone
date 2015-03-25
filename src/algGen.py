@@ -8,6 +8,15 @@
 
 import fparser
 
+class AlgorithmError(Exception):
+    ''' Provides a PSyclone-specific error class for errors found during 
+        Algorithm code generation. '''
+    def __init__(self, value):
+        Exception.__init__(self, value)
+        self.value = "Algorithm Error: "+value
+    def __str__(self):
+        return repr(self.value)
+
 class Alg(object):
   '''
   Generate a modified algorithm code for a single algorithm specification. Takes the ast of the algorithm specification output from the function :func:`parse.parse` and an instance of the :class:`psyGen.PSy` class as input.
