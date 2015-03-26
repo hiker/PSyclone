@@ -60,14 +60,15 @@ class DynInvoke(Invoke):
         # determine the number of qr arguments required and make sure the names are unique
         self._alg_unique_qr_args = []
         self._psy_unique_qr_vars = []
+        self._qr_required = False
         for call in self.schedule.calls():
             if call.qr_required:
+                self._qr_required = True
                 if not call.qr_text in self._alg_unique_qr_args:
                     self._alg_unique_qr_args.append(call.qr_text)
                 if not call.qr_name in self._psy_unique_qr_vars:
                     self._psy_unique_qr_vars.append(call.qr_name)
         self._alg_unique_args.extend(self._alg_unique_qr_args)
-
         # this api supports vector fields so we need to declare and use them
         # correctly in the psy layer.
         self._psy_unique_declarations = []
@@ -95,7 +96,7 @@ class DynInvoke(Invoke):
             by the associated invoke call in the algorithm layer). This
             consists of the PSy invocation subroutine and the declaration of
             its arguments.'''
-        from f2pygen import SubroutineGen, TypeDeclGen, AssignGen, DeclGen, AllocateGen, DeallocateGen, CallGen
+        from f2pygen import SubroutineGen, TypeDeclGen, AssignGen, DeclGen, AllocateGen, DeallocateGen, CallGen, CommentGen
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name = self.name,
                                    args = self.psy_unique_vars+self._psy_unique_qr_vars)
@@ -108,18 +109,43 @@ class DynInvoke(Invoke):
             invoke_sub.add(TypeDeclGen(invoke_sub, datatype = "quadrature_type",
                                       entity_decls = self._psy_unique_qr_vars,
                                       intent = "in"))
-
         # declare and initialise proxies for each of the arguments
+        invoke_sub.add(CommentGen(invoke_sub,""))
+        invoke_sub.add(CommentGen(invoke_sub," Initialise field proxies"))
+        invoke_sub.add(CommentGen(invoke_sub,""))
+        first_arg=""
         for arg in self.psy_unique_vars:
             if self._psy_field_info[arg].vector_size>1:
+                if first_arg == "":
+                    first_arg = self._proxy_name[arg]+"(1)"
                 for idx in range(1,self._psy_field_info[arg].vector_size+1):
                     invoke_sub.add(AssignGen(invoke_sub, lhs = self._proxy_name[arg]+"("+str(idx)+")",
                                              rhs = arg+"("+str(idx)+")"+"%get_proxy()"))
             else:
+                if first_arg == "":
+                    first_arg = self._proxy_name[arg]
                 invoke_sub.add(AssignGen(invoke_sub, lhs = self._proxy_name[arg],
                                          rhs = arg+"%get_proxy()"))
         invoke_sub.add(TypeDeclGen(invoke_sub, datatype = "field_proxy_type",
                                    entity_decls = self._psy_proxy_unique_declarations))
+
+        # Initialise the number of layers using the first argument
+        invoke_sub.add(CommentGen(invoke_sub,""))
+        invoke_sub.add(CommentGen(invoke_sub," Initialise number of layers"))
+        invoke_sub.add(CommentGen(invoke_sub,""))
+        invoke_sub.add(AssignGen(invoke_sub, lhs="nlayers", rhs=first_arg+"%vspace%get_nlayers()"))
+
+        if self._qr_required:
+            # initialise qr values
+            invoke_sub.add(CommentGen(invoke_sub,""))
+            invoke_sub.add(CommentGen(invoke_sub," Initialise qr values"))
+            invoke_sub.add(CommentGen(invoke_sub,""))
+            qr_vars = ["nqp_h","nqp_v","zp","xp","wh","wv"]
+            if len(self._psy_unique_qr_vars)>1:
+                raise GenerationError("Oops, not yet coded for multiple qr values")
+            qr_var_name = self._psy_unique_qr_vars[0]
+            for qr_var in qr_vars:
+                invoke_sub.add(AssignGen(invoke_sub, lhs=qr_var, rhs=qr_var_name+"%get_"+qr_var+"()"))
 
         # declare and create required basis functions
         function_spaces = {}
@@ -149,16 +175,32 @@ class DynInvoke(Invoke):
         invoke_sub.add(DeclGen(invoke_sub, datatype = "real", allocatable = True,
                                kind = "r_def", entity_decls = operator_declarations))
         for function_space in function_spaces:
+            invoke_sub.add(CommentGen(invoke_sub,""))
+            invoke_sub.add(CommentGen(invoke_sub," Initialise sizes and allocate basis arrays for "+function_space))
+            invoke_sub.add(CommentGen(invoke_sub,""))
+
             name = arg_for_funcspace[function_space]
             invoke_sub.add(AssignGen(invoke_sub, lhs = "ndf_"+function_space,
                                          rhs = name+"%vspace%get_ndf()"))
             invoke_sub.add(AssignGen(invoke_sub, lhs = "undf_"+function_space,
-                                         rhs = name+"%%vspace%get_undf()"))
+                                         rhs = name+"%vspace%get_undf()"))
             for operator_name in function_spaces[function_space]:
-                invoke_sub.add(AssignGen(invoke_sub, lhs = "XXXdim_"+function_space,
-                                         rhs = name+"%%vspace%get_dim_spaceXXX()"))
-                invoke_sub.add(AllocateGen(invoke_sub,operator_name+"_"+function_space+"()"))
+                if operator_name == 'gh_basis':
+                    lhs = "dim_"+function_space
+                    rhs = name+"%vspace%get_dim_space()"
+                    alloc_args = "dim_"+function_space+", ndf_"+function_space+", nqp_h, nqp_v"
+                elif operator_name == 'gh_diff_basis':
+                    lhs = "diff_dim_"+function_space
+                    rhs = name+"%vspace%get_dim_space_diff()"
+                    alloc_args = "diff_dim_"+function_space+", ndf_"+function_space+", nqp_h, nqp_v"
+                else:
+                    raise GenerationError("Not sorted out yet but when the code works this should not be called!")
+                invoke_sub.add(AssignGen(invoke_sub, lhs=lhs, rhs=rhs))
+                invoke_sub.add(AllocateGen(invoke_sub,operator_name+"_"+function_space+"("+alloc_args+")"))
         
+        invoke_sub.add(CommentGen(invoke_sub,""))
+        invoke_sub.add(CommentGen(invoke_sub," Compute basis arrays"))
+        invoke_sub.add(CommentGen(invoke_sub,""))
         for function_space in function_spaces:
             for operator_name in function_spaces[function_space]:
                 args=[]
@@ -167,11 +209,16 @@ class DynInvoke(Invoke):
                 args.extend(["nqp_h","nqp_v","xp","zp"])
                 name = arg_for_funcspace[function_space]
                 invoke_sub.add(CallGen(invoke_sub,name=name+"%vspace%compute_"+operator_name+"_function",args=args))
-        # add nlayers TBD
 
+        invoke_sub.add(CommentGen(invoke_sub,""))
+        invoke_sub.add(CommentGen(invoke_sub," Call our kernels"))
+        invoke_sub.add(CommentGen(invoke_sub,""))
         # add content from the schedule
         self.schedule.gen_code(invoke_sub)
 
+        invoke_sub.add(CommentGen(invoke_sub,""))
+        invoke_sub.add(CommentGen(invoke_sub," Deallocate basis arrays"))
+        invoke_sub.add(CommentGen(invoke_sub,""))
         func_space_var_names=[]
         for function_space in function_spaces:
             for operator_name in function_spaces[function_space]:
