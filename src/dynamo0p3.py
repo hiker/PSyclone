@@ -134,6 +134,8 @@ class DynInvoke(Invoke):
         invoke_sub.add(CommentGen(invoke_sub," Initialise number of layers"))
         invoke_sub.add(CommentGen(invoke_sub,""))
         invoke_sub.add(AssignGen(invoke_sub, lhs="nlayers", rhs=first_arg+"%vspace%get_nlayers()"))
+        invoke_sub.add(DeclGen(invoke_sub, datatype = "integer",
+                               entity_decls = ["nlayers"]))
 
         if self._qr_required:
             # initialise qr values
@@ -141,6 +143,13 @@ class DynInvoke(Invoke):
             invoke_sub.add(CommentGen(invoke_sub," Initialise qr values"))
             invoke_sub.add(CommentGen(invoke_sub,""))
             qr_vars = ["nqp_h","nqp_v","zp","xp","wh","wv"]
+            invoke_sub.add(DeclGen(invoke_sub, datatype = "integer",
+                               entity_decls = ["nqp_h","nqp_v"]))
+            invoke_sub.add(DeclGen(invoke_sub, datatype = "real", pointer=True,
+                               kind="r_def",entity_decls = ["xp(:,:) => null()"]))
+            decl_list=["zp(:) => null()","wh(:) => null()","wv(:) => null()"]
+            invoke_sub.add(DeclGen(invoke_sub, datatype = "real", pointer=True,
+                               kind="r_def",entity_decls = decl_list))
             if len(self._psy_unique_qr_vars)>1:
                 raise GenerationError("Oops, not yet coded for multiple qr values")
             qr_var_name = self._psy_unique_qr_vars[0]
@@ -161,7 +170,6 @@ class DynInvoke(Invoke):
         for call in self.schedule.calls():
             for func_descriptor in call.func_descriptors:
                 if func_descriptor.function_space_name not in arg_for_funcspace.keys():
-                    print "fs= "+func_descriptor.function_space_name
                     found = False
                     for idx, arg_descriptor in enumerate(call.arg_descriptors):
                         if arg_descriptor.function_space_name1 == func_descriptor.function_space_name and not found:
@@ -174,30 +182,42 @@ class DynInvoke(Invoke):
                 operator_declarations.append(operator_name+"_"+function_space+"(:,:,:,:)")
         invoke_sub.add(DeclGen(invoke_sub, datatype = "real", allocatable = True,
                                kind = "r_def", entity_decls = operator_declarations))
+        var_list = []
+        var_dim_list = []
         for function_space in function_spaces:
             invoke_sub.add(CommentGen(invoke_sub,""))
             invoke_sub.add(CommentGen(invoke_sub," Initialise sizes and allocate basis arrays for "+function_space))
             invoke_sub.add(CommentGen(invoke_sub,""))
 
             name = arg_for_funcspace[function_space]
-            invoke_sub.add(AssignGen(invoke_sub, lhs = "ndf_"+function_space,
+            ndf_name = "ndf_"+function_space
+            var_list.append(ndf_name)
+            invoke_sub.add(AssignGen(invoke_sub, lhs = ndf_name,
                                          rhs = name+"%vspace%get_ndf()"))
-            invoke_sub.add(AssignGen(invoke_sub, lhs = "undf_"+function_space,
+            undf_name = "undf_"+function_space
+            var_list.append(undf_name)
+            invoke_sub.add(AssignGen(invoke_sub, lhs = undf_name,
                                          rhs = name+"%vspace%get_undf()"))
             for operator_name in function_spaces[function_space]:
                 if operator_name == 'gh_basis':
                     lhs = "dim_"+function_space
+                    var_dim_list.append(lhs)
                     rhs = name+"%vspace%get_dim_space()"
                     alloc_args = "dim_"+function_space+", ndf_"+function_space+", nqp_h, nqp_v"
                 elif operator_name == 'gh_diff_basis':
                     lhs = "diff_dim_"+function_space
+                    var_dim_list.append(lhs)
                     rhs = name+"%vspace%get_dim_space_diff()"
                     alloc_args = "diff_dim_"+function_space+", ndf_"+function_space+", nqp_h, nqp_v"
                 else:
                     raise GenerationError("Not sorted out yet but when the code works this should not be called!")
                 invoke_sub.add(AssignGen(invoke_sub, lhs=lhs, rhs=rhs))
                 invoke_sub.add(AllocateGen(invoke_sub,operator_name+"_"+function_space+"("+alloc_args+")"))
-        
+        invoke_sub.add(DeclGen(invoke_sub, datatype = "integer",
+                               entity_decls = var_list))
+        invoke_sub.add(DeclGen(invoke_sub, datatype = "integer",
+                               entity_decls = var_dim_list))
+
         invoke_sub.add(CommentGen(invoke_sub,""))
         invoke_sub.add(CommentGen(invoke_sub," Compute basis arrays"))
         invoke_sub.add(CommentGen(invoke_sub,""))
@@ -224,6 +244,7 @@ class DynInvoke(Invoke):
             for operator_name in function_spaces[function_space]:
                 func_space_var_names.append(operator_name+"_"+function_space)
         invoke_sub.add(DeallocateGen(invoke_sub,func_space_var_names))
+        invoke_sub.add(CommentGen(invoke_sub,""))
 
         # finally, add me to my parent
         parent.add(invoke_sub)
