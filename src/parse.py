@@ -148,7 +148,11 @@ class DynArgDescriptor03(Descriptor):
             raise ParseError("Internal logic error in DynArgDescriptor03")
             
         Descriptor.__init__(self,self._access_descriptor.name,self._function_space1,None)
-        print str(self)
+
+    @property
+    def function_space_name1(self):
+        return self._function_space1
+        #print str(self)
         #@property
         #def access(self):
         #return self._access_descriptor.name

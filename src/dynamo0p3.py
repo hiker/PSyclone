@@ -130,6 +130,18 @@ class DynInvoke(Invoke):
                 for operator_name in func_descriptor.operator_names:
                     if operator_name not in function_spaces[func_descriptor.function_space_name]:
                         function_spaces[func_descriptor.function_space_name].append(operator_name)
+
+        arg_for_funcspace = {}
+        for call in self.schedule.calls():
+            for func_descriptor in call.func_descriptors:
+                if func_descriptor.function_space_name not in arg_for_funcspace.keys():
+                    print "fs= "+func_descriptor.function_space_name
+                    found = False
+                    for idx, arg_descriptor in enumerate(call.arg_descriptors):
+                        if arg_descriptor.function_space_name1 == func_descriptor.function_space_name and not found:
+                            arg_for_funcspace[func_descriptor.function_space_name] = self._proxy_name[call.arguments.args[idx].name]
+                            found = True
+
         operator_declarations = []
         for function_space in function_spaces:
             for operator_name in function_spaces[function_space]:
@@ -137,7 +149,14 @@ class DynInvoke(Invoke):
         invoke_sub.add(DeclGen(invoke_sub, datatype = "real", allocatable = True,
                                kind = "r_def", entity_decls = operator_declarations))
         for function_space in function_spaces:
+            name = arg_for_funcspace[function_space]
+            invoke_sub.add(AssignGen(invoke_sub, lhs = "ndf_"+function_space,
+                                         rhs = name+"%vspace%get_ndf()"))
+            invoke_sub.add(AssignGen(invoke_sub, lhs = "undf_"+function_space,
+                                         rhs = name+"%%vspace%get_undf()"))
             for operator_name in function_spaces[function_space]:
+                invoke_sub.add(AssignGen(invoke_sub, lhs = "XXXdim_"+function_space,
+                                         rhs = name+"%%vspace%get_dim_spaceXXX()"))
                 invoke_sub.add(AllocateGen(invoke_sub,operator_name+"_"+function_space+"()"))
         
         for function_space in function_spaces:
@@ -146,7 +165,8 @@ class DynInvoke(Invoke):
                 args.append(operator_name+"_"+function_space)
                 args.append("ndf_"+function_space)
                 args.extend(["nqp_h","nqp_v","xp","zp"])
-                invoke_sub.add(CallGen(invoke_sub,name="FIELD"+"%vspace%compute_"+operator_name+"_function",args=args))
+                name = arg_for_funcspace[function_space]
+                invoke_sub.add(CallGen(invoke_sub,name=name+"%vspace%compute_"+operator_name+"_function",args=args))
         # add nlayers TBD
 
         # add content from the schedule

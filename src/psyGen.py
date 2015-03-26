@@ -887,12 +887,17 @@ class Kern(Call):
         self._iterates_over = call.ktype.iterates_over
         if check and len(call.ktype.arg_descriptors) != len(call.args):
             raise GenerationError("error: In kernel '{0}' the number of arguments specified in the kernel metadata '{1}', must equal the number of arguments in the algorithm layer. However, I found '{2}'".format(alg_call.ktype.procedure.name, len(alg_call.ktype.arg_descriptors), len(call.args)))
+        self._arg_descriptors = call.ktype.arg_descriptors
 
     def __str__(self):
         return "kern call: "+self._name
     @property
     def iterates_over(self):
         return self._iterates_over
+
+    @property
+    def arg_descriptors(self):
+        return self._arg_descriptors
 
     def gen_code(self, parent):
         from f2pygen import CallGen, UseGen
