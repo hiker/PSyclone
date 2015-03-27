@@ -18,14 +18,14 @@ class TestAlgGenClassDynamo0p3:
     def test_single_function_invoke(self):
         ''' single function specified in an invoke call'''
         alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","1_single_invoke.f90"), api = "dynamo0.3")
-        assert (str(alg).find("USE psy_single_invoke, ONLY: invoke_testkern_type")!=-1 and \
-                  str(alg).find("CALL invoke_testkern_type(f1, f2, m1, m2)")!=-1)
+        assert (str(alg).find("USE psy_single_invoke, ONLY: invoke_0_testkern_type")!=-1 and \
+                  str(alg).find("CALL invoke_0_testkern_type(f1, f2, m1, m2)")!=-1)
 
     def test_single_function_invoke_qr(self):
         ''' single function specified in an invoke call which requires a quadrature rule'''
         alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","1.1_single_invoke_qr.f90"), api = "dynamo0.3")
         assert (str(alg).find("USE testkern_qr, ONLY: testkern_qr_type")!=-1 and \
-                  str(alg).find("CALL invoke_testkern_qr_type(f1, f2, m1, m2, qr)")!=-1)
+                  str(alg).find("CALL invoke_0_testkern_qr_type(f1, f2, m1, m2, qr)")!=-1)
 
     def test_multi_function_invoke(self):
         ''' two functions specified in an invoke call'''
@@ -38,8 +38,9 @@ class TestAlgGenClassDynamo0p3:
         alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","3_multi_invokes.f90"), api = "dynamo0.3")
         assert (str(alg).find("USE testkern, ONLY: testkern_type")!=-1 and \
                 str(alg).find("USE testkern_qr, ONLY: testkern_qr_type")!=-1 and \
-                str(alg).count("CALL invoke_testkern_type(f1, f2, m1, m2)") == 2 and \
-                str(alg).find("CALL invoke_testkern_qr_type(f1, f2, m1, m2, qr)")!=-1)
+                str(alg).find("CALL invoke_0_testkern_type(f1, f2, m1, m2)")!=-1 and \
+                str(alg).find("CALL invoke_2_testkern_type(f1, f2, m1, m2)")!=-1 and \
+                str(alg).find("CALL invoke_1_testkern_qr_type(f1, f2, m1, m2, qr)")!=-1)
 
     def test_multi_function_multi_invokes(self):
         ''' two invokes, each containing multiple functions '''
@@ -85,7 +86,7 @@ class TestAlgGenClassGungHoProto:
         ''' single function specified in an invoke call'''
         alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","gunghoproto","1_single_function.f90"), api = "gunghoproto")
         assert (str(alg).find("USE psy_single_function, ONLY: invoke_testkern_type")!=-1 and \
-                  str(alg).find("CALL invoke_testkern_type(f1, f2, m1)")!=-1)
+                  str(alg).find("CALL invoke_0_testkern_type(f1, f2, m1)")!=-1)
 
     @pytest.mark.xfail(reason="unknown")
     def test_multi_invoke(self):
@@ -100,7 +101,7 @@ class TestAlgGenClassGungHoProto:
         invocation is named'''
         alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","gunghoproto","4_explicit_name.f90"), api = "gunghoproto")
         assert (str(alg).find("USE psy, ONLY: invoke_multikern_kern")!=-1 and \
-                str(alg).find("CALL invoke_multikern_kern(f1, f2, f3, m1, m3, m2)")!=-1)
+                str(alg).find("CALL invoke_0_multikern_kern(f1, f2, f3, m1, m3, m2)")!=-1)
 
     @pytest.mark.xfail(reason="unknown")
     def test_multi_single_invoke(self):
@@ -108,15 +109,15 @@ class TestAlgGenClassGungHoProto:
         alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","gunghoproto","5_two_single-function_invokes.f90"), api = "gunghoproto")
         self.assertTrue(str(alg).find("USE psy, ONLY: invoke_testkern1_kern") and \
                         str(alg).find("USE psy, ONLY: invoke_testkern2_kern") and \
-                        str(alg).find("CALL invoke_testkern1_kern(f1, f2, m1, m2)") and \
-                        str(alg).find("CALL invoke_testkern2_kern(f1, f3, m1, m3)"))
+                        str(alg).find("CALL invoke_0_testkern1_kern(f1, f2, m1, m2)") and \
+                        str(alg).find("CALL invoke_1_testkern2_kern(f1, f3, m1, m3)"))
 
     @pytest.mark.xfail(reason="unknown")
     def test_other_calls_invoke(self):
         ''' other calls in the algorithm layer '''
         alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","gunghoproto","6_other_calls.f90"), api = "gunghoproto")
         assert (str(alg).find("USE psy_other_calls, ONLY: invoke_testkern_type")!=-1 and \
-                str(alg).find("CALL invoke_testkern_type(f1, f2, m1)")!=-1)
+                str(alg).find("CALL invoke_0_testkern_type(f1, f2, m1)")!=-1)
 
     def test_single_set(self):
         ''' single set infrastructure routine specified in an invoke call '''
@@ -150,4 +151,4 @@ class TestAlgGenClassDynamo0p1:
         gunghoproto api '''
         alg,psy=generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p1","1_single_function.f90"),api="dynamo0.1")
         assert (str(alg).find("USE psy_single_function, ONLY: invoke_testkern_type")!=-1 and \
-                  str(alg).find("CALL invoke_testkern_type(f1, f2, m1)")!=-1)
+                  str(alg).find("CALL invoke_0_testkern_type(f1, f2, m1)")!=-1)

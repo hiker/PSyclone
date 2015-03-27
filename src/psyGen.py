@@ -229,8 +229,10 @@ class Invoke(object):
             self._name = alg_invocation.name
         elif len(alg_invocation.kcalls) == 1 and \
                  alg_invocation.kcalls[0].type == "kernelCall":
-            # use the name of the kernel call
-            self._name = "invoke_"+alg_invocation.kcalls[0].ktype.name
+            # use the name of the kernel call with the position appended.
+            # Appended position is needed in case we have two separate invokes
+            # in the same algorithm code containing the same (single) kernel
+            self._name = "invoke_"+str(idx)+"_"+alg_invocation.kcalls[0].ktype.name
         else:
             # use the position of the invoke
             self._name = "invoke_"+str(idx)

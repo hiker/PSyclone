@@ -18,7 +18,7 @@ class TestPSyDynamo0p3API:
         ast,invokeInfo=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","1_single_invoke.f90"),api="dynamo0.3")
         psy=PSyFactory("dynamo0.3").create(invokeInfo)
         generated_code = psy.gen
-        output = """   SUBROUTINE invoke_testkern_type(f1, f2, m1, m2)
+        output = """   SUBROUTINE invoke_0_testkern_type(f1, f2, m1, m2)
       USE testkern, ONLY: testkern_code
       TYPE(field_type), intent(inout) :: f1, f2, m1, m2
       INTEGER cell
@@ -42,7 +42,7 @@ class TestPSyDynamo0p3API:
         CALL testkern_code(f1%data, f2%data, m1%data, m2%data)
       END DO 
       !
-    END SUBROUTINE invoke_testkern_type
+    END SUBROUTINE invoke_0_testkern_type
 """
         assert str(generated_code).find(output)!=-1
     def test_field_qr(self):
@@ -51,7 +51,7 @@ class TestPSyDynamo0p3API:
         psy=PSyFactory("dynamo0.3").create(invokeInfo)
         generated_code = psy.gen
         output = """
-    SUBROUTINE invoke_testkern_qr_type(f1, f2, m1, m2, qr)
+    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, m2, qr)
       USE testkern_qr, ONLY: testkern_qr_code
       TYPE(field_type), intent(inout) :: f1, f2, m1, m2
       TYPE(quadrature_type), intent(in) :: qr
@@ -125,7 +125,7 @@ class TestPSyDynamo0p3API:
       !
       DEALLOCATE (gh_basis_w3, gh_diff_basis_w3, gh_diff_basis_w2, gh_basis_w1)
       !
-    END SUBROUTINE invoke_testkern_qr_type
+    END SUBROUTINE invoke_0_testkern_qr_type
 """
         assert str(generated_code).find(output)!=-1
     def test_vector_field(self):
@@ -133,5 +133,5 @@ class TestPSyDynamo0p3API:
         ast,invokeInfo=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","8_vector_field.f90"),api="dynamo0.3")
         psy=PSyFactory("dynamo0.3").create(invokeInfo)
         generated_code = psy.gen
-        assert(str(generated_code).find("SUBROUTINE invoke_testkern_chi_type(f1, chi)")!=-1 and \
+        assert(str(generated_code).find("SUBROUTINE invoke_0_testkern_chi_type(f1, chi)")!=-1 and \
                   str(generated_code).find("TYPE(field_type), intent(inout) :: f1, chi(3)")!=-1)
