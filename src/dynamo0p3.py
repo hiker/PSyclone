@@ -180,8 +180,9 @@ class DynInvoke(Invoke):
         for function_space in function_spaces:
             for operator_name in function_spaces[function_space]:
                 operator_declarations.append(operator_name+"_"+function_space+"(:,:,:,:)")
-        invoke_sub.add(DeclGen(invoke_sub, datatype = "real", allocatable = True,
-                               kind = "r_def", entity_decls = operator_declarations))
+        if not operator_declarations == []:
+            invoke_sub.add(DeclGen(invoke_sub, datatype = "real", allocatable = True,
+                                   kind = "r_def", entity_decls = operator_declarations))
         var_list = []
         var_dim_list = []
         for function_space in function_spaces:
@@ -213,22 +214,25 @@ class DynInvoke(Invoke):
                     raise GenerationError("Not sorted out yet but when the code works this should not be called!")
                 invoke_sub.add(AssignGen(invoke_sub, lhs=lhs, rhs=rhs))
                 invoke_sub.add(AllocateGen(invoke_sub,operator_name+"_"+function_space+"("+alloc_args+")"))
-        invoke_sub.add(DeclGen(invoke_sub, datatype = "integer",
-                               entity_decls = var_list))
-        invoke_sub.add(DeclGen(invoke_sub, datatype = "integer",
-                               entity_decls = var_dim_list))
+        if not var_list == []:
+            invoke_sub.add(DeclGen(invoke_sub, datatype = "integer",
+                                   entity_decls = var_list))
+        if not var_dim_list == []:
+            invoke_sub.add(DeclGen(invoke_sub, datatype = "integer",
+                                   entity_decls = var_dim_list))
 
-        invoke_sub.add(CommentGen(invoke_sub,""))
-        invoke_sub.add(CommentGen(invoke_sub," Compute basis arrays"))
-        invoke_sub.add(CommentGen(invoke_sub,""))
-        for function_space in function_spaces:
-            for operator_name in function_spaces[function_space]:
-                args=[]
-                args.append(operator_name+"_"+function_space)
-                args.append("ndf_"+function_space)
-                args.extend(["nqp_h","nqp_v","xp","zp"])
-                name = arg_for_funcspace[function_space]
-                invoke_sub.add(CallGen(invoke_sub,name=name+"%vspace%compute_"+operator_name+"_function",args=args))
+        if self._qr_required:
+            invoke_sub.add(CommentGen(invoke_sub,""))
+            invoke_sub.add(CommentGen(invoke_sub," Compute basis arrays"))
+            invoke_sub.add(CommentGen(invoke_sub,""))
+            for function_space in function_spaces:
+                for operator_name in function_spaces[function_space]:
+                    args=[]
+                    args.append(operator_name+"_"+function_space)
+                    args.append("ndf_"+function_space)
+                    args.extend(["nqp_h","nqp_v","xp","zp"])
+                    name = arg_for_funcspace[function_space]
+                    invoke_sub.add(CallGen(invoke_sub,name=name+"%vspace%compute_"+operator_name+"_function",args=args))
 
         invoke_sub.add(CommentGen(invoke_sub,""))
         invoke_sub.add(CommentGen(invoke_sub," Call our kernels"))
@@ -236,14 +240,15 @@ class DynInvoke(Invoke):
         # add content from the schedule
         self.schedule.gen_code(invoke_sub)
 
-        invoke_sub.add(CommentGen(invoke_sub,""))
-        invoke_sub.add(CommentGen(invoke_sub," Deallocate basis arrays"))
-        invoke_sub.add(CommentGen(invoke_sub,""))
-        func_space_var_names=[]
-        for function_space in function_spaces:
-            for operator_name in function_spaces[function_space]:
-                func_space_var_names.append(operator_name+"_"+function_space)
-        invoke_sub.add(DeallocateGen(invoke_sub,func_space_var_names))
+        if self._qr_required:
+            invoke_sub.add(CommentGen(invoke_sub,""))
+            invoke_sub.add(CommentGen(invoke_sub," Deallocate basis arrays"))
+            invoke_sub.add(CommentGen(invoke_sub,""))
+            func_space_var_names=[]
+            for function_space in function_spaces:
+                for operator_name in function_spaces[function_space]:
+                    func_space_var_names.append(operator_name+"_"+function_space)
+            invoke_sub.add(DeallocateGen(invoke_sub,func_space_var_names))
         invoke_sub.add(CommentGen(invoke_sub,""))
 
         # finally, add me to my parent
