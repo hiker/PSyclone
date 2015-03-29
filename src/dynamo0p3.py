@@ -284,7 +284,7 @@ class DynLoop(Loop):
             self._stop = "ncp_ncolour(colour)"
         else:
             self._variable_name = "cell"
-            self._stop = self.field_name+"%get_ncell()"
+            self._stop = self.field_name+"_proxy%vspace%get_ncell()"
         Loop.gen_code(self,parent)
 
 class DynInf(Inf):
@@ -356,21 +356,33 @@ class DynKern(Kern):
         return ["cell","map"]
 
     def gen_code(self, parent):
-        ''' Generates dynamo version 0.1 specific psy code for a call to
+        ''' Generates dynamo version 0.3 specific psy code for a call to
             the dynamo kernel instance. '''
-        from f2pygen import CallGen, DeclGen, AssignGen, UseGen
+        from f2pygen import CallGen, DeclGen, AssignGen, UseGen, CommentGen
 
-        # TODO: we simply choose the first field as the lookup for the moment
-        field_name = self.arguments.args[0].name
-
-        # add a dofmap lookup using first field.
-        # TODO: This needs to be generalised to work for multiple dofmaps
-        #parent.add(CallGen(parent, field_name+"%vspace%get_cell_dofmap",
-        #                   ["cell", "map"]))
         parent.add(DeclGen(parent, datatype = "integer",
                            entity_decls = ["cell"]))
-        #parent.add(DeclGen(parent, datatype = "integer", pointer = True,
-        #                   entity_decls = ["map(:)"]))
+
+        # function-space maps initialisation and their declarations
+        map_names = []
+        for idx,arg_descriptor in enumerate(self.arg_descriptors):
+            if idx == 0:
+                parent.add(CommentGen(parent,""))
+            fs = arg_descriptor.function_space
+            map_name = "map_"+fs
+            if map_name not in map_names:
+                map_names.append(map_name)
+                proxy_name = self.arguments.args[idx].name
+                parent.add(AssignGen(parent, pointer = True, lhs = map_name,
+                                     rhs = proxy_name+"%vspace%get_cell_dofmap( cell )"))
+            if idx == len(self.arg_descriptors)-1:
+                parent.add(CommentGen(parent,""))
+        if len(map_names) > 0:
+            decl_map_names = []
+            for map_name in map_names:
+                decl_map_names.append(map_name+"(:) ==> NULL")
+            parent.add(DeclGen(parent, datatype = "integer", pointer = True,
+                               entity_decls = decl_map_names))
 
         # create the argument list on the fly so we can also create
         # appropriate variables and lookups
