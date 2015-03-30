@@ -387,13 +387,40 @@ class DynKern(Kern):
         # create the argument list on the fly so we can also create
         # appropriate variables and lookups
         arglist = []
-        #arglist.append("nlayers")
-        #arglist.append("ndf")
-        #arglist.append("map")
-
-        found_gauss_quad = False
-        gauss_quad_arg = None
+        # 1: provide mesh height
+        arglist.append("nlayers")
+        # 2: Provide data associated with fields in the order specified in the metadata.
+        #    If we have a vector field then generate the appropriate number of arguments.
         for arg in self._arguments.args:
+            dataref = "%data"
+            if arg.vector_size>1:
+                for idx in range(1,arg.vector_size+1):
+                    arglist.append(arg.name+"_proxy("+str(idx)+")"+dataref)
+            else:
+                arglist.append(arg.name+"_proxy"+dataref)
+        # 3: For each function space in the order they appear in the metadata arguments
+        processed_fs=[]
+        for arg in self.arguments.args:
+            fs = arg.function_space
+            if fs not in processed_fs:
+                processed_fs.append(fs)
+                # 3.1 Provide compulsory arguments
+                arglist.append("ndf_"+fs)
+                arglist.append("undf_"+fs)
+                arglist.append("map_"+fs)
+            # 3.2 TBD Provide optional arguments
+
+        # 4: Provide qr arguments if required
+        if self._qr_required:
+            arglist.extend(["nqp_h","nqp_v","wh","wv"])
+
+
+
+        #found_gauss_quad = False
+        #gauss_quad_arg = None
+        #for arg in self._arguments.args:
+        if False:
+            pass
             #if arg.requires_basis:
             #    basis_name = arg.function_space+"_basis_"+arg.name
             #    arglist.append(basis_name)
@@ -416,8 +443,6 @@ class DynKern(Kern):
             #                              "quadrature in this kernel")
             #    found_gauss_quad = True
             #    gauss_quad_arg = arg
-            dataref = "%data"
-            arglist.append(arg.name+dataref)
 
         #if found_gauss_quad:
         #    gq_name = "gaussian_quadrature"
