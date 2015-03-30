@@ -384,8 +384,7 @@ class DynKern(Kern):
             parent.add(DeclGen(parent, datatype = "integer", pointer = True,
                                entity_decls = decl_map_names))
 
-        # create the argument list on the fly so we can also create
-        # appropriate variables and lookups
+        # create the argument list
         arglist = []
         # 1: provide mesh height
         arglist.append("nlayers")
@@ -398,7 +397,7 @@ class DynKern(Kern):
                     arglist.append(arg.name+"_proxy("+str(idx)+")"+dataref)
             else:
                 arglist.append(arg.name+"_proxy"+dataref)
-        # 3: For each function space in the order they appear in the metadata arguments
+        # 3: For each function space (in the order they appear in the metadata arguments)
         processed_fs=[]
         for arg in self.arguments.args:
             fs = arg.function_space
@@ -408,8 +407,15 @@ class DynKern(Kern):
                 arglist.append("ndf_"+fs)
                 arglist.append("undf_"+fs)
                 arglist.append("map_"+fs)
-            # 3.2 TBD Provide optional arguments
-
+                # 3.2 TBD Provide optional arguments
+                found = False
+                for idx,descriptor in enumerate(self.func_descriptors):
+                    if descriptor.function_space_name == fs:
+                        found = True
+                        break
+                if found:
+                    for operator_name in self.func_descriptors[idx].operator_names:
+                        arglist.append(operator_name+"_"+fs)
         # 4: Provide qr arguments if required
         if self._qr_required:
             arglist.extend(["nqp_h","nqp_v","wh","wv"])
