@@ -380,7 +380,7 @@ class DynKern(Kern):
         if len(map_names) > 0:
             decl_map_names = []
             for map_name in map_names:
-                decl_map_names.append(map_name+"(:) ==> NULL")
+                decl_map_names.append(map_name+"(:) ==> null()")
             parent.add(DeclGen(parent, datatype = "integer", pointer = True,
                                entity_decls = decl_map_names))
 
@@ -416,61 +416,32 @@ class DynKern(Kern):
                 if found:
                     for operator_name in self.func_descriptors[idx].operator_names:
                         arglist.append(operator_name+"_"+fs)
+                # 3.3 Fix for boundary_dofs array in ru_kernel
+                if self.name == "ru_code" and fs == "w2":
+                    arglist.append("boundary_dofs_w2")
+                    parent.add(DeclGen(parent, datatype = "integer", pointer = True,
+                               entity_decls = ["boundary_dofs_w2(:,:) => null()"]))
+                    found = False
+                    for idx,arg in enumerate(self.arguments.args):
+                        if arg.function_space == "w2":
+                            found=True
+                            name = self.arguments.args[idx].name
+                            break
+                    if not found:
+                        raise GenerationError("Expected to find the required function space")
+                    new_parent, position = parent.start_parent_loop()
+                    new_parent.add(AssignGen(new_parent, pointer = True,
+                                             lhs = "boundary_dofs_w2",
+                                             rhs = name+"%vspace%get_boundary_dofs()"),
+                                             position = ["before",position])
         # 4: Provide qr arguments if required
         if self._qr_required:
             arglist.extend(["nqp_h","nqp_v","wh","wv"])
-
-
-
-        #found_gauss_quad = False
-        #gauss_quad_arg = None
-        #for arg in self._arguments.args:
-        if False:
-            pass
-            #if arg.requires_basis:
-            #    basis_name = arg.function_space+"_basis_"+arg.name
-            #    arglist.append(basis_name)
-            #    position = parent.start_parent_loop()
-            #    new_parent = position.parent
-            #    new_parent.add(CallGen(new_parent,
-            #                           field_name+"%vspace%get_basis",
-            #                           [basis_name]),
-            #                   position = ["before",
-            #                               position])
-            #    parent.add(DeclGen(parent, datatype = "real", kind = "dp",
-            #                       pointer = True,
-            #                       entity_decls = [basis_name+"(:,:,:,:,:)"]))
-            #if arg.requires_diff_basis:
-            #    raise GenerationError("differential basis has not yet "
-            #                          "been coded")
-            #if arg.requires_gauss_quad:
-            #    if found_gauss_quad:
-            #        raise GenerationError("found more than one gaussian "
-            #                              "quadrature in this kernel")
-            #    found_gauss_quad = True
-            #    gauss_quad_arg = arg
-
-        #if found_gauss_quad:
-        #    gq_name = "gaussian_quadrature"
-        #    arglist.append(gauss_quad_arg.name+"%"+gq_name)
 
         # generate the kernel call and associated use statement
         parent.add(CallGen(parent, self._name, arglist))
         parent.parent.add(UseGen(parent.parent, name = self._module_name,
                                  only = True, funcnames = [self._name]))
-
-        # declare and initialise the number of layers and the number
-        # of degrees of freedom. Needs to be generalised.
-        #parent.add(DeclGen(parent, datatype = "integer",
-        #                   entity_decls = ["nlayers", "ndf"]))
-        #position = parent.start_parent_loop()
-        #new_parent=position.parent
-        #new_parent.add(AssignGen(new_parent, lhs = "nlayers",
-        #                            rhs = field_name+"%get_nlayers()"),
-        #                  position = ["before", position])
-        #new_parent.add(AssignGen(new_parent, lhs = "ndf",
-        #                         rhs = field_name+"%vspace%get_ndf()"),
-        #               position = ["before", position])
 
 class DynKernelArguments(Arguments):
     ''' Provides information about Dynamo kernel call arguments collectively,
