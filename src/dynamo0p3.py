@@ -164,7 +164,8 @@ class DynInvoke(Invoke):
                     function_spaces[func_descriptor.function_space_name] = []
                 for operator_name in func_descriptor.operator_names:
                     if operator_name not in function_spaces[func_descriptor.function_space_name]:
-                        function_spaces[func_descriptor.function_space_name].append(operator_name)
+                        if operator_name in ["gh_basis", "gh_diff_basis"]:
+                            function_spaces[func_descriptor.function_space_name].append(operator_name)
 
         arg_for_funcspace = {}
         for call in self.schedule.calls():
@@ -211,7 +212,7 @@ class DynInvoke(Invoke):
                     rhs = name+"%vspace%get_dim_space_diff()"
                     alloc_args = "diff_dim_"+function_space+", ndf_"+function_space+", nqp_h, nqp_v"
                 else:
-                    raise GenerationError("Not sorted out yet but when the code works this should not be called!")
+                    raise GenerationError("Unsupported function space '{0}' found!.format(operator_name)")
                 invoke_sub.add(AssignGen(invoke_sub, lhs=lhs, rhs=rhs))
                 invoke_sub.add(AllocateGen(invoke_sub,operator_name+"_"+function_space+"("+alloc_args+")"))
         if not var_list == []:
@@ -306,6 +307,7 @@ class DynKern(Kern):
             self._arguments = DynKernelArguments(None, None) # for pyreverse
         Kern.__init__(self, DynKernelArguments, call, parent, check=False)
         self._func_descriptors = call.ktype.func_descriptors
+        self._fs_descriptors=FS_Descriptors(call.ktype.func_descriptors)
         # dynamo 0.3 api kernels require quadrature rule arguments to be
         # passed in if one or more basis functions are used by the kernel.
         self._qr_required = False
@@ -372,9 +374,9 @@ class DynKern(Kern):
             map_name = "map_"+fs
             if map_name not in map_names:
                 map_names.append(map_name)
-                proxy_name = self.arguments.args[idx].name
+                proxy_name = self.arguments.args[idx].proxy_name
                 parent.add(AssignGen(parent, pointer = True, lhs = map_name,
-                                     rhs = proxy_name+"%vspace%get_cell_dofmap( cell )"))
+                                     rhs = proxy_name+"%vspace%get_cell_dofmap(cell)"))
             if idx == len(self.arg_descriptors)-1:
                 parent.add(CommentGen(parent,""))
         if len(map_names) > 0:
@@ -384,6 +386,22 @@ class DynKern(Kern):
             parent.add(DeclGen(parent, datatype = "integer", pointer = True,
                                entity_decls = decl_map_names))
 
+        # orientation arrays initialisation and their declarations
+        for unique_fs in self.arguments.unique_fss:
+            if self._fs_descriptors.exists(unique_fs):
+                fs_descriptor = self._fs_descriptors.get_descriptor(unique_fs)
+                if fs_descriptor.orientation:
+                    field = self._arguments.get_field(unique_fs)
+                    parent.add(AssignGen(parent, pointer = True, lhs = fs_descriptor.orientation_name,
+                                         rhs = field.proxy_name+"%vspace%get_cell_orientation(cell)"))
+        if self._fs_descriptors.orientation:
+            orientation_decl_names=[]
+            for orientation_name in self._fs_descriptors.orientation_names:
+                orientation_decl_names.append(orientation_name+"(:) ==> null()")
+            parent.add(DeclGen(parent, datatype = "integer", pointer = True,
+                               entity_decls = orientation_decl_names))
+            parent.add(CommentGen(parent,""))
+            
         # create the argument list
         arglist = []
         # 1: provide mesh height
@@ -407,7 +425,7 @@ class DynKern(Kern):
                 arglist.append("ndf_"+fs)
                 arglist.append("undf_"+fs)
                 arglist.append("map_"+fs)
-                # 3.2 TBD Provide optional arguments
+                # 3.2 Provide optional arguments
                 found = False
                 for idx,descriptor in enumerate(self.func_descriptors):
                     if descriptor.function_space_name == fs:
@@ -443,6 +461,67 @@ class DynKern(Kern):
         parent.parent.add(UseGen(parent.parent, name = self._module_name,
                                  only = True, funcnames = [self._name]))
 
+class FS_Descriptor:
+
+    def __init__(self, descriptor):
+        self._descriptor = descriptor
+
+    @property
+    def fs_name(self):
+        return self._descriptor.function_space_name
+
+    @property
+    def orientation_name(self):
+        for operator_name in self._descriptor.operator_names:
+            if operator_name == "gh_orientation":
+                return "orientation"+"_"+self._descriptor.function_space_name
+        raise GenerationError("Internal logic error: FS-Descriptor:orientation_name: This descriptor has no orientation so can not have a name")
+
+    @property
+    def orientation(self):
+        for operator_name in self._descriptor.operator_names:
+            if operator_name == "gh_orientation":
+                return True
+        return False
+
+class FS_Descriptors:
+
+    def __init__(self,descriptors):
+        self._orig_descriptors=descriptors
+        self._descriptors=[]
+        for descriptor in descriptors:
+            self._descriptors.append(FS_Descriptor(descriptor))
+
+    @property
+    def orientation(self):
+        ''' Return true if at least one descriptor specifies orientation, otherwise return false '''
+        for descriptor in self._descriptors:
+            if descriptor.orientation:
+                return True
+        return False
+
+    @property
+    def orientation_names(self):
+        names=[]
+        for descriptor in self._descriptors:
+            if descriptor.orientation:
+                names.append(descriptor.orientation_name)
+        return names
+
+    def exists(self,fs_name):
+        ''' Return true if a descriptor with the specified function name exists, otherwise return false '''
+        for descriptor in self._descriptors:
+            if descriptor.fs_name == fs_name:
+                return True
+        return False
+
+    def get_descriptor(self,fs_name):
+        ''' Return the descriptor with the specified function name. If it does not exist raise an error '''
+        for descriptor in self._descriptors:
+            if descriptor.fs_name == fs_name:
+                return descriptor
+        raise GenerationError("FS_Descriptors:get_descriptor: there is no descriptor for function space {0}".format(fs_name))
+
 class DynKernelArguments(Arguments):
     ''' Provides information about Dynamo kernel call arguments collectively,
         as specified by the kernel argument metadata. This class currently
@@ -457,6 +536,21 @@ class DynKernelArguments(Arguments):
             self._args.append(DynKernelArgument(arg, call.args[idx],
                                                 parent_call))
         self._dofs = []
+
+    def get_field(self,fs):
+        for arg in self._args:
+            if arg.function_space == fs:
+                return arg
+        raise GenerationError("DynKernelArguments:get_field: there is no field with function space {0)".format(fs))
+
+    @property
+    def unique_fss(self):
+        ''' Returns a unique list of function spaces used by the arguments '''
+        fs=[]
+        for arg in self._args:
+            if arg.function_space not in fs:
+                fs.append(arg.function_space)
+        return fs
 
     def iteration_space_arg(self, mapping={}):
         if mapping != {}:
@@ -484,6 +578,10 @@ class DynKernelArgument(Argument):
     @property
     def vector_size(self):
         return self._vector_size
+
+    @property
+    def proxy_name(self):
+        return self._name+"_proxy"
 
     @property
     def function_space(self):

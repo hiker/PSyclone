@@ -57,7 +57,7 @@ class DynFuncDescriptor03():
             raise ParseError("Each meta_func value must have at least 2 args for the dynamo0.3 api, but found '{0}'".format(len(func_type.args)))
         self._operator_names = []
         self._valid_function_space_names = ["w0","w1","w2","w3"]
-        self._valid_operator_names = ["gh_basis", "gh_diff_basis"]
+        self._valid_operator_names = ["gh_basis", "gh_diff_basis", "gh_orientation"]
         for idx,arg in enumerate(func_type.args):
             if idx==0:
                 if arg.name not in self._valid_function_space_names:
