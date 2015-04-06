@@ -198,7 +198,8 @@ class DynInvoke(Invoke):
         operator_declarations = []
         for function_space in function_spaces:
             for operator_name in function_spaces[function_space]:
-                operator_declarations.append(operator_name+"_"+function_space+"(:,:,:,:)")
+                op_name = self.get_operator_name(operator_name, function_space)
+                operator_declarations.append(op_name+"(:,:,:,:)")
         if not operator_declarations == []:
             invoke_sub.add(DeclGen(invoke_sub, datatype = "real", allocatable = True,
                                    kind = "r_def", entity_decls = operator_declarations))
@@ -248,11 +249,13 @@ class DynInvoke(Invoke):
             for function_space in function_spaces:
                 for operator_name in function_spaces[function_space]:
                     args=[]
-                    args.append(operator_name+"_"+function_space)
+                    op_name = self.get_operator_name(operator_name, function_space)
+                    args.append(op_name)
                     args.append(self.ndf_name(function_space))
                     args.extend(["nqp_h","nqp_v","xp","zp"])
                     name = arg_for_funcspace[function_space]
-                    invoke_sub.add(CallGen(invoke_sub,name=name+"%vspace%compute_"+operator_name+"_function",args=args))
+                    op_type_name = operator_name[3:]
+                    invoke_sub.add(CallGen(invoke_sub,name=name+"%vspace%compute_"+op_type_name+"_function",args=args))
 
         invoke_sub.add(CommentGen(invoke_sub,""))
         invoke_sub.add(CommentGen(invoke_sub," Call our kernels"))
