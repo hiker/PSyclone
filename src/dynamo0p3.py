@@ -90,6 +90,24 @@ class DynInvoke(Invoke):
                         self._psy_field_info[arg.name] = arg
                         self._proxy_name[arg.name] = arg.name+"_proxy"
  
+    def ndf_name(self,fs):
+        kern_calls = self.schedule.kern_calls()
+        if len(kern_calls)==0:
+            raise GenerationError("ndf_name makes no sense if there are no kernel calls")
+        return kern_calls[0]._fs_descriptors.ndf_name(fs)
+
+    def undf_name(self,fs):
+        kern_calls = self.schedule.kern_calls()
+        if len(kern_calls)==0:
+            raise GenerationError("undf_name makes no sense if there are no kernel calls")
+        return kern_calls[0]._fs_descriptors.undf_name(fs)
+
+    def get_operator_name(self, operator_name, function_space):
+        for kern_call in self.schedule.kern_calls():
+            if kern_call._fs_descriptors.exists(function_space):
+                descriptor = kern_call._fs_descriptors.get_descriptor(function_space)
+                return descriptor.name(operator_name)
+        raise GenerationError("Dyn_invoke:get_operator_name: no kern call with function space '{0}' and operator '{1}'".format(function_space,operator_name))
 
     def gen_code(self, parent):
         ''' Generates Dynamo specific invocation code (the subroutine called
@@ -192,11 +210,11 @@ class DynInvoke(Invoke):
             invoke_sub.add(CommentGen(invoke_sub,""))
 
             name = arg_for_funcspace[function_space]
-            ndf_name = "ndf_"+function_space
+            ndf_name = self.ndf_name(function_space)
             var_list.append(ndf_name)
             invoke_sub.add(AssignGen(invoke_sub, lhs = ndf_name,
                                          rhs = name+"%vspace%get_ndf()"))
-            undf_name = "undf_"+function_space
+            undf_name = self.undf_name(function_space)
             var_list.append(undf_name)
             invoke_sub.add(AssignGen(invoke_sub, lhs = undf_name,
                                          rhs = name+"%vspace%get_undf()"))
@@ -205,16 +223,17 @@ class DynInvoke(Invoke):
                     lhs = "dim_"+function_space
                     var_dim_list.append(lhs)
                     rhs = name+"%vspace%get_dim_space()"
-                    alloc_args = "dim_"+function_space+", ndf_"+function_space+", nqp_h, nqp_v"
+                    alloc_args = "dim_"+function_space+", "+self.ndf_name(function_space)+", nqp_h, nqp_v"
                 elif operator_name == 'gh_diff_basis':
                     lhs = "diff_dim_"+function_space
                     var_dim_list.append(lhs)
                     rhs = name+"%vspace%get_dim_space_diff()"
-                    alloc_args = "diff_dim_"+function_space+", ndf_"+function_space+", nqp_h, nqp_v"
+                    alloc_args = "diff_dim_"+function_space+", "+self.ndf_name(function_space)+", nqp_h, nqp_v"
                 else:
                     raise GenerationError("Unsupported function space '{0}' found!.format(operator_name)")
                 invoke_sub.add(AssignGen(invoke_sub, lhs=lhs, rhs=rhs))
-                invoke_sub.add(AllocateGen(invoke_sub,operator_name+"_"+function_space+"("+alloc_args+")"))
+                op_name = self.get_operator_name(operator_name, function_space)
+                invoke_sub.add(AllocateGen(invoke_sub,op_name+"("+alloc_args+")"))
         if not var_list == []:
             invoke_sub.add(DeclGen(invoke_sub, datatype = "integer",
                                    entity_decls = var_list))
@@ -230,7 +249,7 @@ class DynInvoke(Invoke):
                 for operator_name in function_spaces[function_space]:
                     args=[]
                     args.append(operator_name+"_"+function_space)
-                    args.append("ndf_"+function_space)
+                    args.append(self.ndf_name(function_space))
                     args.extend(["nqp_h","nqp_v","xp","zp"])
                     name = arg_for_funcspace[function_space]
                     invoke_sub.add(CallGen(invoke_sub,name=name+"%vspace%compute_"+operator_name+"_function",args=args))
@@ -245,10 +264,12 @@ class DynInvoke(Invoke):
             invoke_sub.add(CommentGen(invoke_sub,""))
             invoke_sub.add(CommentGen(invoke_sub," Deallocate basis arrays"))
             invoke_sub.add(CommentGen(invoke_sub,""))
+            
             func_space_var_names=[]
             for function_space in function_spaces:
                 for operator_name in function_spaces[function_space]:
-                    func_space_var_names.append(operator_name+"_"+function_space)
+                    op_name = self.get_operator_name(operator_name, function_space)
+                    func_space_var_names.append(op_name)
             invoke_sub.add(DeallocateGen(invoke_sub,func_space_var_names))
         invoke_sub.add(CommentGen(invoke_sub,""))
 
@@ -311,6 +332,7 @@ class DynKern(Kern):
         # dynamo 0.3 api kernels require quadrature rule arguments to be
         # passed in if one or more basis functions are used by the kernel.
         self._qr_required = False
+        self._qr_args = ["nqp_h","nqp_v","wh","wv"]
         for descriptor in call.ktype.func_descriptors:
             if len(descriptor.operator_names)>0:
                 self._qr_required=True
@@ -366,22 +388,20 @@ class DynKern(Kern):
                            entity_decls = ["cell"]))
 
         # function-space maps initialisation and their declarations
-        map_names = []
-        for idx,arg_descriptor in enumerate(self.arg_descriptors):
+        for idx, unique_fs in enumerate(self.arguments.unique_fss):
             if idx == 0:
                 parent.add(CommentGen(parent,""))
-            fs = arg_descriptor.function_space
-            map_name = "map_"+fs
-            if map_name not in map_names:
-                map_names.append(map_name)
-                proxy_name = self.arguments.args[idx].proxy_name
-                parent.add(AssignGen(parent, pointer = True, lhs = map_name,
-                                     rhs = proxy_name+"%vspace%get_cell_dofmap(cell)"))
-            if idx == len(self.arg_descriptors)-1:
+            map_name = self._fs_descriptors.map_name(unique_fs)
+            field_proxy_name = self._arguments.get_field(unique_fs).proxy_name
+            parent.add(AssignGen(parent, pointer = True, lhs = map_name,
+                                 rhs = field_proxy_name+"%vspace%get_cell_dofmap(cell)"))
+            if idx == len(self.arguments.unique_fss)-1:
                 parent.add(CommentGen(parent,""))
-        if len(map_names) > 0:
-            decl_map_names = []
-            for map_name in map_names:
+
+        if len(self.arguments.unique_fss)>0:
+            decl_map_names=[]
+            for unique_fs in self.arguments.unique_fss:
+                map_name=self._fs_descriptors.map_name(unique_fs)
                 decl_map_names.append(map_name+"(:) ==> null()")
             parent.add(DeclGen(parent, datatype = "integer", pointer = True,
                                entity_decls = decl_map_names))
@@ -412,49 +432,31 @@ class DynKern(Kern):
             dataref = "%data"
             if arg.vector_size>1:
                 for idx in range(1,arg.vector_size+1):
-                    arglist.append(arg.name+"_proxy("+str(idx)+")"+dataref)
+                    arglist.append(arg.proxy_name+"("+str(idx)+")"+dataref)
             else:
-                arglist.append(arg.name+"_proxy"+dataref)
+                arglist.append(arg.proxy_name+dataref)
         # 3: For each function space (in the order they appear in the metadata arguments)
-        processed_fs=[]
-        for arg in self.arguments.args:
-            fs = arg.function_space
-            if fs not in processed_fs:
-                processed_fs.append(fs)
-                # 3.1 Provide compulsory arguments
-                arglist.append("ndf_"+fs)
-                arglist.append("undf_"+fs)
-                arglist.append("map_"+fs)
-                # 3.2 Provide optional arguments
-                found = False
-                for idx,descriptor in enumerate(self.func_descriptors):
-                    if descriptor.function_space_name == fs:
-                        found = True
-                        break
-                if found:
-                    for operator_name in self.func_descriptors[idx].operator_names:
-                        arglist.append(operator_name+"_"+fs)
-                # 3.3 Fix for boundary_dofs array in ru_kernel
-                if self.name == "ru_code" and fs == "w2":
-                    arglist.append("boundary_dofs_w2")
-                    parent.add(DeclGen(parent, datatype = "integer", pointer = True,
-                               entity_decls = ["boundary_dofs_w2(:,:) => null()"]))
-                    found = False
-                    for idx,arg in enumerate(self.arguments.args):
-                        if arg.function_space == "w2":
-                            found=True
-                            name = self.arguments.args[idx].name
-                            break
-                    if not found:
-                        raise GenerationError("Expected to find the required function space")
-                    new_parent, position = parent.start_parent_loop()
-                    new_parent.add(AssignGen(new_parent, pointer = True,
-                                             lhs = "boundary_dofs_w2",
-                                             rhs = name+"%vspace%get_boundary_dofs()"),
-                                             position = ["before",position])
+        for unique_fs in self.arguments.unique_fss:
+            # 3.1 Provide compulsory arguments
+            arglist.extend(self._fs_descriptors.compulsory_args(unique_fs))
+            # 3.2 Provide optional arguments
+            if self._fs_descriptors.exists(unique_fs):
+                descriptor = self._fs_descriptors.get_descriptor(unique_fs)
+                arglist.extend(descriptor.operator_names)
+            # 3.3 Fix for boundary_dofs array in ru_kernel
+            if self.name == "ru_code" and unique_fs == "w2":
+                arglist.append("boundary_dofs_w2")
+                parent.add(DeclGen(parent, datatype = "integer", pointer = True,
+                                   entity_decls = ["boundary_dofs_w2(:,:) => null()"]))
+                proxy_name=self._arguments.get_field("w2").proxy_name
+                new_parent, position = parent.start_parent_loop()
+                new_parent.add(AssignGen(new_parent, pointer = True,
+                                         lhs = "boundary_dofs_w2",
+                                         rhs = proxy_name+"%vspace%get_boundary_dofs()"),
+                               position = ["before",position])
         # 4: Provide qr arguments if required
         if self._qr_required:
-            arglist.extend(["nqp_h","nqp_v","wh","wv"])
+            arglist.extend(self._qr_args)
 
         # generate the kernel call and associated use statement
         parent.add(CallGen(parent, self._name, arglist))
@@ -465,6 +467,38 @@ class FS_Descriptor:
 
     def __init__(self, descriptor):
         self._descriptor = descriptor
+
+    @property
+    def operator_names(self):
+        names=[]
+        for operator_name in self._descriptor.operator_names:
+            if operator_name == "gh_orientation":
+                names.append(self.orientation_name)
+            elif operator_name == "gh_basis":
+                names.append(self.basis_name)
+            elif operator_name == "gh_diff_basis":
+                names.append(self.diff_basis_name)
+            else:
+                raise GenerationError("FS_Descriptor:operator_names: unsupported name '{0}' found".format(operator_name))
+        return names
+
+    def name(self,operator_name):
+            if operator_name == "gh_orientation":
+                return self.orientation_name
+            elif operator_name == "gh_basis":
+                return self.basis_name
+            elif operator_name == "gh_diff_basis":
+                return self.diff_basis_name
+            else:
+                raise GenerationError("FS_Descriptor:name: unsupported name '{0}' found".format(operator_name))
+        
+    @property
+    def basis_name(self):
+        return "basis"+"_"+self._descriptor.function_space_name
+
+    @property
+    def diff_basis_name(self):
+        return "diff_basis"+"_"+self._descriptor.function_space_name
 
     @property
     def fs_name(self):
@@ -491,6 +525,18 @@ class FS_Descriptors:
         self._descriptors=[]
         for descriptor in descriptors:
             self._descriptors.append(FS_Descriptor(descriptor))
+
+    def compulsory_args(self,fs):
+        return [self.ndf_name(fs),self.undf_name(fs),self.map_name(fs)]
+
+    def ndf_name(self,fs):
+        return "ndf_"+fs
+
+    def undf_name(self,fs):
+        return "undf_"+fs
+
+    def map_name(self,fs):
+        return "map_"+fs
 
     @property
     def orientation(self):
