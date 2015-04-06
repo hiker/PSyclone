@@ -192,7 +192,7 @@ class DynInvoke(Invoke):
                     found = False
                     for idx, arg_descriptor in enumerate(call.arg_descriptors):
                         if arg_descriptor.function_space_name1 == func_descriptor.function_space_name and not found:
-                            arg_for_funcspace[func_descriptor.function_space_name] = self._proxy_name[call.arguments.args[idx].name]
+                            arg_for_funcspace[func_descriptor.function_space_name] = call.arguments.args[idx]
                             found = True
 
         operator_declarations = []
@@ -210,7 +210,8 @@ class DynInvoke(Invoke):
             invoke_sub.add(CommentGen(invoke_sub," Initialise sizes and allocate basis arrays for "+function_space))
             invoke_sub.add(CommentGen(invoke_sub,""))
 
-            name = arg_for_funcspace[function_space]
+            arg = arg_for_funcspace[function_space]
+            name = arg.proxy_name_indexed
             ndf_name = self.ndf_name(function_space)
             var_list.append(ndf_name)
             invoke_sub.add(AssignGen(invoke_sub, lhs = ndf_name,
@@ -253,7 +254,8 @@ class DynInvoke(Invoke):
                     args.append(op_name)
                     args.append(self.ndf_name(function_space))
                     args.extend(["nqp_h","nqp_v","xp","zp"])
-                    name = arg_for_funcspace[function_space]
+                    arg=arg_for_funcspace[function_space]
+                    name = arg.proxy_name_indexed
                     op_type_name = operator_name[3:]
                     invoke_sub.add(CallGen(invoke_sub,name=name+"%vspace%compute_"+op_type_name+"_function",args=args))
 
@@ -395,9 +397,9 @@ class DynKern(Kern):
             if idx == 0:
                 parent.add(CommentGen(parent,""))
             map_name = self._fs_descriptors.map_name(unique_fs)
-            field_proxy_name = self._arguments.get_field(unique_fs).proxy_name
+            field = self._arguments.get_field(unique_fs)
             parent.add(AssignGen(parent, pointer = True, lhs = map_name,
-                                 rhs = field_proxy_name+"%vspace%get_cell_dofmap(cell)"))
+                                 rhs = field.proxy_name_indexed+"%vspace%get_cell_dofmap(cell)"))
             if idx == len(self.arguments.unique_fss)-1:
                 parent.add(CommentGen(parent,""))
 
@@ -416,7 +418,7 @@ class DynKern(Kern):
                 if fs_descriptor.orientation:
                     field = self._arguments.get_field(unique_fs)
                     parent.add(AssignGen(parent, pointer = True, lhs = fs_descriptor.orientation_name,
-                                         rhs = field.proxy_name+"%vspace%get_cell_orientation(cell)"))
+                                         rhs = field.proxy_name_indexed+"%vspace%get_cell_orientation(cell)"))
         if self._fs_descriptors.orientation:
             orientation_decl_names=[]
             for orientation_name in self._fs_descriptors.orientation_names:
@@ -631,6 +633,13 @@ class DynKernelArgument(Argument):
     @property
     def proxy_name(self):
         return self._name+"_proxy"
+
+    @property
+    def proxy_name_indexed(self):
+        if self._vector_size>1:
+            return self._name+"_proxy(1)"
+        else:
+            return self._name+"_proxy"
 
     @property
     def function_space(self):
