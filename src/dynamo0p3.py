@@ -185,7 +185,6 @@ class DynInvoke(Invoke):
             invoke_sub.add(CommentGen(invoke_sub,""))
             invoke_sub.add(CommentGen(invoke_sub," Initialise qr values"))
             invoke_sub.add(CommentGen(invoke_sub,""))
-            qr_vars = ["nqp_h","nqp_v","zp","xp","wh","wv"]
             invoke_sub.add(DeclGen(invoke_sub, datatype = "integer",
                                entity_decls = ["nqp_h","nqp_v"]))
             invoke_sub.add(DeclGen(invoke_sub, datatype = "real", pointer=True,
@@ -196,8 +195,9 @@ class DynInvoke(Invoke):
             if len(self._psy_unique_qr_vars)>1:
                 raise GenerationError("Oops, not yet coded for multiple qr values")
             qr_var_name = self._psy_unique_qr_vars[0]
-            for qr_var in qr_vars:
-                invoke_sub.add(AssignGen(invoke_sub, lhs=qr_var, rhs=qr_var_name+"%get_"+qr_var+"()"))
+            qr_vars = {"nqp_h":"nqp_h","nqp_v":"nqp_v","zp":"xqp_v","xp":"xqp_h","wh":"wqp_h","wv":"wqp_v"}
+            for qr_var in qr_vars.keys():
+                invoke_sub.add(AssignGen(invoke_sub, lhs=qr_var, rhs=qr_var_name+"%get_"+qr_vars[qr_var]+"()"))
 
         # declare and create required basis functions
         function_spaces = {}
