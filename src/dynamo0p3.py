@@ -430,7 +430,7 @@ class DynKern(Kern):
             decl_map_names=[]
             for unique_fs in self.arguments.unique_fss:
                 map_name=self._fs_descriptors.map_name(unique_fs)
-                decl_map_names.append(map_name+"(:) ==> null()")
+                decl_map_names.append(map_name+"(:) => null()")
             parent.add(DeclGen(parent, datatype = "integer", pointer = True,
                                entity_decls = decl_map_names))
 
@@ -445,7 +445,7 @@ class DynKern(Kern):
         if self._fs_descriptors.orientation:
             orientation_decl_names=[]
             for orientation_name in self._fs_descriptors.orientation_names:
-                orientation_decl_names.append(orientation_name+"(:) ==> null()")
+                orientation_decl_names.append(orientation_name+"(:) => null()")
             parent.add(DeclGen(parent, datatype = "integer", pointer = True,
                                entity_decls = orientation_decl_names))
             parent.add(CommentGen(parent,""))
