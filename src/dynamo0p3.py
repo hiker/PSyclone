@@ -72,23 +72,35 @@ class DynInvoke(Invoke):
         # this api supports vector fields so we need to declare and use them
         # correctly in the psy layer.
         self._psy_unique_declarations = []
+        self._psy_unique_operator_declarations = []
         self._psy_proxy_unique_declarations = []
+        self._psy_proxy_unique_operator_declarations = []
         self._psy_field_info = {}
         self._proxy_name = {}
         for call in self.schedule.calls():
             for arg in call.arguments.args:
                 if arg.text is not None:
-                    if not arg.name in self._psy_unique_declarations:
-                        if arg.vector_size>1:
-                            tmp_name = arg.name+"("+str(arg.vector_size)+")"
-                            tmp_name_proxy = arg.name+"_proxy("+str(arg.vector_size)+")"
-                        else:
-                            tmp_name = arg.name
+                    if arg.type == "gh_operator":
+                        if not arg.name in self._psy_unique_operator_declarations:
+                            self._psy_unique_operator_declarations.append(arg.name)
+                            self._psy_field_info[arg.name] = arg
+                            self._proxy_name[arg.name] = arg.name+"_proxy"
                             tmp_name_proxy = arg.name+"_proxy"
-                        self._psy_unique_declarations.append(tmp_name)
-                        self._psy_proxy_unique_declarations.append(tmp_name_proxy)
-                        self._psy_field_info[arg.name] = arg
-                        self._proxy_name[arg.name] = arg.name+"_proxy"
+                            self._psy_proxy_unique_operator_declarations.append(tmp_name_proxy)
+                    elif arg.type == "gh_field":
+                        if not arg.name in self._psy_unique_declarations:
+                            if arg.vector_size>1:
+                                tmp_name = arg.name+"("+str(arg.vector_size)+")"
+                                tmp_name_proxy = arg.name+"_proxy("+str(arg.vector_size)+")"
+                            else:
+                                tmp_name = arg.name
+                                tmp_name_proxy = arg.name+"_proxy"
+                            self._psy_unique_declarations.append(tmp_name)
+                            self._psy_proxy_unique_declarations.append(tmp_name_proxy)
+                            self._psy_field_info[arg.name] = arg
+                            self._proxy_name[arg.name] = arg.name+"_proxy"
+                    else:
+                        raise GenerationError("Usupported arg type '{0}' found ".format(arg.type))
  
     def ndf_name(self,fs):
         kern_calls = self.schedule.kern_calls()
@@ -117,12 +129,20 @@ class DynInvoke(Invoke):
         from f2pygen import SubroutineGen, TypeDeclGen, AssignGen, DeclGen, AllocateGen, DeallocateGen, CallGen, CommentGen
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name = self.name,
-                                   args = self.psy_unique_vars+self._psy_unique_qr_vars)
+                                   args = self.psy_unique_var_names+self._psy_unique_qr_vars)
 
         # add the subroutine argument declarations
-        invoke_sub.add(TypeDeclGen(invoke_sub, datatype = "field_type",
-                                  entity_decls = self._psy_unique_declarations,
-                                  intent = "inout"))
+        # fields
+        if len(self._psy_unique_declarations) > 0:
+            invoke_sub.add(TypeDeclGen(invoke_sub, datatype = "field_type",
+                                       entity_decls = self._psy_unique_declarations,
+                                       intent = "inout"))
+        # operators
+        if len(self._psy_unique_operator_declarations) > 0:
+            invoke_sub.add(TypeDeclGen(invoke_sub, datatype = "operator_type",
+                                       entity_decls = self._psy_unique_operator_declarations,
+                                       intent = "inout"))
+        # qr
         if len(self._psy_unique_qr_vars) > 0:
             invoke_sub.add(TypeDeclGen(invoke_sub, datatype = "quadrature_type",
                                       entity_decls = self._psy_unique_qr_vars,
@@ -131,27 +151,30 @@ class DynInvoke(Invoke):
         invoke_sub.add(CommentGen(invoke_sub,""))
         invoke_sub.add(CommentGen(invoke_sub," Initialise field proxies"))
         invoke_sub.add(CommentGen(invoke_sub,""))
-        first_arg=""
+        
         for arg in self.psy_unique_vars:
-            if self._psy_field_info[arg].vector_size>1:
-                if first_arg == "":
-                    first_arg = self._proxy_name[arg]+"(1)"
-                for idx in range(1,self._psy_field_info[arg].vector_size+1):
-                    invoke_sub.add(AssignGen(invoke_sub, lhs = self._proxy_name[arg]+"("+str(idx)+")",
-                                             rhs = arg+"("+str(idx)+")"+"%get_proxy()"))
+            if arg.vector_size>1:
+                for idx in range(1,arg.vector_size+1):
+                    invoke_sub.add(AssignGen(invoke_sub, lhs = arg.proxy_name+"("+str(idx)+")",
+                                             rhs = arg.name+"("+str(idx)+")"+"%get_proxy()"))
             else:
-                if first_arg == "":
-                    first_arg = self._proxy_name[arg]
-                invoke_sub.add(AssignGen(invoke_sub, lhs = self._proxy_name[arg],
-                                         rhs = arg+"%get_proxy()"))
-        invoke_sub.add(TypeDeclGen(invoke_sub, datatype = "field_proxy_type",
-                                   entity_decls = self._psy_proxy_unique_declarations))
+                invoke_sub.add(AssignGen(invoke_sub, lhs = arg.proxy_name,
+                                         rhs = arg.name+"%get_proxy()"))
 
-        # Initialise the number of layers using the first argument
+        if len(self._psy_proxy_unique_declarations)>0:
+            invoke_sub.add(TypeDeclGen(invoke_sub, datatype = "field_proxy_type",
+                                       entity_decls = self._psy_proxy_unique_declarations))
+        if len(self._psy_proxy_unique_operator_declarations)>0:
+            invoke_sub.add(TypeDeclGen(invoke_sub, datatype = "operator_proxy_type",
+                                       entity_decls = self._psy_proxy_unique_operator_declarations))
+
+        # Initialise the number of layers
         invoke_sub.add(CommentGen(invoke_sub,""))
         invoke_sub.add(CommentGen(invoke_sub," Initialise number of layers"))
         invoke_sub.add(CommentGen(invoke_sub,""))
-        invoke_sub.add(AssignGen(invoke_sub, lhs="nlayers", rhs=first_arg+"%vspace%get_nlayers()"))
+        # use the first argument
+        first_var = self.psy_unique_vars[0]
+        invoke_sub.add(AssignGen(invoke_sub, lhs="nlayers", rhs=first_var.proxy_name_indexed+"%"+first_var.ref_name+"%get_nlayers()"))
         invoke_sub.add(DeclGen(invoke_sub, datatype = "integer",
                                entity_decls = ["nlayers"]))
 
@@ -215,21 +238,21 @@ class DynInvoke(Invoke):
             ndf_name = self.ndf_name(function_space)
             var_list.append(ndf_name)
             invoke_sub.add(AssignGen(invoke_sub, lhs = ndf_name,
-                                         rhs = name+"%vspace%get_ndf()"))
+                                         rhs = name+"%"+arg.ref_name+"%get_ndf()"))
             undf_name = self.undf_name(function_space)
             var_list.append(undf_name)
             invoke_sub.add(AssignGen(invoke_sub, lhs = undf_name,
-                                         rhs = name+"%vspace%get_undf()"))
+                                         rhs = name+"%"+arg.ref_name+"%get_undf()"))
             for operator_name in function_spaces[function_space]:
                 if operator_name == 'gh_basis':
                     lhs = "dim_"+function_space
                     var_dim_list.append(lhs)
-                    rhs = name+"%vspace%get_dim_space()"
+                    rhs = name+"%"+arg.ref_name+"%get_dim_space()"
                     alloc_args = "dim_"+function_space+", "+self.ndf_name(function_space)+", nqp_h, nqp_v"
                 elif operator_name == 'gh_diff_basis':
                     lhs = "diff_dim_"+function_space
                     var_dim_list.append(lhs)
-                    rhs = name+"%vspace%get_dim_space_diff()"
+                    rhs = name+"%"+arg.ref_name+"%get_dim_space_diff()"
                     alloc_args = "diff_dim_"+function_space+", "+self.ndf_name(function_space)+", nqp_h, nqp_v"
                 else:
                     raise GenerationError("Unsupported function space '{0}' found!.format(operator_name)")
@@ -257,7 +280,7 @@ class DynInvoke(Invoke):
                     arg=arg_for_funcspace[function_space]
                     name = arg.proxy_name_indexed
                     op_type_name = operator_name[3:]
-                    invoke_sub.add(CallGen(invoke_sub,name=name+"%vspace%compute_"+op_type_name+"_function",args=args))
+                    invoke_sub.add(CallGen(invoke_sub,name=name+"%"+arg.ref_name+"%compute_"+op_type_name+"_function",args=args))
 
         invoke_sub.add(CommentGen(invoke_sub,""))
         invoke_sub.add(CommentGen(invoke_sub," Call our kernels"))
@@ -315,7 +338,7 @@ class DynLoop(Loop):
         Loop.gen_code(self,parent)
 
 class DynInf(Inf):
-    ''' A Dynamo 0.1 specific infrastructure call factory. No infrastructure
+    ''' A Dynamo 0.3 specific infrastructure call factory. No infrastructure
         calls are supported in Dynamo at the moment so we just call the base
         class (which currently recognises the set() infrastructure call). '''
     @staticmethod
@@ -625,6 +648,20 @@ class DynKernelArgument(Argument):
         self._arg = arg
         Argument.__init__(self, call, arg_info, arg.access)
         self._vector_size = arg._vector_size
+        self._type = arg._type
+
+    @property
+    def ref_name(self):
+        if self._type == "gh_field":
+            return "vspace"
+        elif self._type == "gh_operator":
+            return "fs_from"
+        else:
+            raise GenerationError("ref_name: Error, unsupported arg type '{0}' found".format(self._type))
+
+    @property
+    def type(self):
+        return self._type
 
     @property
     def vector_size(self):

@@ -248,7 +248,7 @@ class Invoke(object):
                     if not arg.text in self._alg_unique_args:
                         self._alg_unique_args.append(arg.text)
                     if not arg.name in self._psy_unique_vars:
-                        self._psy_unique_vars.append(arg.name)
+                        self._psy_unique_vars.append(arg)
                 else:
                     # literals have no name
                     pass
@@ -272,6 +272,12 @@ class Invoke(object):
     @property
     def psy_unique_vars(self):
         return self._psy_unique_vars
+    @property
+    def psy_unique_var_names(self):
+        names=[]
+        for var in self._psy_unique_vars:
+            names.append(var.name)
+        return names
     #@property
     #def unique_args(self):
     #    return self._unique_args

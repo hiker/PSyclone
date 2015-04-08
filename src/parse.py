@@ -138,11 +138,11 @@ class DynArgDescriptor03(Descriptor):
             # we expect 4 arguments with the 3rd and 4th each being a function space
             if len(arg_type.args) != 4:
                 raise ParseError("Each meta_arg value must have 4 arguments for the dynamo0.3 api if its first argument is gh_operator")
-            if arg_type.args[2] not in self._valid_function_space_names:
-                raise ParseError("Each meta_arg 3rd argument must be one of {0} in the dynamo0.3 api, but found '{1}' in '{2}".format(self._valid_function_space_names,arg_type.args[2],arg_type))
+            if arg_type.args[2].name not in self._valid_function_space_names:
+                raise ParseError("Each meta_arg 3rd argument must be one of {0} in the dynamo0.3 api, but found '{1}' in '{2}".format(self._valid_function_space_names,arg_type.args[2].name,arg_type))
             self._function_space1 = arg_type.args[2].name
-            if arg_type.args[3] not in self._valid_function_space_names:
-                raise ParseError("Each meta_arg 4th argument must be one of {0} in the dynamo0.3 api, but found '{1}' in '{2}".format(self._valid_function_space_names,arg_type.args[2],arg_type))
+            if arg_type.args[3].name not in self._valid_function_space_names:
+                raise ParseError("Each meta_arg 4th argument must be one of {0} in the dynamo0.3 api, but found '{1}' in '{2}".format(self._valid_function_space_names,arg_type.args[2].name,arg_type))
             self._function_space2 = arg_type.args[3].name
         else: # we should never get to here
             raise ParseError("Internal logic error in DynArgDescriptor03")
