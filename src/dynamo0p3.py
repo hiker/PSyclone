@@ -336,7 +336,7 @@ class DynLoop(Loop):
             self._stop = "ncp_ncolour(colour)"
         else:
             self._variable_name = "cell"
-            self._stop = self.field_name+"_proxy%vspace%get_ncell()"
+            self._stop = self.field.name+"_proxy%"+self.field.ref_name+"%get_ncell()"
         Loop.gen_code(self,parent)
 
 class DynInf(Inf):
