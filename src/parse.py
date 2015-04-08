@@ -6,6 +6,7 @@
 #-------------------------------------------------------------------------------
 # Author L. Mitchell Imperial College
 # Modified by R. Ford STFC Daresbury Lab
+#     "       A. Porter STFC Daresbury Lab
 
 import fparser
 from fparser import parsefortran
@@ -663,15 +664,17 @@ class FileInfo(object):
     def calls(self):
         return self._calls
 
-def parse(filename, api="", invoke_name="invoke", inf_name="inf"):
+def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf", 
+          kernel_path=""):
     '''
     Takes a GungHo algorithm specification as input and outputs an AST of this specification and an object containing information about the invocation calls in the algorithm specification and any associated kernel implementations.
 
-    :param str filename: The file containing the algorithm specification.
+    :param str alg_filename: The file containing the algorithm specification.
     :param str invoke_name: The expected name of the invocation calls in the algorithm specification
     :param str inf_name: The expected module name of any required infrastructure routines.
+    :param str kernel_path: The path to search for kernel source files (if different from the location of the algorithm source).
     :rtype: ast,invoke_info
-    :raises IOError: if the filename does not exist
+    :raises IOError: if the filename or search path does not exist
     :raises ParseError: if there is an error in the parsing
     :raises RuntimeError: if there is an error in the parsing
 
@@ -693,10 +696,10 @@ def parse(filename, api="", invoke_name="invoke", inf_name="inf"):
     # drop cache
     fparser.parsefortran.FortranParser.cache.clear()
     fparser.logging.disable('CRITICAL')
-    if not os.path.isfile(filename):
-        raise IOError("File %s not found" % filename)
+    if not os.path.isfile(alg_filename):
+        raise IOError("File %s not found" % alg_filename)
     try:
-        ast = fpapi.parse(filename, ignore_comments = False, analyze = False)
+        ast = fpapi.parse(alg_filename, ignore_comments = False, analyze = False)
     except:
         import traceback
         traceback.print_exc()
@@ -758,16 +761,49 @@ def parse(filename, api="", invoke_name="invoke", inf_name="inf"):
                         modulename = name_to_module[argname]
                     except KeyError:
                         raise ParseError("kernel call '%s' must be named in a use statement" % argname)
-                    root_dir = os.path.abspath(os.path.dirname(filename))
-                    if not os.path.isfile(os.path.join(root_dir,'%s.F90' % modulename)):
-                        if not os.path.isfile(os.path.join(root_dir,'%s.f90' % modulename)):
-                            raise IOError("Kernel file '%s.[fF]90' not found" % modulename)
-                        else:
-                            #modast = fpapi.parse('%s.f90' % modulename, ignore_comments = False, analyze = False )
-                            modast = fpapi.parse(os.path.join(root_dir,'%s.f90' % modulename))
+
+                    # Search for the file containing the kernel source
+                    import fnmatch
+
+                    # We only consider files with the suffixes .f90 and .F90
+                    # when searching for the kernel source.
+                    search_string = "{0}.[fF]90".format(modulename)
+
+                    # Our list of matching files (should have length == 1)
+                    matches = []
+
+                    # If a search path has been specified then we look there.
+                    # Otherwise we look in the directory containing the 
+                    # algorithm definition file
+                    if len(kernel_path) > 0:
+                        cdir = os.path.abspath(kernel_path)
+
+                        # We recursively search down through the directory
+                        # tree starting at the specified path
+                        if os.path.exists(cdir):
+                            for root, dirnames, filenames in os.walk(cdir):
+                                for filename in fnmatch.filter(filenames, 
+                                                               search_string):
+                                    matches.append(os.path.join(root, filename))
+
                     else:
-                        #modast = fpapi.parse('%s.F90' % modulename, ignore_comments = False, analyze = False )
-                        modast = fpapi.parse(os.path.join(root_dir,'%s.F90' % modulename))
+                        # We look *only* in the directory that contained the 
+                        # algorithm file
+                        cdir = os.path.abspath(os.path.dirname(alg_filename))
+                        filenames = os.listdir(cdir)
+                        for filename in fnmatch.filter(filenames, 
+                                                       search_string):
+                                    matches.append(os.path.join(cdir, filename))
+
+                    # Check that we only found one match
+                    if len(matches) != 1:
+                        if len(matches) == 0:
+                            raise IOError("Kernel file '{0}.[fF]90' not found in {1}".format(modulename, cdir))
+                        else:
+                            raise IOError("More than one match for kernel file '{0}.[fF]90' found!".format(modulename))
+                    else:
+                        modast = fpapi.parse(matches[0])
+
                     statement_kcalls.append(KernelCall(modulename, KernelTypeFactory(api=api).create(argname, modast),argargs))
             invokecalls[statement] = InvokeCall(statement_kcalls)
     return ast, FileInfo(container_name,invokecalls)
