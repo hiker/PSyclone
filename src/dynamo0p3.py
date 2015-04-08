@@ -197,7 +197,7 @@ class DynInvoke(Invoke):
             qr_var_name = self._psy_unique_qr_vars[0]
             qr_vars = {"nqp_h":"nqp_h","nqp_v":"nqp_v","zp":"xqp_v","xp":"xqp_h","wh":"wqp_h","wv":"wqp_v"}
             for qr_var in qr_vars.keys():
-                invoke_sub.add(AssignGen(invoke_sub, lhs=qr_var, rhs=qr_var_name+"%get_"+qr_vars[qr_var]+"()"))
+                invoke_sub.add(AssignGen(invoke_sub, pointer=True, lhs=qr_var, rhs=qr_var_name+"%get_"+qr_vars[qr_var]+"()"))
 
         # declare and create required basis functions
         function_spaces = {}
