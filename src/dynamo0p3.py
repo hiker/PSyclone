@@ -195,9 +195,13 @@ class DynInvoke(Invoke):
             if len(self._psy_unique_qr_vars)>1:
                 raise GenerationError("Oops, not yet coded for multiple qr values")
             qr_var_name = self._psy_unique_qr_vars[0]
-            qr_vars = {"nqp_h":"nqp_h","nqp_v":"nqp_v","zp":"xqp_v","xp":"xqp_h","wh":"wqp_h","wv":"wqp_v"}
-            for qr_var in qr_vars.keys():
-                invoke_sub.add(AssignGen(invoke_sub, pointer=True, lhs=qr_var, rhs=qr_var_name+"%get_"+qr_vars[qr_var]+"()"))
+            qr_ptr_vars = {"zp":"xqp_v","xp":"xqp_h","wh":"wqp_h","wv":"wqp_v"}
+            qr_vars = ["nqp_h", "nqp_v"]
+            for qr_var in qr_ptr_vars.keys():
+                invoke_sub.add(AssignGen(invoke_sub, pointer=True, lhs=qr_var, rhs=qr_var_name+"%get_"+qr_ptr_vars[qr_var]+"()"))
+
+            for qr_var in qr_vars:
+                invoke_sub.add(AssignGen(invoke_sub, lhs=qr_var, rhs=qr_var_name+"%get_"+qr_var+"()"))
 
         # declare and create required basis functions
         function_spaces = {}
