@@ -10,10 +10,8 @@ PSyclone has been designed to support multiple API's and to allow new
 API's to be added. This section explains how to create a new API in
 PSyclone.
 
-PSyclone currently supports the original prototype gungho api, the
-dynamo version 0.1 api and the gocean api.
 
-`config.py <https://puma.nerc.ac.uk/trac/GungHo/browser/PSyclone/trunk/src/config.py>`_
+Modifying `config.py <https://puma.nerc.ac.uk/trac/GungHo/browser/PSyclone/trunk/src/config.py>`_
 ---------
 
 The names of the supported API's and the default API are specified in
@@ -27,78 +25,145 @@ For example, if we would like to add a new API called *dynamo0.3* and make it th
 	DEFAULTAPI="dynamo0.3"
 
 
-`parse.py <https://puma.nerc.ac.uk/trac/GungHo/browser/PSyclone/trunk/src/config.py>`_
+Modifying `parse.py <https://puma.nerc.ac.uk/trac/GungHo/browser/PSyclone/trunk/src/parse.py>`_
 --------
 
 The parser code, `parse.py
 <https://puma.nerc.ac.uk/trac/GungHo/browser/PSyclone/trunk/src/parse.py>`_,
-reads the algorithm code and associated kernel metadata.
+takes an algorithm code as input. It parses the algorithm code and
+finds and parses any kernels that are referenced by the algorithm
+code. It returns the parsed algorithm code as an *ast* and an object
+containing all the required algorithm invocation information and its
+associated kernel information.
 
-The parser currently assumes that all API's will use the invoke() API
-for the algorithm-to-psy layer but that the content and structure of
-the metadata in the kernel code may differ. If the algorithm API
-differs, then the parser will need to be refactored. This is beyond
-the scope of this document and is currently not considered in the
-PSyclone software architecture.
+>>> from parse import parse
+>>> ast, info = parse("example.F90")
 
-KernelTypeFactory Class
+The parser currently assumes that all API's will use the standard
+*invoke()* approach within the algorithm layer but that the content
+and structure of the metadata in the kernel code may differ.
+
+If the algorithm API differs from this expectation, then the parser
+will need to be refactored. Any such refactoring is beyond the scope
+of this document and is currently not part of the PSyclone software
+design.
+
+To add support for a new API, three classes need to be modified and/or
+created in `parse.py
+<https://puma.nerc.ac.uk/trac/GungHo/browser/PSyclone/trunk/src/parse.py>`_. The
+KernelTypeFactory class needs to be modified, a new subclass of the
+KernelType class needs to be created and a new subclass of the
+Descriptor class needs to be created. These modifications and
+additions are detailed in the following 3 sections.
+
+Modifying the KernelTypeFactory Class
 +++++++++++++++++++++++
 
-Currently found on Line 243
+Kernel metadata, is likely to be different from one API to another. To
+parse this kernel-API-specific metadata a *KernelTypeFactory* is
+provided which is responsible for returning the appropriate
+*KernelType* object. The *KernelTypeFactory* class is found in
+`parse.py
+<https://puma.nerc.ac.uk/trac/GungHo/browser/PSyclone/trunk/src/parse.py>`_
+at line 232.
 
-The kernel metadata however, is likely to be different from one API to
-another. To parse this kernel-API-specific metadata a
-KernelTypeFactory is provided which should return the appropriate
-KernelType object. When adding a new API a new API-specific subclass
-of KernelType should be created and added to the create() method in
-the KernelTypeFactory class. If the kernel metadata happens to be the
-same as another existing API then the existing KernelType subclass can
-be used for the new API.
+For example, assuming we want a new *KernelType* for the 0.3 dynamo
+API which we decided to call *DynKernelType03* we would modify the
+*create* method of *KernelTypeFactory* as shown below:
+::
+	def create(self,name,ast):
+	    if self._type=="gunghoproto":
+     	        return GHProtoKernelType(name,ast)
+	    elif self._type=="dynamo0.1":
+	        return DynKernelType(name,ast)
+	    elif self._type=="gocean":
+	        return GOKernelType(name,ast)
+	    elif self._type=="dynamo0.3":
+	        return DynKernelType03(name,ast)
+	    else:
+	        raise ParseError("KernelTypeFactory: Internal Error: Unsupported kernel type '{0}' found.
+                                  Should not be possible.".format(self._type))
 
-For example, assuming we want a new KernelType for 0.3 API called DynKernel03Type
+If the kernel metadata happens to be the same as another existing API
+then the existing KernelType subclass can be used for the new API.
+
+For example, assuming the 0.3 dynamo API uses the same metadata as the
+0.1 dynamo API we could modify the *create* method of
+*KernelTypeFactory* in the following way leading to the
+*DynKernelType* object being returned for both the *dynamo0.1* and
+*dynamo0.3* API's.
 ::
 	def create(self,name,ast):
 	        if self._type=="gunghoproto":
 	            return GHProtoKernelType(name,ast)
-	        elif self._type=="dynamo0.1":
+	        elif self._type in ["dynamo0.1","dynamo0.3"]:
 	            return DynKernelType(name,ast)
 	        elif self._type=="gocean":
 	            return GOKernelType(name,ast)
-		elif self._type=="dynamo0.3":
-		    return DynKernel03Type(name,ast)
 	        else:
 	            raise ParseError("KernelTypeFactory: Internal Error: Unsupported kernel type '{0}' found.
                                       Should not be possible.".format(self._type))
 
-KernelType Class
+Sub-classing the KernelType Class
 ++++++++++++++++
 
-The role of the KernelType subclass is to capture all the required
-kernel metadata for the particular API for subsequent use by the
-psyGen.py PSy layer generation code.
+The role of the API-specific *KernelType* **subclass** is to capture all
+the required kernel metadata for the particular API. This information
+will be used by psyGen.py to generate the PSy layer code.
 
-There is an assumption in the KernelType base class that the metadata
-will be stored in the kernel module as a fortran type with a
-particular structure. If this is the case then the base class can be
-used to parse some of this structure. Below gives an example of the
-supported structure.
+The *KernelType* **class** (see `parse.py
+<https://puma.nerc.ac.uk/trac/GungHo/browser/PSyclone/trunk/src/parse.py>`_
+line 253) makes the assumption that Kernel metadata will be stored
+within the Kernel fortran module as a Fortran type with a particular
+structure.  Below gives an example of the expected structure with
+information that can vary from one API to another being shown in
+xml-style brackets (<.../>)
+::
+  type, public, extends(kernel_type) :: <typename/>
+    private
+    type(<sometype/>) :: meta_args(<n/>) = (/                            &
+         <sometype/>(<arg1/>,<arg2/>,...,<argn/>),                       &
+         <sometype/>(<arg1/>,<arg2/>,...,<argn/>),                       &
+         ...                                                             &
+         /)
+    integer :: iterates_over = <somespace/>
+  contains
+    procedure, nopass :: <kernelname/>
+  end type
 
-type, public, extends(kernel_type) :: <typename/>
-  private
-  type(<sometype/>) :: meta_args(<n/>) = (/                            &
-       <sometype/>(<arg1/>,<arg2/>,...,<argn/>),                       &
-       <sometype/>(<arg1/>,<arg2/>,...,<argn/>),                       &
-       ...                                                             &
-       /)
-  integer :: iterates_over = <somespace/>
-contains
-  procedure, nopass :: <kernelname/>
-end type
+Therefore a type is expected which extends *kernel_type* and contains
+a *meta_args* array of types (one for each field passed to the
+Kernel). The meta_args types are each initialised via a structure
+constructor. The type also contains an integer iterates_over which is
+set to a value and a procedure which provide the name of the actual
+kernel code.
 
-If this is the case then the baseclass will extract the metadata for
-you. To do this the the KernelType subclass needs to specialise the
-KernelType __init__ method and initialise the KernelType base class
-with the supplied arguments.
+If the new API provides metadata in the above format then the
+*KernelType* **sub-class** can use the *KernelType* **class** to
+extract the metadata. To do this the the *KernelType* subclass needs
+to specialise the *KernelType __init__* method and initialise the
+*KernelType* class with the supplied arguments.
+::
+	class DynKernelType03(KernelType):
+	    def __init__(self,name,ast):
+	        KernelType.__init__(self,name,ast)
+	
+**UP TO HERE , UP TO HERE**
+
+Base class provides _inits list with each info
+Need to populate _arg_descriptors list with this info. For 0.3 API
+DynArgDescriptor03, captures metadata about each argument (field)
+::
+	class DynKernelType03(KernelType):
+	    def __init__(self,name,ast):
+	        KernelType.__init__(self,name,ast)
+
+	        # parse arg_type metadata
+	        self._arg_descriptors=[]
+	        for arg_type in self._inits:
+	            self._arg_descriptors.append(DynArgDescriptor03(arg_type))
+
+
 
 %Checks whether the metadata is public (it should be ?)
 %Assumes iterates_over variable.
