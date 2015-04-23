@@ -188,7 +188,7 @@ the required format specified earlier. However the
 vocabulary and ammount of metadata is specific to the dynamo0.1 API.
 
 Specifically, the type of meta_args is "arg_type", *iterates_over* has
-the name "cells", and the single datum passed into the Kernel from the
+the name "cells", and the single field passed into the Kernel from the
 Algorithm layer has the following list of metadata describing it
 "gh_rw,v3,fe,.true.,.false.,.true.".
 
@@ -206,43 +206,114 @@ the required code for the Dynamo0.3 API sub-class is shown below.
 	    def __init__(self,name,ast):
 	        KernelType.__init__(self,name,ast)
 
-At this point, the sub-class (DynKernelType03) provides access to
+At this point, the sub-class (DynKernelType03) provides access to the
+following information:
 
-1) the *iterates_over* metadata value for this kernel via the
-*iterates_over* variable,
-2) the ast of the kernel code via the *procedure variable*.
+1. the *iterates_over* metadata value for this kernel via the
+   *iterates_over* variable,
+2. the ast of the kernel code via the *procedure* variable.
 
-**UP TO HERE , UP TO HERE**
+As a simple illustration, once you have an instance of a *kernelType*
+**sub-class** (DynKernelType03 is this case) you can access the
+following variables.
 
-Validity of iterates_over value not known as API-specific, therefore check here?
+>>> kt = DynKernelType03(...)
+>>> iterates_over = kt.iterates_over
+>>> kernel_ast = kt.procedure
 
-Raw
-parsed information for args is also available via the internel _init vector but
-this still needs to be processed.
+However, the *KernelType* **class** does not know anything about the
+content and structure of the metadata for each argument  as this
+information is API-specific. For example, we have the
+following information "gh_rw,v3,fe,.true.,.false.,.true." for the
+first (and in this case only) argument in the earlier example, which
+prseents *rhs_v3_code* kernel metadata for the dynamo0.1 API.
 
-Base class provides _inits list with each info
-Need to populate _arg_descriptors list with this info. For 0.3 API
-DynArgDescriptor03, captures metadata about each argument (field)
+Therefore, the *KernelType* **class** provides the metadata arguments
+as an unprocessed list of raw strings in its internal *_inits*
+variable and an (empty) internal *_arg_descriptors* list which it
+expects the **sub-class** to fill with a processed list.
+
+The *Descriptor* **class** (see next section) is provided to help with
+this task. The *Descriptor* **class** can be specialised to process
+the API-specific metadata for each argument.
+
+Extending our earlier *DynKernelType03* 0.3 Dynamo API example, we now
+make use of an *DynArgDescriptor03* **sub-class** of the *Descriptor*
+**class** to capture the API-specific metadata about each argument:
 ::
 	class DynKernelType03(KernelType):
 	    def __init__(self,name,ast):
 	        KernelType.__init__(self,name,ast)
 
-	        # parse arg_type metadata
 	        self._arg_descriptors=[]
 	        for arg_type in self._inits:
 	            self._arg_descriptors.append(DynArgDescriptor03(arg_type))
 
+In the above case we simply pass the raw argument information directly
+into the *DynArgDescriptor03* **sub-class** for processing and add it
+to the internal *_arg_descriptors* list as expected.
 
+Where an API has a fixed number of arguments, the metadata could be
+extracted before being passed to the associated sub-class.
 
+For example, in the dynamo 0.1 API we first extract the access,
+*funcspace, stencil, x1, x2 and x3* metadata then pass these into our
+*DynDescriptor* **sub-class** of the *Descriptor* **class**.
+::
+   class DynKernelType(KernelType):
+        def __init__(self,name,ast):
+            KernelType.__init__(self,name,ast)
+
+            self._arg_descriptors=[]
+            for init in self._inits:
+                access=init.args[0].name
+                funcspace=init.args[1].name
+                stencil=init.args[2].name
+                x1=init.args[3].name
+                x2=init.args[4].name
+                x3=init.args[5].name
+                self._arg_descriptors.append(DynDescriptor(access,funcspace,stencil,x1,x2,x3))
+
+Therefore, in our earlier example where we had the following metadata
+"gh_rw,v3,fe,.true.,.false.,.true.", we would set *access="gh_rw",
+funcspace="v3", stencil="fe", x1=".true.", x2=".false." and
+x3=".true."*.
+
+At this point (assuming the **sub-class** of the *Descriptor* **class** has been created, see the next section) we
+
+At this point, the sub-class (DynKernelType03) provides access to the
+following information:
+
+1. the *iterates_over* metadata value for this kernel via the
+   *iterates_over* variable,
+2. the ast of the kernel code via the *procedure* variable.
+
+As a simple illustration, once you have an instance of a *kernelType*
+**sub-class** (*DynKernelType03* is this case) you can now gain access
+to the descriptor information as well as the iterates_over metadata
+and kernel ast:
+
+>>> kt = DynKernelType03(...)
+>>> name = kt.name
+>>> iterates_over = kt.iterates_over
+>>> kernel_ast = kt.procedure
+>>> nargs = kt.nargs
+>>> descs = kt.arg_descriptors
+
+**UP TO HERE, UP TO HERE**
+
+**instances of these classes will be passed to psygen to and psygen will use the public methods to access the information**
+**Validity of iterates_over value not known as API-specific, therefore check here**
 %Checks whether the metadata is public (it should be ?)
 %Assumes iterates_over variable.
 %Binding to a procedure - assumes one of two styles.
 %Assumes a meta_args type
+** Don't need 
 
-The KernelType subclass must then create and store an api-specific
-subclass of the Descriptor class (see below) for each of the meta_args
-arguments and populate this with the relevant API-specific metadata.
+The following section describes how to create KernelType subclass must
+then create and store an api-specific subclass of the Descriptor class
+(see below) for each of the meta_args arguments and populate this with
+the relevant API-specific metadata.
 
 Extending the Required Structure
 ################################
