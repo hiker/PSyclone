@@ -62,7 +62,7 @@ Contents:
    getting_going
    api
    f2py_install
-..   developers
+   developers
 ..   kernel_layer
 ..   infrastructure_calls
 ..   tutorial

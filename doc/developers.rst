@@ -1,8 +1,5 @@
 .. highlight:: python
    :linenothreshold: 5
-Developers guide
-****************
-
 Supporting a new API
 ====================
 
@@ -18,19 +15,23 @@ when making use of the new kernel metadata.
 
 The parser code extensions and PSy-generation code extensions are
 treated in the sections below. However, before discussing these two
-main extensions, we have a small section which details how to modify
-a config file which determines which API's are available and which
-is the default.
+main extensions, there is a small section which details how to modify
+the config file which determines which API's are available and which
+API is the default.
 
 Modifying `config.py <https://puma.nerc.ac.uk/trac/GungHo/browser/PSyclone/trunk/src/config.py>`_
 ---------
 
 The names of the supported API's and the default API are specified in
-`config.py <https://puma.nerc.ac.uk/trac/GungHo/browser/PSyclone/trunk/src/config.py>`_. When adding a new API you must add the name you would like
-to use to the *SUPPORTEDAPIS* list (and change the *DEFAULTAPI* if
-required).
+`config.py
+<https://puma.nerc.ac.uk/trac/GungHo/browser/PSyclone/trunk/src/config.py>`_. When
+adding a new API you must add the name you would like to use to the
+*SUPPORTEDAPIS* list (and change the *DEFAULTAPI* if required).
 
-For example, if we would like to add a new API called *dynamo0.3* and make it the default, the appopriate lines of `config.py <https://puma.nerc.ac.uk/trac/GungHo/browser/PSyclone/trunk/src/config.py>`_ would look like this:
+For example, if we would like to add a new API called *dynamo0.3* and
+make it the default, the appopriate lines of `config.py
+<https://puma.nerc.ac.uk/trac/GungHo/browser/PSyclone/trunk/src/config.py>`_
+would look like this:
 ::
 	SUPPORTEDAPIS=["gunghoproto","dynamo0.1","gocean","dynamo0.3"]
 	DEFAULTAPI="dynamo0.3"
@@ -60,27 +61,29 @@ of this document and is currently not part of the PSyclone software
 design.
 
 To add support for a new API, three classes need to be modified and/or
-created in `parse.py
+created in the :mod:`parse` module in `parse.py
 <https://puma.nerc.ac.uk/trac/GungHo/browser/PSyclone/trunk/src/parse.py>`_. The
-*KernelTypeFactory* class needs to be modified, a new subclass of the
-*KernelType* class needs to be created and a new subclass of the
-*Descriptor* class needs to be created. These modifications and
-additions are detailed in the following 3 sections.
+:class:`KernelTypeFactory` class needs to be modified, a new subclass
+of the :class:`KernelType` class needs to be created and a new
+subclass of the :class:`Descriptor` class needs to be created. The
+modifications and/or additions for each class are detailed in the
+following three sections.
 
-Modifying the KernelTypeFactory Class
+Modifying the :class:`KernelTypeFactory` Class
 +++++++++++++++++++++++++++++++++++++
 
 Kernel metadata, is likely to be different from one API to another. To
-parse this kernel-API-specific metadata a *KernelTypeFactory* is
+parse this kernel-API-specific metadata a :class:`KernelTypeFactory` is
 provided which is responsible for returning the appropriate
-*KernelType* object. The *KernelTypeFactory* class is found in
-`parse.py
-<https://puma.nerc.ac.uk/trac/GungHo/browser/PSyclone/trunk/src/parse.py>`_
-at line 232.
+*KernelType* object.
 
-For example, assuming we want a new *KernelType* for the 0.3 dynamo
-API which we decided to call *DynKernelType03* we would modify the
-*create* method of *KernelTypeFactory* as shown below:
+.. automodule:: parse
+.. autoclass:: KernelTypeFactory
+    :members:
+
+For example, assuming we want a new :class:`KernelType` for the 0.3 dynamo
+API which we decided to call :class:`DynKernelType03` we would modify the
+*create* method of :class:`KernelTypeFactory` as shown below:
 ::
 	def create(self,name,ast):
 	    if self._type=="gunghoproto":
@@ -96,12 +99,12 @@ API which we decided to call *DynKernelType03* we would modify the
                                   Should not be possible.".format(self._type))
 
 If the Kernel metadata happens to be the same as another existing API
-then the existing *KernelType* subclass can be used for the new API.
+then the existing :class:`KernelType` subclass can be used for the new API.
 
 For example, assuming the 0.3 Dynamo API uses the same metadata as the
 0.1 Dynamo API we could modify the *create* method of
-*KernelTypeFactory* in the following way, leading to the
-*DynKernelType* object being returned for both the *dynamo0.1* and
+:class:`KernelTypeFactory` in the following way, leading to the
+:class:`DynKernelType` object being returned for both the *dynamo0.1* and
 *dynamo0.3* API's.
 ::
 	def create(self,name,ast):
@@ -115,20 +118,22 @@ For example, assuming the 0.3 Dynamo API uses the same metadata as the
 	            raise ParseError("KernelTypeFactory: Internal Error: Unsupported kernel type '{0}' found.
                                       Should not be possible.".format(self._type))
 
-Sub-classing the KernelType Class
+Sub-classing the :class:`KernelType` Class
 +++++++++++++++++++++++++++++++++
 
-The role of the API-specific *KernelType* **subclass** is to capture
+The role of the API-specific :class:`KernelType` **subclass** is to capture
 all the required Kernel metadata and code for a Kernel using a
-particular API. This information will be used by *psyGen.py* to
-generate the PSy-layer code and by *AlgGen.py* to modify the
+particular API. This information will be used by :mod:`psyGen` to
+generate the PSy-layer code and by :mod:`AlgGen` to modify the
 algorithm-layer code.
 
-The *KernelType* **class** (see `parse.py
-<https://puma.nerc.ac.uk/trac/GungHo/browser/PSyclone/trunk/src/parse.py>`_
-line 253) makes the assumption that Kernel metadata will be stored
-within a Fortran module (which contains the Kernel code) as a Fortran
-type with a defined structure.
+.. automodule:: parse
+.. autoclass:: KernelType
+    :members:
+
+The :class:`KernelType` **class** makes the assumption that Kernel metadata
+will be stored within a Fortran module (which contains the Kernel
+code) as a Fortran type with a defined structure.
 
 Required structure
 ##################
@@ -196,49 +201,41 @@ Conforming to the Required Structure
 ####################################
 
 If the new API provides metadata in the above format then the
-*KernelType* **sub-class** can use the *KernelType* **class** to
-extract the metadata. To do this the the *KernelType* subclass needs
-to specialise the *KernelType __init__* method and initialise the
-*KernelType* class with the supplied arguments. As an illustration,
+:class:`KernelType` **sub-class** can use the :class:`KernelType` **class** to
+extract the metadata. To do this the the :class:`KernelType` **sub-class** needs
+to specialise the :class:`KernelType` *__init__* method and initialise the
+:class:`KernelType` class with the supplied arguments. As an illustration,
 the required code for the Dynamo0.3 API sub-class is shown below.
 ::
 	class DynKernelType03(KernelType):
 	    def __init__(self,name,ast):
 	        KernelType.__init__(self,name,ast)
 
-At this point, the sub-class (DynKernelType03) provides access to the
+At this point, the sub-class (:class:`DynKernelType03`) provides access to the
 following information:
 
-1. the *iterates_over* metadata value for this kernel via the
+1. the name of Fortran type containing the metadata via the *name* variable
+2. the *iterates_over* metadata value for this kernel via the
    *iterates_over* variable,
-2. the ast of the kernel code via the *procedure* variable.
+3. the ast of the kernel code via the *procedure* variable.
 
-As a simple illustration, once you have an instance of a *kernelType*
-**sub-class** (DynKernelType03 is this case) you can access the
-following variables.
-
->>> kt = DynKernelType03(...)
->>> iterates_over = kt.iterates_over
->>> kernel_ast = kt.procedure
-
-However, the *KernelType* **class** does not know anything about the
-content and structure of the metadata for each argument  as this
+However, the :class:`KernelType` **class** does not know anything about the
+content and structure of the metadata for each argument as this
 information is API-specific. For example, we have the
 following information "gh_rw,v3,fe,.true.,.false.,.true." for the
-first (and in this case only) argument in the earlier example, which
-prseents *rhs_v3_code* kernel metadata for the dynamo0.1 API.
+first (and in this case only) argument in the earlier example.
 
-Therefore, the *KernelType* **class** provides the metadata arguments
-as an unprocessed list of raw strings in its internal *_inits*
+Therefore, the :class:`KernelType` **class** provides the metadata arguments
+as a set of tokens (using the expression class) in its internal *_inits*
 variable and an (empty) internal *_arg_descriptors* list which it
 expects the **sub-class** to fill with a processed list.
 
-The *Descriptor* **class** (see next section) is provided to help with
-this task. The *Descriptor* **class** can be specialised to process
+The :class:`Descriptor` **class** (see next section) is provided to help with
+this task. The :class:`Descriptor` **class** can be specialised to process
 the API-specific metadata for each argument.
 
-Extending our earlier *DynKernelType03* 0.3 Dynamo API example, we now
-make use of an *DynArgDescriptor03* **sub-class** of the *Descriptor*
+Extending our earlier :class:`DynKernelType03` 0.3 Dynamo API example, we now
+make use of an :class:`DynArgDescriptor03` **sub-class** of the :class:`Descriptor`
 **class** to capture the API-specific metadata about each argument:
 ::
 	class DynKernelType03(KernelType):
@@ -250,15 +247,13 @@ make use of an *DynArgDescriptor03* **sub-class** of the *Descriptor*
 	            self._arg_descriptors.append(DynArgDescriptor03(arg_type))
 
 In the above case we simply pass the raw argument information directly
-into the *DynArgDescriptor03* **sub-class** for processing and add it
-to the internal *_arg_descriptors* list as expected.
-
-Where an API has a fixed number of arguments, the metadata could be
-extracted before being passed to the associated sub-class.
-
-For example, in the dynamo 0.1 API we first extract the access,
-*funcspace, stencil, x1, x2 and x3* metadata then pass these into our
-*DynDescriptor* **sub-class** of the *Descriptor* **class**.
+into the :class:`DynArgDescriptor03` **sub-class** for processing and add it
+to the internal *_arg_descriptors* list as expected. Where an API has
+a fixed number of arguments, the metadata could be extracted before
+being passed to the associated sub-class. For example, in the dynamo
+0.1 API we first extract the access, *funcspace, stencil, x1, x2 and
+x3* metadata then pass these into our :class:`DynDescriptor` **sub-class** of
+the :class:`Descriptor` **class**.
 ::
    class DynKernelType(KernelType):
         def __init__(self,name,ast):
@@ -274,84 +269,89 @@ For example, in the dynamo 0.1 API we first extract the access,
                 x3=init.args[5].name
                 self._arg_descriptors.append(DynDescriptor(access,funcspace,stencil,x1,x2,x3))
 
-Therefore, in our earlier example where we had the following metadata
-"gh_rw,v3,fe,.true.,.false.,.true.", we would set *access="gh_rw",
-funcspace="v3", stencil="fe", x1=".true.", x2=".false." and
-x3=".true."*.
+At this point (assuming the **sub-class** of the :class:`Descriptor`
+**class** has been created, see the next section), the sub-class
+(:class:`DynKernelType03`) provides access to the following variables:
 
-At this point (assuming the **sub-class** of the *Descriptor* **class** has been created, see the next section) we
+1. *name* : the name of Fortran type containing the metadata.
+2. *iterates_over* : the "iterates_over" metadata value for this kernel.
+3. *procedure* : the ast of the kernel code.
+4. *nargs* : the number of arguments specified in the metadata
+5. *arg_descriptors* : a list of metadata for each argument
 
-At this point, the sub-class (DynKernelType03) provides access to the
-following information:
-
-1. the *iterates_over* metadata value for this kernel via the
-   *iterates_over* variable,
-2. the ast of the kernel code via the *procedure* variable.
-
-As a simple illustration, once you have an instance of a *kernelType*
-**sub-class** (*DynKernelType03* is this case) you can now gain access
-to the descriptor information as well as the iterates_over metadata
-and kernel ast:
-
->>> kt = DynKernelType03(...)
->>> name = kt.name
->>> iterates_over = kt.iterates_over
->>> kernel_ast = kt.procedure
->>> nargs = kt.nargs
->>> descs = kt.arg_descriptors
-
-**UP TO HERE, UP TO HERE**
-
-**instances of these classes will be passed to psygen to and psygen will use the public methods to access the information**
-**Validity of iterates_over value not known as API-specific, therefore check here**
-%Checks whether the metadata is public (it should be ?)
-%Assumes iterates_over variable.
-%Binding to a procedure - assumes one of two styles.
-%Assumes a meta_args type
-** Don't need 
-
-The following section describes how to create KernelType subclass must
-then create and store an api-specific subclass of the Descriptor class
-(see below) for each of the meta_args arguments and populate this with
-the relevant API-specific metadata.
+Finally, the :class:`KernelType` **sub-class** is also responsible for
+checking the validity of the metadata values held by the
+sub-class. For example, the **sub-class** should check whether the
+value of *iterates_over* is recognised by the API and raise a
+*ParseError* error if not.
 
 Extending the Required Structure
 ################################
 
 For simplicitity it is recommended that new API's try to conform to
 the supported structure. However, in some cases additional information
-may be required. In the dynamo0.3 API, for example, two different
-types of metadata are required when dealing with the description of
-dynamo fields; these are metadata associated with arguments and
-metadata associated with function space. In this case there is a
-meta_args variable and a separate meta_funcs variable. This additional
-metadata can be supported by using the getkerneldescriptors() method
-in the base class (see the code for more details) with the optional
-var_name being set to the appropriate name to parse the metadata.
+may be required.
+
+.. note::
+   **Not yet on the trunk**
+   In the dynamo0.3 API, for example, two different types of metadata
+   are required when dealing with the description of dynamo fields;
+   these are metadata associated with *arguments* and metadata
+   associated with *function space*. In this case there is a meta_args
+   variable, which is supported, and a separate meta_funcs variable
+   which is not supported. As the structure of the *function space* is
+   similar to the structure of the *arguments* metadata we can use the
+   same baseclass method - *getkerneldescriptors()* - (see the code
+   for more details) with the optional *var_name* being set to the
+   appropriate name to parse the metadata.
 
 Supporting a non-conformant Structure
 #####################################
 
-TBD
+.. warning::
+   TBD: what hierarchy is expected/required?
 
-Descriptor Class
+:class:`Descriptor` Class
 ++++++++++++++++
 
-The role of a descriptor class is to store the information in each
-of the entries in the meta_args (or equivalent) array. It can also be
-used to check whether the content, structure and order of the arrays
-are valid.
+The role of the :class:`descriptor` class is to store the information
+in each of the metadata entries in the meta_args (or equivalent)
+array. It should also be used to check whether the content, structure
+and order of the arrays are valid.
 
-An api specific version of this class should be created and can make
-use of the base class if it is beneficial. The base class provides
-space for 3 types of metadata, "access type", "function space" and
-"stencil type".
+.. automodule:: parse
+.. autoclass:: Descriptor
+    :members:
 
-At this point you should be able to successfully parse the kernel metadata
-provided by the new API.
+The base class provides variables for 3 types of metadata, "access
+type", "function space" and "stencil type".
+
+If the base class provides all the metadata required by the API then
+it may be used directly. If not, an api-specific version of this class
+should be created.
+
+Finally, the :class:`Descriptor` **sub-class** is also responsible for
+checking the validity of the metadata values held by the
+sub-class. For example, the **sub-class** should check whether the
+number of metadata arguments match what is expected by the API. If
+this is not the case then the code return a *ParseError*.
+
+Test
+++++
+
+At this point you should be able to successfully parse the kernel
+metadata provided by the new API. However, at this point it may be
+difficult to know whether the data you are capturing is correct or
+not.
+
+One option is to provide a string *__str__()* method to the
+:class:`descriptor` **sub-class** and then print the object when it is
+created, or print them all of the objects at a later date.
 
 psyGen.py
 ---------
+
+**UP TO HERE, UP TO HERE**
 
 psyGen.py contains the code to generate the PSy layer from the
 metadata provided by the parser.

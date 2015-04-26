@@ -22,7 +22,9 @@ class ParseError(Exception):
         return repr(self.value)
 
 class Descriptor(object):
-    """A description of how a kernel argument is accessed"""
+    """Field metadata baseclass. Captures the metadata for field data
+    passed to a kernel by argument. This class captures metadata that
+    is expected to be common to all API's."""
     def __init__(self,access,space,stencil):
         self._access=access
         self._space=space
@@ -30,14 +32,20 @@ class Descriptor(object):
 
     @property
     def access(self):
+        """Returns the value of the metadata specifying the access
+        pattern for the argument."""
         return self._access
 
     @property
     def function_space(self):
+        """Returns the value of the metadata specifying the space that
+        the associated field is on."""
         return self._space
 
     @property
     def stencil(self):
+        """Returns the value of the metadata specifying the stencil
+        access pattern for the field data."""
         return self._stencil
 
     def __repr__(self):
@@ -161,7 +169,7 @@ class TensorProductElement(Element):
 
 
 class KernelProcedure(object):
-    """An elemental kernel procedure"""
+    """An elemental kernel procedure."""
     def __init__(self, ktype_ast, ktype_name, modast):
         a, n = KernelProcedure.get_procedure(ktype_ast, ktype_name, modast)
         self._ast = a
@@ -230,6 +238,7 @@ class KernelProcedure(object):
 
 
 class KernelTypeFactory(object):
+    """ Creates the appropriate KernelType for a particular API"""
     def __init__(self,api=""):
         if api=="":
             from config import DEFAULTAPI
@@ -241,6 +250,8 @@ class KernelTypeFactory(object):
                 raise ParseError("KernelTypeFactory: Unsupported API '{0}' specified. Supported types are {1}.".format(self._type, supportedTypes))
 
     def create(self,name,ast):
+        """ Inialises and returns the appropriate KernelType given the
+        specified API"""
         if self._type=="gunghoproto":
             return GHProtoKernelType(name,ast)
         elif self._type=="dynamo0.1":
@@ -251,16 +262,15 @@ class KernelTypeFactory(object):
             raise ParseError("KernelTypeFactory: Internal Error: Unsupported kernel type '{0}' found. Should not be possible.".format(self._myType))
 
 class KernelType(object):
-    """ Kernel Metadata baseclass
-
-    This contains the elemental procedure and metadata associated with
-    how that procedure is mapped over mesh entities."""
+    """Kernel Metadata baseclass. This contains kernel metadata which
+    describes the Kernel's implementation, and the Kernel subroutine
+    itself."""
 
     def __init__(self,name,ast):
         self._name = name
         self._ast = ast
-        self.checkMetadataPublic(name,ast)
-        self._ktype=self.getKernelMetadata(name,ast)
+        self._checkMetadataPublic(name,ast)
+        self._ktype=self._getKernelMetadata(name,ast)
         #print self._ktype
         self._iterates_over = self._ktype.get_variable('iterates_over').init
         #print  self._ktype.get_variable('iterates_over')
@@ -283,6 +293,8 @@ class KernelType(object):
             # there is a bug in f2py
             raise ParseError("Parser does not currently support [...] initialisation for meta_args, please use (/.../) instead")
         inits = expr.expression.parseString(descs.init)[0]
+        print type(inits)
+        exit(1)
         nargs=int(descs.shape[0])
         if len(inits) != nargs:
             raise ParseError("Error, in meta_args specification, the number of args %s and number of dimensions %s do not match" % (nargs,len(inits)))
@@ -290,28 +302,33 @@ class KernelType(object):
 
     @property
     def name(self):
+        """Returns the name of Fortran type containing the Kernel metadata."""
         return self._name
 
     @property
     def iterates_over(self):
+        """Returns the value of the iterates_over metadata."""
         return self._iterates_over
 
     @property
     def procedure(self):
+        """Returns the ast of the Kernel code."""
         return self._procedure
 
     @property
     def nargs(self):
+        """Returns the number of kernel arguments."""
         return len(self._arg_descriptors)
 
     @property
     def arg_descriptors(self):
+        """Returns the kernel argument metadata as a list of expressions."""
         return self._arg_descriptors
 
     def __repr__(self):
         return 'KernelType(%s, %s)' % (self.name, self.iterates_over)
 
-    def checkMetadataPublic(self,name,ast):
+    def _checkMetadataPublic(self,name,ast):
         default_public=True
         declared_private=False
         declared_public=False
@@ -332,7 +349,7 @@ class KernelType(object):
         if declared_private or (not default_public and not declared_public):
             raise ParseError("Kernel type '%s' is not public" % name)
 
-    def getKernelMetadata(self,name, ast):
+    def _getKernelMetadata(self,name, ast):
         ktype = None
         for statement, depth  in fpapi.walk(ast, -1):
             if isinstance(statement, fparser.block_statements.Type) \
@@ -444,7 +461,7 @@ class KernelCall(object):
         return 'KernelCall(%s, %s)' % (self.ktype, self.args)
         
 class Arg(object):
-    ''' Descriptions of an argument '''
+    """ Descriptions of an argument """
     def __init__(self,form,value):
         formOptions=["literal","variable"]
         self._form=form
@@ -490,7 +507,7 @@ class FileInfo(object):
 
 def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf", 
           kernel_path=""):
-    '''
+    """
     Takes a GungHo algorithm specification as input and outputs an AST of this specification and an object containing information about the invocation calls in the algorithm specification and any associated kernel implementations.
 
     :param str alg_filename: The file containing the algorithm specification.
@@ -507,7 +524,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
     >>> from parse import parse
     >>> ast,info=parse("argspec.F90")
 
-    '''
+    """
     if api=="":
         from config import DEFAULTAPI
         api=DEFAULTAPI
