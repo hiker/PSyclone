@@ -169,4 +169,10 @@ class TestPSyDynamo0p3API:
         assert(str(generated_code).find("SUBROUTINE invoke_0_testkern_chi_type(f1, chi)")!=-1 and \
                   str(generated_code).find("TYPE(field_type), intent(inout) :: f1, chi(3)")!=-1)
 
-        
+    def test_orientation(self):
+	ast,invokeInfo=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","9_orientation.f90"),api="dynamo0.3")
+        psy=PSyFactory("dynamo0.3").create(invokeInfo)
+        generated_code = psy.gen
+	assert str(generated_code).find("INTEGER, pointer :: orientation_w2(:) => null()")!=-1 and \
+               str(generated_code).find("orientation_w2 => f2_proxy%vspace%get_cell_orientation(cell)")!=-1
+
