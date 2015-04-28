@@ -103,7 +103,52 @@ class DynInvoke(Invoke):
                             self._proxy_name[arg.name] = arg.name+"_proxy"
                     else:
                         raise GenerationError("Usupported arg type '{0}' found ".format(arg.type))
- 
+
+    def arg_for_funcspace(self,fs_name):
+        for kern_call in self.schedule.kern_calls():
+            if fs_name in kern_call.arguments.unique_fss:
+                for arg in kern_call.arguments.args:
+                    if arg.function_space == fs_name:
+                        return arg
+        raise ParserError("Functionspace name not found")
+
+    def unique_fss(self):
+        ''' returns the unique function space names over all kernel calls in this invoke '''
+        unique_fs_names=[]
+        for kern_call in self.schedule.kern_calls():
+            for fs in kern_call.arguments.unique_fss:
+                if fs not in unique_fs_names:
+                    unique_fs_names.append(fs)
+        return unique_fs_names
+
+    def basis_required(self,fs):
+        '''Returns true if at least one of the kernels in this invoke requires a basis function for this function space, otherwise it returns False.'''
+        # look in each kernel
+        for kern_call in self.schedule.kern_calls():
+            # is there a descriptor for this function space?
+            if kern_call._fs_descriptors.exists(fs):
+                descriptor = kern_call._fs_descriptors.get_descriptor(fs)
+                # does this descriptor specify that a basis function is required?
+                if descriptor.requires_basis:
+                    # found a kernel that requires a basis function for this function space
+                    return True
+        # none of my kernels require a basis function for this function space
+        return False
+
+    def diff_basis_required(self,fs):
+        '''Returns true if at least one of the kernels in this invoke requires a basis function for this function space, otherwise it returns False.'''
+        # look in each kernel
+        for kern_call in self.schedule.kern_calls():
+            # is there a descriptor for this function space?
+            if kern_call._fs_descriptors.exists(fs):
+                descriptor = kern_call._fs_descriptors.get_descriptor(fs)
+                # does this descriptor specify that a basis function is required?
+                if descriptor.requires_diff_basis:
+                    # found a kernel that requires a diff basis function for this function space
+                    return True
+        # none of my kernels require a diff basis function for this function space
+        return False
+
     def ndf_name(self,fs):
         kern_calls = self.schedule.kern_calls()
         if len(kern_calls)==0:
@@ -181,7 +226,7 @@ class DynInvoke(Invoke):
                                entity_decls = ["nlayers"]))
 
         if self._qr_required:
-            # initialise qr values
+            # declare and initialise qr values
             invoke_sub.add(CommentGen(invoke_sub,""))
             invoke_sub.add(CommentGen(invoke_sub," Initialise qr values"))
             invoke_sub.add(CommentGen(invoke_sub,""))
@@ -203,90 +248,107 @@ class DynInvoke(Invoke):
             for qr_var in qr_vars:
                 invoke_sub.add(AssignGen(invoke_sub, lhs=qr_var, rhs=qr_var_name+"%get_"+qr_var+"()"))
 
-        # declare and create required basis functions
-        function_spaces = {}
-        for call in self.schedule.calls():
-            for func_descriptor in call.func_descriptors:
-                if func_descriptor.function_space_name not in function_spaces.keys():
-                    function_spaces[func_descriptor.function_space_name] = []
-                for operator_name in func_descriptor.operator_names:
-                    if operator_name not in function_spaces[func_descriptor.function_space_name]:
-                        if operator_name in ["gh_basis", "gh_diff_basis"]:
-                            function_spaces[func_descriptor.function_space_name].append(operator_name)
-
-        arg_for_funcspace = {}
-        for call in self.schedule.calls():
-            for func_descriptor in call.func_descriptors:
-                if func_descriptor.function_space_name not in arg_for_funcspace.keys():
-                    found = False
-                    for idx, arg_descriptor in enumerate(call.arg_descriptors):
-                        if arg_descriptor.function_space_name1 == func_descriptor.function_space_name and not found:
-                            arg_for_funcspace[func_descriptor.function_space_name] = call.arguments.args[idx]
-                            found = True
-
         operator_declarations = []
-        for function_space in function_spaces:
-            for operator_name in function_spaces[function_space]:
-                op_name = self.get_operator_name(operator_name, function_space)
-                operator_declarations.append(op_name+"(:,:,:,:)")
-        if not operator_declarations == []:
-            invoke_sub.add(DeclGen(invoke_sub, datatype = "real", allocatable = True,
-                                   kind = "r_def", entity_decls = operator_declarations))
         var_list = []
         var_dim_list = []
-        for function_space in function_spaces:
+        # loop over all function spaces used by the kernels in this invoke
+        for function_space in self.unique_fss():
+            # Initialise information associated with this function space
             invoke_sub.add(CommentGen(invoke_sub,""))
-            invoke_sub.add(CommentGen(invoke_sub," Initialise sizes and allocate basis arrays for "+function_space))
+            invoke_sub.add(CommentGen(invoke_sub," Initialise sizes and allocate any basis arrays for "+function_space))
             invoke_sub.add(CommentGen(invoke_sub,""))
 
-            arg = arg_for_funcspace[function_space]
+            # Find an argument on this space to use to dereference
+            arg = self.arg_for_funcspace(function_space)
             name = arg.proxy_name_indexed
+
+            # initialise ndf for this function space and add name to list to declare later
             ndf_name = self.ndf_name(function_space)
             var_list.append(ndf_name)
             invoke_sub.add(AssignGen(invoke_sub, lhs = ndf_name,
                                          rhs = name+"%"+arg.ref_name+"%get_ndf()"))
+
+            # initialise undf for this function space and add name to list to declare later
             undf_name = self.undf_name(function_space)
             var_list.append(undf_name)
             invoke_sub.add(AssignGen(invoke_sub, lhs = undf_name,
                                          rhs = name+"%"+arg.ref_name+"%get_undf()"))
-            for operator_name in function_spaces[function_space]:
-                if operator_name == 'gh_basis':
-                    lhs = "dim_"+function_space
-                    var_dim_list.append(lhs)
-                    rhs = name+"%"+arg.ref_name+"%get_dim_space()"
-                    alloc_args = "dim_"+function_space+", "+self.ndf_name(function_space)+", nqp_h, nqp_v"
-                elif operator_name == 'gh_diff_basis':
-                    lhs = "diff_dim_"+function_space
-                    var_dim_list.append(lhs)
-                    rhs = name+"%"+arg.ref_name+"%get_dim_space_diff()"
-                    alloc_args = "diff_dim_"+function_space+", "+self.ndf_name(function_space)+", nqp_h, nqp_v"
-                else:
-                    raise GenerationError("Unsupported function space '{0}' found!.format(operator_name)")
+
+            if self.basis_required(function_space):
+                # initialise 'dim' variable for this function space and add name to list to declare later
+                lhs = "dim_"+function_space
+                var_dim_list.append(lhs)
+                rhs = name+"%"+arg.ref_name+"%get_dim_space()"
                 invoke_sub.add(AssignGen(invoke_sub, lhs=lhs, rhs=rhs))
-                op_name = self.get_operator_name(operator_name, function_space)
+                # allocate the basis function variable
+                alloc_args = "dim_"+function_space+", "+self.ndf_name(function_space)+", nqp_h, nqp_v"
+                op_name = self.get_operator_name("gh_basis", function_space)
                 invoke_sub.add(AllocateGen(invoke_sub,op_name+"("+alloc_args+")"))
+
+                # add basis function variable to list to declare later
+                operator_declarations.append(op_name+"(:,:,:,:)")
+
+            if self.diff_basis_required(function_space):
+                # initialise 'diff_dim' variable for this function space and add name to list to declare later
+                lhs = "diff_dim_"+function_space
+                var_dim_list.append(lhs)
+                rhs = name+"%"+arg.ref_name+"%get_dim_space_diff()"
+                invoke_sub.add(AssignGen(invoke_sub, lhs=lhs, rhs=rhs))
+                # allocate the diff basis function variable
+                alloc_args = "diff_dim_"+function_space+", "+self.ndf_name(function_space)+", nqp_h, nqp_v"
+                op_name = self.get_operator_name("gh_diff_basis", function_space)
+                invoke_sub.add(AllocateGen(invoke_sub,op_name+"("+alloc_args+")"))
+
+                # add diff basis function variable to list to declare later
+                operator_declarations.append(op_name+"(:,:,:,:)")
+
         if not var_list == []:
+            # declare ndf and undf for all function spaces
             invoke_sub.add(DeclGen(invoke_sub, datatype = "integer",
                                    entity_decls = var_list))
+            
         if not var_dim_list == []:
+            # declare dim and diff_dim for all function spaces
             invoke_sub.add(DeclGen(invoke_sub, datatype = "integer",
                                    entity_decls = var_dim_list))
 
+        if not operator_declarations == []:
+            # declare the basis function operators
+            invoke_sub.add(DeclGen(invoke_sub, datatype = "real", allocatable = True,
+                                   kind = "r_def", entity_decls = operator_declarations))
+
         if self._qr_required:
+            # add calls to compute the values of any basis arrays
             invoke_sub.add(CommentGen(invoke_sub,""))
             invoke_sub.add(CommentGen(invoke_sub," Compute basis arrays"))
             invoke_sub.add(CommentGen(invoke_sub,""))
-            for function_space in function_spaces:
-                for operator_name in function_spaces[function_space]:
+            # only look at function spaces that are used by the kernels in this invoke
+            for function_space in self.unique_fss():
+                # see if a basis function is needed for this function space
+                if self.basis_required(function_space):
+                    # Create the argument list
                     args=[]
-                    op_name = self.get_operator_name(operator_name, function_space)
+                    op_name = self.get_operator_name("gh_basis", function_space)
                     args.append(op_name)
                     args.append(self.ndf_name(function_space))
                     args.extend(["nqp_h","nqp_v","xp","zp"])
-                    arg=arg_for_funcspace[function_space]
+                    # find an appropriate field to access
+                    arg = self.arg_for_funcspace(function_space)
                     name = arg.proxy_name_indexed
-                    op_type_name = operator_name[3:]
-                    invoke_sub.add(CallGen(invoke_sub,name=name+"%"+arg.ref_name+"%compute_"+op_type_name+"_function",args=args))
+                    # insert the basis array call
+                    invoke_sub.add(CallGen(invoke_sub,name=name+"%"+arg.ref_name+"%compute_basis_function",args=args))
+                if self.diff_basis_required(function_space):
+                    # Create the argument list
+                    args=[]
+                    op_name = self.get_operator_name("gh_diff_basis", function_space)
+                    args.append(op_name)
+                    args.append(self.ndf_name(function_space))
+                    args.extend(["nqp_h","nqp_v","xp","zp"])
+                    # find an appropriate field to access
+                    arg = self.arg_for_funcspace(function_space)
+                    name = arg.proxy_name_indexed
+                    # insert the diff basis array call
+                    invoke_sub.add(CallGen(invoke_sub,name=name+"%"+arg.ref_name+"%compute_diff_basis_function",args=args))
 
         invoke_sub.add(CommentGen(invoke_sub,""))
         invoke_sub.add(CommentGen(invoke_sub," Call our kernels"))
@@ -295,15 +357,23 @@ class DynInvoke(Invoke):
         self.schedule.gen_code(invoke_sub)
 
         if self._qr_required:
+            # deallocate all allocated basis function arrays
             invoke_sub.add(CommentGen(invoke_sub,""))
             invoke_sub.add(CommentGen(invoke_sub," Deallocate basis arrays"))
             invoke_sub.add(CommentGen(invoke_sub,""))
             
             func_space_var_names=[]
-            for function_space in function_spaces:
-                for operator_name in function_spaces[function_space]:
-                    op_name = self.get_operator_name(operator_name, function_space)
+            # loop over all function spaces used by the kernels in this invoke
+            for function_space in self.unique_fss():
+                if self.basis_required(function_space):
+                    # add the basis array name to the list to use later
+                    op_name = self.get_operator_name("gh_basis", function_space)
                     func_space_var_names.append(op_name)
+                if self.diff_basis_required(function_space):
+                    # add the diff_basis array name to the list to use later
+                    op_name = self.get_operator_name("gh_diff_basis", function_space)
+                    func_space_var_names.append(op_name)
+            # add the required deallocate call
             invoke_sub.add(DeallocateGen(invoke_sub,func_space_var_names))
         invoke_sub.add(CommentGen(invoke_sub,""))
 
@@ -503,6 +573,20 @@ class FS_Descriptor:
         self._descriptor = descriptor
 
     @property
+    def requires_basis(self):
+        if "gh_basis" in self._descriptor.operator_names:
+            return True
+        else:
+            return False
+
+    @property
+    def requires_diff_basis(self):
+        if "gh_diff_basis" in self._descriptor.operator_names:
+            return True
+        else:
+            return False
+
+    @property
     def operator_names(self):
         names=[]
         for operator_name in self._descriptor.operator_names:
@@ -689,34 +773,3 @@ class DynKernelArgument(Argument):
         ''' Returns the expected finite element function space for this
             argument as specified by the kernel argument metadata.'''
         return self._arg.function_space
-    @property
-    def requires_basis(self):
-        ''' Returns true if the metadata for this argument specifies that
-            its basis function values should be passed into the routine. '''
-        if self._arg.basis.lower() == ".true.":
-            return True
-        if self._arg.basis.lower() == ".false.":
-            return False
-        raise GenerationError("error: basis is not set to .true. or .false.")
-    @property
-    def requires_diff_basis(self):
-        ''' Returns true if the metadata for this argument specifies that
-            its differential basis function values should be passed into
-            the routine. '''
-        if self._arg.diff_basis.lower() == ".true.":
-            return True
-        if self._arg.diff_basis.lower() == ".false.":
-            return False
-        raise GenerationError("error: diff_basis is not set to .true. "
-                              "or .false.")
-    @property
-    def requires_gauss_quad(self):
-        ''' Returns true if the metadata for this argument specifies that
-            its gausian quadrature values should be passed into the
-            routine. '''
-        if self._arg.gauss_quad.lower() == ".true.":
-            return True
-        if self._arg.gauss_quad.lower() == ".false.":
-            return False
-        raise GenerationError("error: gaussian quadrature is not set to "
-                              ".true. or .false.")
