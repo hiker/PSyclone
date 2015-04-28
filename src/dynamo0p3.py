@@ -528,17 +528,26 @@ class DynKern(Kern):
             
         # create the argument list
         arglist = []
+        if self._arguments.has_operator:
+            # 0.5: provide cell position
+            arglist.append("cell")
         # 1: provide mesh height
         arglist.append("nlayers")
         # 2: Provide data associated with fields in the order specified in the metadata.
         #    If we have a vector field then generate the appropriate number of arguments.
         for arg in self._arguments.args:
-            dataref = "%data"
-            if arg.vector_size>1:
-                for idx in range(1,arg.vector_size+1):
-                    arglist.append(arg.proxy_name+"("+str(idx)+")"+dataref)
+            if arg.type == "gh_field":
+                dataref = "%data"
+                if arg.vector_size>1:
+                    for idx in range(1,arg.vector_size+1):
+                        arglist.append(arg.proxy_name+"("+str(idx)+")"+dataref)
+                else:
+                    arglist.append(arg.proxy_name+dataref)
+            elif arg.type == "gh_operator":
+                arglist.append(arg.proxy_name_indexed+"%ncell_3d")
+                arglist.append(arg.proxy_name_indexed+"%local_stencil")
             else:
-                arglist.append(arg.proxy_name+dataref)
+                raise GenerationError("Unexpected arg type found in dynamo0p3.py:DynKern:gen_code(). Expected one of [gh_field,gh_operator] but found "+arg.type)
         # 3: For each function space (in the order they appear in the metadata arguments)
         for unique_fs in self.arguments.unique_fss:
             # 3.1 Provide compulsory arguments
@@ -706,6 +715,13 @@ class DynKernelArguments(Arguments):
             if arg.function_space == fs:
                 return arg
         raise GenerationError("DynKernelArguments:get_field: there is no field with function space {0)".format(fs))
+
+    @property
+    def has_operator(self):
+        for arg in self._args:
+            if arg.type=="gh_operator":
+                return True
+        return False
 
     @property
     def unique_fss(self):

@@ -176,3 +176,13 @@ class TestPSyDynamo0p3API:
 	assert str(generated_code).find("INTEGER, pointer :: orientation_w2(:) => null()")!=-1 and \
                str(generated_code).find("orientation_w2 => f2_proxy%vspace%get_cell_orientation(cell)")!=-1
 
+    def test_operator(self):
+        ''' tests that an operator is implemented correctly in the PSy layer '''
+        ast,invokeInfo=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","10_operator.f90"),api="dynamo0.3")
+        psy=PSyFactory("dynamo0.3").create(invokeInfo)
+        generated_code = psy.gen
+        assert(str(generated_code).find("SUBROUTINE invoke_0_testkern_operator_type(mm_w0, chi, qr)")!=-1 and \
+               str(generated_code).find("TYPE(operator_type), intent(inout) :: mm_w0")!=-1 and \
+               str(generated_code).find("TYPE(operator_proxy_type) mm_w0_proxy")!=-1 and \
+               str(generated_code).find("mm_w0_proxy = mm_w0%get_proxy()")!=-1 and \
+               str(generated_code).find("CALL testkern_operator_code(cell, nlayers, mm_w0_proxy%ncell_3d, mm_w0_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, ndf_w0, undf_w0, map_w0, basis_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)")!=-1)
