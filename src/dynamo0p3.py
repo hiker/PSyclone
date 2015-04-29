@@ -498,7 +498,7 @@ class DynKern(Kern):
             map_name = self._fs_descriptors.map_name(unique_fs)
             field = self._arguments.get_field(unique_fs)
             parent.add(AssignGen(parent, pointer = True, lhs = map_name,
-                                 rhs = field.proxy_name_indexed+"%vspace%get_cell_dofmap(cell)"))
+                                 rhs = field.proxy_name_indexed+"%"+field.ref_name+"%get_cell_dofmap(cell)"))
             if idx == len(self.arguments.unique_fss)-1:
                 parent.add(CommentGen(parent,""))
 
