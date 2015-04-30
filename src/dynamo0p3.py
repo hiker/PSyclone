@@ -168,6 +168,14 @@ class DynInvoke(Invoke):
                 return descriptor.name(operator_name)
         raise GenerationError("Dyn_invoke:get_operator_name: no kern call with function space '{0}' and operator '{1}'".format(function_space,operator_name))
 
+    def field_on_space(self,fs):
+        ''' returns true if a field exists on this space for any
+        kernel in this invoke.'''
+        for kern_call in self.schedule.kern_calls():
+            if kern_call.field_on_space(fs):
+                return True
+        return False
+
     def gen_code(self, parent):
         ''' Generates Dynamo specific invocation code (the subroutine called
             by the associated invoke call in the algorithm layer). This
@@ -268,10 +276,11 @@ class DynInvoke(Invoke):
             invoke_sub.add(AssignGen(invoke_sub, lhs = ndf_name,
                                          rhs = name+"%"+arg.ref_name+"%get_ndf()"))
 
-            # initialise undf for this function space and add name to list to declare later
-            undf_name = self.undf_name(function_space)
-            var_list.append(undf_name)
-            invoke_sub.add(AssignGen(invoke_sub, lhs = undf_name,
+            # if there is a field on this space then initialise undf for this function space and add name to list to declare later
+            if self.field_on_space(function_space):
+                undf_name = self.undf_name(function_space)
+                var_list.append(undf_name)
+                invoke_sub.add(AssignGen(invoke_sub, lhs = undf_name,
                                          rhs = name+"%"+arg.ref_name+"%get_undf()"))
 
             if self.basis_required(function_space):
@@ -483,6 +492,15 @@ class DynKern(Kern):
     def local_vars(self):
         return ["cell","map"]
 
+    def field_on_space(self,fs):
+        ''' returns true if a field exists on this space for this kernel'''
+        if fs in self.arguments.unique_fss:
+            for arg in self.arguments.args:
+                if arg.function_space == fs and \
+                        arg.type == "gh_field":
+                    return True
+        return False
+
     def gen_code(self, parent):
         ''' Generates dynamo version 0.3 specific psy code for a call to
             the dynamo kernel instance. '''
@@ -491,22 +509,33 @@ class DynKern(Kern):
         parent.add(DeclGen(parent, datatype = "integer",
                            entity_decls = ["cell"]))
 
-        # function-space maps initialisation and their declarations
-        for idx, unique_fs in enumerate(self.arguments.unique_fss):
-            if idx == 0:
-                parent.add(CommentGen(parent,""))
-            map_name = self._fs_descriptors.map_name(unique_fs)
-            field = self._arguments.get_field(unique_fs)
-            parent.add(AssignGen(parent, pointer = True, lhs = map_name,
-                                 rhs = field.proxy_name_indexed+"%"+field.ref_name+"%get_cell_dofmap(cell)"))
-            if idx == len(self.arguments.unique_fss)-1:
-                parent.add(CommentGen(parent,""))
+        # create a maps_required logical which we can use to add in spacer comments if necessary
+        maps_required = False
+        for unique_fs in self.arguments.unique_fss:
+            if self.field_on_space(unique_fs):
+                maps_required = True
 
-        if len(self.arguments.unique_fss)>0:
-            decl_map_names=[]
-            for unique_fs in self.arguments.unique_fss:
+        # function-space maps initialisation and their declarations
+        if maps_required:
+            parent.add(CommentGen(parent,""))
+
+        for unique_fs in self.arguments.unique_fss:
+            if self.field_on_space(unique_fs):
+                # A map is required as there is a field on this space
+                map_name = self._fs_descriptors.map_name(unique_fs)
+                field = self._arguments.get_field(unique_fs)
+                parent.add(AssignGen(parent, pointer = True, lhs = map_name,
+                                     rhs = field.proxy_name_indexed+"%"+field.ref_name+"%get_cell_dofmap(cell)"))
+        if maps_required:
+            parent.add(CommentGen(parent,""))
+
+        decl_map_names=[]
+        for unique_fs in self.arguments.unique_fss:
+            if self.field_on_space(unique_fs):
+                # A map is required as there is a field on this space
                 map_name=self._fs_descriptors.map_name(unique_fs)
                 decl_map_names.append(map_name+"(:) => null()")
+        if len(decl_map_names)>0:
             parent.add(DeclGen(parent, datatype = "integer", pointer = True,
                                entity_decls = decl_map_names))
 
@@ -550,8 +579,11 @@ class DynKern(Kern):
                 raise GenerationError("Unexpected arg type found in dynamo0p3.py:DynKern:gen_code(). Expected one of [gh_field,gh_operator] but found "+arg.type)
         # 3: For each function space (in the order they appear in the metadata arguments)
         for unique_fs in self.arguments.unique_fss:
-            # 3.1 Provide compulsory arguments
+            # 3.1 Provide compulsory arguments common to operators and fields on a space
             arglist.extend(self._fs_descriptors.compulsory_args(unique_fs))
+            # 3.1.1 Provide additional compulsory arguments if there is a field on this space
+            if self.field_on_space(unique_fs):
+                arglist.extend(self._fs_descriptors.compulsory_args_field(unique_fs))
             # 3.2 Provide optional arguments
             if self._fs_descriptors.exists(unique_fs):
                 descriptor = self._fs_descriptors.get_descriptor(unique_fs)
@@ -654,7 +686,12 @@ class FS_Descriptors:
             self._descriptors.append(FS_Descriptor(descriptor))
 
     def compulsory_args(self,fs):
-        return [self.ndf_name(fs),self.undf_name(fs),self.map_name(fs)]
+        ''' args that all fields and operators require for a function space '''
+        return [self.ndf_name(fs)]
+
+    def compulsory_args_field(self,fs):
+        ''' args that a field requires for a function space in addition to the compulsory args'''
+        return [self.undf_name(fs),self.map_name(fs)]
 
     def ndf_name(self,fs):
         return "ndf_"+fs
