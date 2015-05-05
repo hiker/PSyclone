@@ -199,3 +199,17 @@ class TestPSyDynamo0p3API:
         assert(gen_code_str.find("undf_w2")==-1)
         assert(gen_code_str.find("map_w2")==-1)
         assert(gen_code_str.find("CALL testkern_operator_code(cell, nlayers, mm_w2_proxy%ncell_3d, mm_w2_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, ndf_w2, basis_w2, ndf_w0, undf_w0, map_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)")!=-1)
+
+    def test_any_space_1(self):
+        ''' tests that any_space is implemented correctly in the PSy layer. Includes more than one type of any_space delcaration and func_type basis functions on any_space. '''
+        ast,invokeInfo=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","11_any_space.f90"),api="dynamo0.3")
+        psy=PSyFactory("dynamo0.3").create(invokeInfo)
+        generated_code = psy.gen
+        assert(str(generated_code).find("xxx")!=-1)
+
+    def test_any_space_2(self):
+        ''' tests that any_space is implemented correctly in the PSy layer. Includes multiple declarations of the same space, no func_type declarations and any_space used with an operator. '''
+        ast,invokeInfo=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","11.1_any_space.f90"),api="dynamo0.3")
+        psy=PSyFactory("dynamo0.3").create(invokeInfo)
+        generated_code = psy.gen
+        assert(str(generated_code).find("xxx")!=-1)
