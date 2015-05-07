@@ -205,11 +205,23 @@ class TestPSyDynamo0p3API:
         ast,invokeInfo=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","11_any_space.f90"),api="dynamo0.3")
         psy=PSyFactory("dynamo0.3").create(invokeInfo)
         generated_code = psy.gen
-        assert(str(generated_code).find("xxx")!=-1)
+        assert(str(generated_code).find("INTEGER, pointer :: map_any_space_1(:) => null(), map_any_space_2(:) => null()")!=-1)
+        assert(str(generated_code).find("REAL(KIND=r_def), allocatable :: basis_any_space_1(:,:,:,:), basis_any_space_2(:,:,:,:)")!=-1)
+        assert(str(generated_code).find("ALLOCATE (basis_any_space_1(dim_any_space_1, ndf_any_space_1, nqp_h, nqp_v))")!=-1)
+        assert(str(generated_code).find("ALLOCATE (basis_any_space_2(dim_any_space_2, ndf_any_space_2, nqp_h, nqp_v))")!=-1)
+        assert(str(generated_code).find("map_any_space_1 => a_proxy%vspace%get_cell_dofmap(cell)")!=-1)
+        assert(str(generated_code).find("map_any_space_2 => b_proxy%vspace%get_cell_dofmap(cell)")!=-1)
+        assert(str(generated_code).find("CALL testkern_any_space_1_code(nlayers, a_proxy%data, b_proxy%data, c_proxy(1)%data, c_proxy(2)%data, c_proxy(3)%data, ndf_any_space_1, undf_any_space_1, map_any_space_1, basis_any_space_1, ndf_any_space_2, undf_any_space_2, map_any_space_2, basis_any_space_2, ndf_w0, undf_w0, map_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)")!=-1)
+        assert(str(generated_code).find("DEALLOCATE (basis_any_space_1, basis_any_space_2, diff_basis_w0)")!=-1)
 
     def test_any_space_2(self):
         ''' tests that any_space is implemented correctly in the PSy layer. Includes multiple declarations of the same space, no func_type declarations and any_space used with an operator. '''
         ast,invokeInfo=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","11.1_any_space.f90"),api="dynamo0.3")
         psy=PSyFactory("dynamo0.3").create(invokeInfo)
         generated_code = psy.gen
-        assert(str(generated_code).find("xxx")!=-1)
+        assert(str(generated_code).find("INTEGER, pointer :: map_any_space_1(:) => null()")!=-1)
+        assert(str(generated_code).find("INTEGER ndf_any_space_1, undf_any_space_1")!=-1)
+        assert(str(generated_code).find("ndf_any_space_1 = a_proxy%vspace%get_ndf()")!=-1)
+        assert(str(generated_code).find("undf_any_space_1 = a_proxy%vspace%get_undf()")!=-1)
+        assert(str(generated_code).find("map_any_space_1 => a_proxy%vspace%get_cell_dofmap(cell)")!=-1)
+        assert(str(generated_code).find("CALL testkern_any_space_2_code(cell, nlayers, a_proxy%data, b_proxy%data, c_proxy%ncell_3d, c_proxy%local_stencil, ndf_any_space_1, undf_any_space_1, map_any_space_1)")!=-1)
