@@ -225,3 +225,40 @@ class TestPSyDynamo0p3API:
         assert(str(generated_code).find("undf_any_space_1 = a_proxy%vspace%get_undf()")!=-1)
         assert(str(generated_code).find("map_any_space_1 => a_proxy%vspace%get_cell_dofmap(cell)")!=-1)
         assert(str(generated_code).find("CALL testkern_any_space_2_code(cell, nlayers, a_proxy%data, b_proxy%data, c_proxy%ncell_3d, c_proxy%local_stencil, ndf_any_space_1, undf_any_space_1, map_any_space_1)")!=-1)
+
+    def test_kernel_specific1(self):
+        '''tests that kernel-specific code is added to the
+           matrix_vector_kernel_mm kernel. This code is required as
+           the dynamo0.3 api does not know about boundary conditions
+           but this kernel requires them. This "hack" is only
+           supported to get PSyclone to generate correct code for the
+           current implementation of dynamo. Future API's will not
+           support any hacks.
+        '''
+        ast,invokeInfo=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","12_kernel_specific.f90"),api="dynamo0.3")
+        psy=PSyFactory("dynamo0.3").create(invokeInfo)
+        generated_code = psy.gen
+        output1='''    fs = x%which_function_space()  
+    if(fs .eq. W2) then 
+       boundary_dofs => x_p%vspace%get_boundary_dofs()
+    end if'''
+        assert(str(generated_code).find(output1)!=-1)
+        output2='''       if(fs.eq.W2) then ! this is yuk but haven't done others yet              
+          call enforce_bc_w2(nlayers,ndf,undf,map,boundary_dofs,Ax_p%data)           
+       end if'''
+        assert(str(generated_code).find(output2)!=-1)
+
+    def test_kernel_specific1(self):
+        '''tests that kernel-specific code is added to the
+           ru_code kernel. This code is required as
+           the dynamo0.3 api does not know about boundary conditions
+           but this kernel requires them. This "hack" is only
+           supported to get PSyclone to generate correct code for the
+           current implementation of dynamo. Future API's will not
+           support any hacks.
+        '''
+        ast,invokeInfo=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","12.1_kernel_specific.f90"),api="dynamo0.3")
+        psy=PSyFactory("dynamo0.3").create(invokeInfo)
+        generated_code = psy.gen
+        output1="xxx"
+        assert(str(generated_code).find(output1)!=-1)
