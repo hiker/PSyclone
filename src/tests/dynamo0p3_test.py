@@ -10,12 +10,16 @@ from parse import parse
 from psyGen import PSyFactory
 import os
 
+BASE_PATH=os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3")
+
 class TestPSyDynamo0p3API:
-    ''' Tests for PSy layer code generation that are specific to the dynamo0.3 api. '''
+    ''' Tests for PSy layer code generation that are specific to the
+    dynamo0.3 api. '''
 
     def test_field(self):
-        ''' tests that a call with a set of fields and no basis functions produces correct code '''
-        ast,invokeInfo=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","1_single_invoke.f90"),api="dynamo0.3")
+        ''' tests that a call with a set of fields and no basis
+        functions produces correct code '''
+        ast,invokeInfo=parse(os.path.join(BASE_PATH,"1_single_invoke.f90"),api="dynamo0.3")
         psy=PSyFactory("dynamo0.3").create(invokeInfo)
         generated_code = psy.gen
         output = """  MODULE psy_single_invoke
@@ -74,9 +78,11 @@ class TestPSyDynamo0p3API:
     END SUBROUTINE invoke_0_testkern_type
   END MODULE psy_single_invoke"""
         assert str(generated_code).find(output)!=-1
+
     def test_field_qr(self):
-        ''' tests that a call, with a set of fields requiring quadrature, produces correct code '''
-        ast,invokeInfo=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","1.1_single_invoke_qr.f90"),api="dynamo0.3")
+        ''' tests that a call, with a set of fields requiring
+        quadrature, produces correct code '''
+        ast,invokeInfo=parse(os.path.join(BASE_PATH,"1.1_single_invoke_qr.f90"),api="dynamo0.3")
         psy=PSyFactory("dynamo0.3").create(invokeInfo)
         generated_code = psy.gen
         output = """    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, m2, qr)
@@ -161,24 +167,29 @@ class TestPSyDynamo0p3API:
       !
     END SUBROUTINE invoke_0_testkern_qr_type"""
         assert str(generated_code).find(output)!=-1
+
     def test_vector_field(self):
-        ''' tests that a vector field is declared correctly in the PSy layer '''
-        ast,invokeInfo=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","8_vector_field.f90"),api="dynamo0.3")
+        ''' tests that a vector field is declared correctly in the PSy
+        layer '''
+        ast,invokeInfo=parse(os.path.join(BASE_PATH,"8_vector_field.f90"),api="dynamo0.3")
         psy=PSyFactory("dynamo0.3").create(invokeInfo)
         generated_code = psy.gen
         assert(str(generated_code).find("SUBROUTINE invoke_0_testkern_chi_type(f1, chi)")!=-1 and \
                   str(generated_code).find("TYPE(field_type), intent(inout) :: f1, chi(3)")!=-1)
 
     def test_orientation(self):
-	ast,invokeInfo=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","9_orientation.f90"),api="dynamo0.3")
+        ''' tests that orientation information is created correctly in
+        the PSy '''
+	ast,invokeInfo=parse(os.path.join(BASE_PATH,"9_orientation.f90"),api="dynamo0.3")
         psy=PSyFactory("dynamo0.3").create(invokeInfo)
         generated_code = psy.gen
 	assert str(generated_code).find("INTEGER, pointer :: orientation_w2(:) => null()")!=-1 and \
                str(generated_code).find("orientation_w2 => f2_proxy%vspace%get_cell_orientation(cell)")!=-1
 
     def test_operator(self):
-        ''' tests that an operator is implemented correctly in the PSy layer '''
-        ast,invokeInfo=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","10_operator.f90"),api="dynamo0.3")
+        ''' tests that an operator is implemented correctly in the PSy
+        layer '''
+        ast,invokeInfo=parse(os.path.join(BASE_PATH,"10_operator.f90"),api="dynamo0.3")
         psy=PSyFactory("dynamo0.3").create(invokeInfo)
         generated_code = psy.gen
         assert(str(generated_code).find("SUBROUTINE invoke_0_testkern_operator_type(mm_w0, chi, qr)")!=-1 and \
@@ -188,8 +199,9 @@ class TestPSyDynamo0p3API:
                str(generated_code).find("CALL testkern_operator_code(cell, nlayers, mm_w0_proxy%ncell_3d, mm_w0_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, ndf_w0, undf_w0, map_w0, basis_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)")!=-1)
 
     def test_operator_nofield(self):
-        ''' tests that an operator with no field on the same space is implemented correctly in the PSy layer '''
-        ast,invokeInfo=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","10.1_operator_nofield.f90"),api="dynamo0.3")
+        ''' tests that an operator with no field on the same space is
+        implemented correctly in the PSy layer '''
+        ast,invokeInfo=parse(os.path.join(BASE_PATH,"10.1_operator_nofield.f90"),api="dynamo0.3")
         psy=PSyFactory("dynamo0.3").create(invokeInfo)
         gen_code_str = str(psy.gen)
         assert(gen_code_str.find("SUBROUTINE invoke_0_testkern_operator_nofield_type(mm_w2, chi, qr)")!=-1)
@@ -201,8 +213,10 @@ class TestPSyDynamo0p3API:
         assert(gen_code_str.find("CALL testkern_operator_code(cell, nlayers, mm_w2_proxy%ncell_3d, mm_w2_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, ndf_w2, basis_w2, ndf_w0, undf_w0, map_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)")!=-1)
 
     def test_any_space_1(self):
-        ''' tests that any_space is implemented correctly in the PSy layer. Includes more than one type of any_space delcaration and func_type basis functions on any_space. '''
-        ast,invokeInfo=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","11_any_space.f90"),api="dynamo0.3")
+        ''' tests that any_space is implemented correctly in the PSy
+        layer. Includes more than one type of any_space delcaration
+        and func_type basis functions on any_space. '''
+        ast,invokeInfo=parse(os.path.join(BASE_PATH,"11_any_space.f90"),api="dynamo0.3")
         psy=PSyFactory("dynamo0.3").create(invokeInfo)
         generated_code = psy.gen
         assert(str(generated_code).find("INTEGER, pointer :: map_any_space_1(:) => null(), map_any_space_2(:) => null()")!=-1)
@@ -216,7 +230,7 @@ class TestPSyDynamo0p3API:
 
     def test_any_space_2(self):
         ''' tests that any_space is implemented correctly in the PSy layer. Includes multiple declarations of the same space, no func_type declarations and any_space used with an operator. '''
-        ast,invokeInfo=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","11.1_any_space.f90"),api="dynamo0.3")
+        ast,invokeInfo=parse(os.path.join(BASE_PATH,"11.1_any_space.f90"),api="dynamo0.3")
         psy=PSyFactory("dynamo0.3").create(invokeInfo)
         generated_code = psy.gen
         assert(str(generated_code).find("INTEGER, pointer :: map_any_space_1(:) => null()")!=-1)
@@ -235,7 +249,7 @@ class TestPSyDynamo0p3API:
            current implementation of dynamo. Future API's will not
            support any hacks.
         '''
-        ast,invokeInfo=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","12_kernel_specific.f90"),api="dynamo0.3")
+        ast,invokeInfo=parse(os.path.join(BASE_PATH,"12_kernel_specific.f90"),api="dynamo0.3")
         psy=PSyFactory("dynamo0.3").create(invokeInfo)
         generated_code = psy.gen
         output1 = "USE function_space_mod, ONLY: w2"
@@ -255,7 +269,6 @@ class TestPSyDynamo0p3API:
         assert(str(generated_code).find(output6)!=-1)
 
     def test_kernel_specific2(self):
-
         '''tests that kernel-specific code is added to the
            ru_kernel kernel. This code is required as
            the dynamo0.3 api does not know about boundary conditions
@@ -264,7 +277,8 @@ class TestPSyDynamo0p3API:
            current implementation of dynamo. Future API's will not
            support any hacks.
         '''
-        ast,invokeInfo=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","12.1_kernel_specific.f90"),api="dynamo0.3")
+        #ast,invokeInfo=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","12.1_kernel_specific.f90"),api="dynamo0.3")
+        ast,invokeInfo=parse(os.path.join(BASE_PATH,"12.1_kernel_specific.f90"),api="dynamo0.3")
         psy=PSyFactory("dynamo0.3").create(invokeInfo)
         generated_code = psy.gen
         output1="INTEGER, pointer :: boundary_dofs_w2(:,:) => null()"
@@ -273,3 +287,17 @@ class TestPSyDynamo0p3API:
         assert(str(generated_code).find(output2)!=-1)
         output3="CALL ru_code(nlayers, a_proxy%data, b_proxy%data, c_proxy%data, d_proxy(1)%data, d_proxy(2)%data, d_proxy(3)%data, ndf_w2, undf_w2, map_w2, basis_w2, diff_basis_w2, boundary_dofs_w2, ndf_w3, undf_w3, map_w3, basis_w3, ndf_w0, undf_w0, map_w0, basis_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)"
         assert(str(generated_code).find(output3)!=-1)
+
+    def test_multikernel_invoke(self):
+        ''' Test that correct code is produced when there are multiple
+        kernels within an invoke. We test the parts of the code that
+        are incorrect at the time of writing '''
+        ast,invokeInfo=parse(os.path.join(BASE_PATH,"4_multikernel_invokes.f90"),api="dynamo0.3")
+        psy=PSyFactory("dynamo0.3").create(invokeInfo)
+        generated_code = psy.gen
+        output1 = "SUBROUTINE invoke_0(f1, f2, m1, m2, f1)"
+        assert(str(generated_code).find(output1)==-1)
+        output2 = "f1_proxy = f1%get_proxy()"
+        assert(str(generated_code).count(output2)==1)
+
+        

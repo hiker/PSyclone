@@ -241,13 +241,15 @@ class Invoke(object):
         # layer subroutine.
         self._alg_unique_args = []
         self._psy_unique_vars = []
+        tmp_arg_names = []
         for call in self.schedule.calls():
             for arg in call.arguments.args:
                 #print "arg text "+arg.text+" name "+arg.name
                 if arg.text is not None:
                     if not arg.text in self._alg_unique_args:
                         self._alg_unique_args.append(arg.text)
-                    if not arg.name in self._psy_unique_vars:
+                    if not arg.name in tmp_arg_names:
+                        tmp_arg_names.append(arg.name)
                         self._psy_unique_vars.append(arg)
                 else:
                     # literals have no name
