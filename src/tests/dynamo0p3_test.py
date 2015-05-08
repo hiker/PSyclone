@@ -248,9 +248,10 @@ class TestPSyDynamo0p3API:
        end if'''
         assert(str(generated_code).find(output2)!=-1)
 
-    def test_kernel_specific1(self):
+    def test_kernel_specific2(self):
+
         '''tests that kernel-specific code is added to the
-           ru_code kernel. This code is required as
+           ru_kernel kernel. This code is required as
            the dynamo0.3 api does not know about boundary conditions
            but this kernel requires them. This "hack" is only
            supported to get PSyclone to generate correct code for the
@@ -260,5 +261,9 @@ class TestPSyDynamo0p3API:
         ast,invokeInfo=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","12.1_kernel_specific.f90"),api="dynamo0.3")
         psy=PSyFactory("dynamo0.3").create(invokeInfo)
         generated_code = psy.gen
-        output1="xxx"
+        output1="INTEGER, pointer :: boundary_dofs_w2(:,:) => null()"
         assert(str(generated_code).find(output1)!=-1)
+        output2="boundary_dofs_w2 => a_proxy%vspace%get_boundary_dofs()"
+        assert(str(generated_code).find(output2)!=-1)
+        output3="CALL ru_code(nlayers, a_proxy%data, b_proxy%data, c_proxy%data, d_proxy(1)%data, d_proxy(2)%data, d_proxy(3)%data, ndf_w2, undf_w2, map_w2, basis_w2, diff_basis_w2, boundary_dofs_w2, ndf_w3, undf_w3, map_w3, basis_w3, ndf_w0, undf_w0, map_w0, basis_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)"
+        assert(str(generated_code).find(output3)!=-1)

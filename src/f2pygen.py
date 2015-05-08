@@ -725,6 +725,40 @@ def adddo(variable_name,start,end,parent,step=None):
     do.content.append(enddo)
     return do
 
+class IfThenGen(BaseGen):
+    ''' Generate a fortran if, then, end if statement. '''
+
+    def __init__(self, parent, clause):
+
+        reader = FortranStringReader("if (dummy) then\nend if")
+        reader.set_mode(True, True) # free form, strict
+        ifthenline = reader.next()
+        endifline = reader.next()
+
+        from fparser.block_statements import IfThen, EndIfThen
+        my_if = IfThen(parent.root,ifthenline)
+        my_if.expr = clause
+        my_endif=EndIfThen(my_if,endifline)
+        my_if.content.append(my_endif)
+
+        BaseGen.__init__(self,parent,my_if)
+
+    def add(self,content,position=["auto"]):
+
+        if position[0]=="auto" or position[0]=="append":
+            if position[0]=="auto" and ( isinstance(content,UseGen) \
+                                      or isinstance(content,DeclGen) \
+                                      or isinstance(content,TypeDeclGen) ):
+                # a use and declarations can not appear in an if statement so pass on to parent
+                self.parent.add(content)
+            else:
+                # append at the end of the loop. This is not a simple append as
+                # the last element in the if is the "end if" so we insert at the
+                # penultimate location
+                BaseGen.add(self,content,position=["insert",len(self.root.content)-1])
+        else:
+            BaseGen.add(self,content,position=position)
+
 class AssignGen(BaseGen):
 
     def __init__(self,parent,lhs="",rhs="",pointer=False):

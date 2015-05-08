@@ -855,7 +855,8 @@ class DynKern(Kern):
     def gen_code(self, parent):
         ''' Generates dynamo version 0.3 specific psy code for a call to
             the dynamo kernel instance. '''
-        from f2pygen import CallGen, DeclGen, AssignGen, UseGen, CommentGen
+        from f2pygen import CallGen, DeclGen, AssignGen, UseGen, CommentGen, \
+                            IfThenGen
 
         parent.add(DeclGen(parent, datatype = "integer",
                            entity_decls = ["cell"]))
@@ -972,6 +973,42 @@ class DynKern(Kern):
         parent.add(CallGen(parent, self._name, arglist))
         parent.parent.add(UseGen(parent.parent, name = self._module_name,
                                  only = True, funcnames = [self._name]))
+
+        # 5: Fix for boundary_dofs array in ru_kernel
+        if self.name == "matrix_vector_mm_code":
+            fs_name = "fs"
+            w2_proxy_name = "a_proxy"
+            space_name = "w2"
+            boundary_dofs_name = "boundary_dofs_"+space_name
+            parent.add(UseGen(parent, name = "function_space_mod",
+                              only = True, funcnames = [space_name]))
+            parent.add(DeclGen(parent, datatype = "integer", pointer = True,
+                               entity_decls = [boundary_dofs_name+"(:,:) => null()"]))
+            parent.add(DeclGen(parent, datatype = "integer", entity_decls = [fs_name]))
+            new_parent, position = parent.start_parent_loop()
+            new_parent.add(AssignGen(new_parent, lhs=fs_name,
+                                     rhs=w2_proxy_name+"%which_function_space()"),
+                                     position = ["before", position])
+            if_then = IfThenGen(new_parent, fs_name+" .eq. "+space_name)
+            new_parent.add(if_then, position = ["before", position])
+            if_then.add(AssignGen(if_then, pointer = True,
+                                  lhs = boundary_dofs_name,
+                                  rhs = w2_proxy_name +
+                                  "%vspace%get_boundary_dofs()"))
+            parent.add(CommentGen(parent, ""))
+            if_then = IfThenGen(parent, fs_name+" .eq. "+space_name)
+            parent.add(if_then)
+            if_then.add(CallGen(if_then, "enforce_bc_w2", ["nlayers","ndf_any_space1","undf_any_space1","map_any_space1",boundary_dofs_name, w2_proxy_name]))
+            parent.add(CommentGen(parent, ""))
+
+
+        #    if(fs .eq. W2) then
+        #       boundary_dofs => x_p%vspace%get_boundary_dofs()
+        #    end if
+
+        #if(fs.eq.W2) then ! this is yuk but haven't done others yet
+	#          call enforce_bc_w2(nlayers,ndf,undf,map,boundary_dofs,Ax_p%data)
+        #end if
 
 class FSDescriptor(object):
     ''' Provides information about a particular function space '''

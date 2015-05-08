@@ -6,8 +6,33 @@
 #-------------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
-from f2pygen import ModuleGen, CommentGen, SubroutineGen, DoGen, CallGen, AllocateGen, DeallocateGen
+from f2pygen import ModuleGen, CommentGen, SubroutineGen, DoGen, CallGen, AllocateGen, DeallocateGen, IfThenGen
 import pytest
+
+class TestIf:
+    ''' pytest test for if statements. '''
+
+    def test_if(self):
+        ''' Check that an if gets created succesfully. '''
+        module = ModuleGen(name="testmodule")
+        clause = "a < b"
+        fortran_if = IfThenGen(module, clause)
+        module.add(fortran_if)
+        lines=str(module.root).splitlines()
+        assert "IF ("+clause+") THEN" in lines[3]
+        assert "END IF" in lines[4]
+
+    def test_if(self):
+        ''' Check that the content of an if gets created successfully. '''
+        module = ModuleGen(name="testmodule")
+        clause = "a < b"
+        if_statement = IfThenGen(module, clause)
+        if_statement.add(CommentGen(if_statement, "HELLO"))
+        module.add(if_statement)
+        lines=str(module.root).splitlines()
+        assert "IF ("+clause+") THEN" in lines[3]
+        assert "!HELLO" in lines[4]
+        assert "END IF" in lines[5]
 
 class TestComment:
     ''' pytest tests for comments. '''
