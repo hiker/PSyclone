@@ -238,15 +238,21 @@ class TestPSyDynamo0p3API:
         ast,invokeInfo=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),"test_files","dynamo0p3","12_kernel_specific.f90"),api="dynamo0.3")
         psy=PSyFactory("dynamo0.3").create(invokeInfo)
         generated_code = psy.gen
-        output1='''    fs = x%which_function_space()  
-    if(fs .eq. W2) then 
-       boundary_dofs => x_p%vspace%get_boundary_dofs()
-    end if'''
+        output1 = "USE function_space_mod, ONLY: w2"
         assert(str(generated_code).find(output1)!=-1)
-        output2='''       if(fs.eq.W2) then ! this is yuk but haven't done others yet              
-          call enforce_bc_w2(nlayers,ndf,undf,map,boundary_dofs,Ax_p%data)           
-       end if'''
+        output2 = "INTEGER fs"
         assert(str(generated_code).find(output2)!=-1)
+        output3 = "INTEGER, pointer :: boundary_dofs_w2(:,:) => null()"
+        assert(str(generated_code).find(output3)!=-1)
+        output4 = "fs = a_proxy%which_function_space()"
+        assert(str(generated_code).find(output4)!=-1)
+        output5 = '''IF (fs .eq. w2) THEN
+        boundary_dofs_w2 => a_proxy%vspace%get_boundary_dofs()
+      END IF'''
+        assert(str(generated_code).find(output5)!=-1)
+        output6='''IF (fs .eq. w2) THEN
+          CALL enforce_bc_w2(nlayers, ndf_any_space1, undf_any_space1, map_any_space1, boundary_dofs_w2, a_proxy)'''
+        assert(str(generated_code).find(output6)!=-1)
 
     def test_kernel_specific2(self):
 
