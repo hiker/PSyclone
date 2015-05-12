@@ -6,18 +6,20 @@
 !-------------------------------------------------------------------------------
 ! Author R. Ford STFC Daresbury Lab
 
-program multikernel_invokes_1
+program multikernel_invokes_2
 
-  ! Multiple kernel calls within an invoke
+  ! Multiple kernel calls within an invoke where the kernels require
+  ! a quadrature rule
 
-  use testkern, only : testkern_type
+  use testkern_qr, only : testkern_qr_type
   use inf,      only: field_type
   implicit none
-  type(field_type) :: f1, f2, m1, m2
+  type(field_type) :: f1, f2, f3, f4
+  type(quadrature_rule_type) :: qr
 
-  call invoke(                            &
-       testkern_type(f1,f2,m1,m2),        &
-       testkern_type(f1,f2,m1,m2)         &
+  call invoke(                           &
+       testkern_qr_type(f1,f2,f3,f4,qr), &
+       testkern_qr_type(f1,f2,f3,f4,qr)  &
        )
 
-end program multikernel_invokes_1
+end program multikernel_invokes_2

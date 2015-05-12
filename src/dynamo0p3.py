@@ -17,10 +17,10 @@ import expression as expr
 import fparser
 import os
 
-VALID_FUNCTION_SPACE_NAMES = ["w0", "w1", "w2", "w3", "any_space_1",       \
-                              "any_space_2", "any_space_3", "any_space_4", \
-                              "any_space_5", "any_space_6", "any_space_7", \
-                              "any_space_8", "any_space_9"]
+VALID_ANY_SPACE_NAMES = ["any_space_1", "any_space_2", "any_space_3", \
+                         "any_space_4", "any_space_5", "any_space_6", \
+                         "any_space_7", "any_space_8", "any_space_9"]
+VALID_FUNCTION_SPACE_NAMES = ["w0", "w1", "w2", "w3"] + VALID_ANY_SPACE_NAMES
 
 class DynFuncDescriptor03():
     ''' The Dynamo 0.3 API has a function-space descriptor as well as
@@ -183,6 +183,18 @@ class DynArgDescriptor03(Descriptor):
         with the first being the source function space '''
         return self._function_space1
 
+    @property
+    def is_any_space(self):
+        ''' Returns True if this descriptor is of type any_space. This
+        could be any on the any_space spaces, i.e. any of any_space_1,
+        any_space_2, ... any_space_9, otherwise returns False. For
+        operators, returns True if the source descriptor is of type
+        any_space, else returns False. '''
+        if self.function_space_name1 in VALID_ANY_SPACE_NAMES:
+            return True
+        else:
+            return False
+
     def __str__(self):
         res = "DynArgDescriptor03 object" + os.linesep
         res += "  argument_type[0]='{0}'".format(self._type)
@@ -301,6 +313,29 @@ class DynInvoke(Invoke):
         if False:
             self._schedule = DynSchedule(None) # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, DynSchedule)
+
+        # check whether we have more than one kernel call within this
+        # invoke which specifies any_space. This is not supported at
+        # the moment so we raise an error.  any_space with different
+        # kernels in an invoke must either inherit the space from the
+        # variable (which needs analysis) or have a unique name for
+        # the space used by each kernel and at the moment neither of
+        # these is the case.
+        any_space_call_count = 0
+        for call in self.schedule.calls():
+            found_any_space = False
+            for arg_descriptor in call.arg_descriptors:
+                if arg_descriptor.is_any_space:
+                    found_any_space = True
+                    break
+            if found_any_space:
+                any_space_call_count+=1
+        if any_space_call_count > 1:
+            raise GenerationError ("Error, there are multiple kernels within "
+                                   "this invoke with kernel arguements "
+                                   "declared as any_space. This is not yet "
+                                   "supported.")
+
         # determine the number of qr arguments required and make sure
         # the names are unique
         self._alg_unique_qr_args = []
