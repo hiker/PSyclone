@@ -172,17 +172,21 @@ class NameSpace(object):
             # silently ignore if this is already a reserved name
             if not lname in self._reserved_names:
                 self._reserved_names.append(lname)
-    def add_name(self, name, fullText):
+    def add_name(self, name, fullText = None):
         # We need to use the same name if fullText has been used before.
         # If fullText has not been used but the name has been, then we
         # need to use a new unique name.
-        lFullText = fullText.lower()
         lname = name.lower()
-        #print "Namespace: Trying to add name '"+lname+"' and fullText '"+lFullText+"'"
-        if lFullText in self._fullTextMap.keys():
-            #print "FullText already used, returning previous name '"+self._fullTextMap[lFullText]+"'"
-            return self._fullTextMap[lFullText]
-        if lname not in self._reserved_names and lname not in self._added_names:
+        if fullText is not None:
+            lFullText = fullText.lower()
+            #print "Namespace: Trying to add name '"+lname+"' and fullText '"+lFullText+"'"
+            if lFullText in self._fullTextMap.keys():
+                #print "FullText already used, returning previous name '"+self._fullTextMap[lFullText]+"'"
+                return self._fullTextMap[lFullText]
+        else :
+            lFullText = lname
+        if lname not in self._reserved_names and lname not in self._added_names and \
+                                                 lname not in self._fullTextMap.keys():
             self._added_names.append(lname)
             #print "Name added"
             self._fullTextMap[lFullText] = name
@@ -191,7 +195,9 @@ class NameSpace(object):
             #print "Name is in use"
             count = 1
             proposed_lname = lname+"_"+str(count)
-            while proposed_lname in self._reserved_names or proposed_lname in self._added_names:
+            while proposed_lname in self._reserved_names or \
+                  proposed_lname in self._added_names or \
+                  proposed_lname in self._fullTextMap.keys():
                 count+=1
                 proposed_lname = lname+"_"+str(count)
             proposed_name = name + "_" + str(count)

@@ -504,6 +504,10 @@ class DynInvoke(Invoke):
             its arguments.'''
         from f2pygen import SubroutineGen, TypeDeclGen, AssignGen, DeclGen, \
                             AllocateGen, DeallocateGen, CallGen, CommentGen
+
+        # create a namespace manager so we can avoid name clashes
+        self._name_space_manager = NameSpaceFactory().create()
+
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name = self.name,
                                    args = self.psy_unique_var_names+
@@ -556,11 +560,12 @@ class DynInvoke(Invoke):
         invoke_sub.add(CommentGen(invoke_sub, ""))
         # use the first argument
         first_var = self.psy_unique_vars[0]
-        invoke_sub.add(AssignGen(invoke_sub, lhs="nlayers",
+        nlayers_name = self._name_space_manager.add_name("nlayers")
+        invoke_sub.add(AssignGen(invoke_sub, lhs=nlayers_name,
                        rhs=first_var.proxy_name_indexed+"%"+
                            first_var.ref_name+"%get_nlayers()"))
         invoke_sub.add(DeclGen(invoke_sub, datatype = "integer",
-                               entity_decls = ["nlayers"]))
+                               entity_decls = [nlayers_name]))
 
         if self._qr_required:
             # declare and initialise qr values
@@ -1009,12 +1014,24 @@ class DynKern(Kern):
         parent.parent.add(UseGen(parent.parent, name = self._module_name,
                                  only = True, funcnames = [self._name]))
 
-        # 5: Fix for boundary_dofs array in ru_kernel
+        # 5: Fix for boundary_dofs array in matrix_vector_mm_code
         if self.name == "matrix_vector_mm_code":
-            fs_name = "fs"
-            w2_proxy_name = "a_proxy"
+            # In matrix_vector_mm_code, all fields are on the same
+            # (unknown) space. Therefore we can use any field to
+            # dereference. We choose the 2nd one as that is what is
+            # done in the manual implementation.
+            reference_arg = self.arguments.args[1]
+            enforce_bc_arg = self.arguments.args[0]
             space_name = "w2"
-            boundary_dofs_name = "boundary_dofs_"+space_name
+            kern_func_space_name = enforce_bc_arg.function_space
+            ndf_name = self.fs_descriptors.ndf_name(kern_func_space_name)
+            undf_name = self.fs_descriptors.undf_name(kern_func_space_name)
+            map_name = self.fs_descriptors.map_name(kern_func_space_name)
+            w2_proxy_name = reference_arg.proxy_name
+            self._name_space_manager = NameSpaceFactory().create()
+            fs_name = self._name_space_manager.add_name("fs")
+            boundary_dofs_name = self._name_space_manager.add_name("boundary_dofs_"+space_name)
+            
             parent.add(UseGen(parent, name = "function_space_mod",
                               only = True, funcnames = [space_name]))
             parent.add(DeclGen(parent, datatype = "integer", pointer = True,
@@ -1033,17 +1050,9 @@ class DynKern(Kern):
             parent.add(CommentGen(parent, ""))
             if_then = IfThenGen(parent, fs_name+" .eq. "+space_name)
             parent.add(if_then)
-            if_then.add(CallGen(if_then, "enforce_bc_w2", ["nlayers","ndf_any_space1","undf_any_space1","map_any_space1",boundary_dofs_name, w2_proxy_name]))
+            nlayers_name = self._name_space_manager.add_name("nlayers","nlayers")
+            if_then.add(CallGen(if_then, "enforce_bc_w2", [nlayers_name,ndf_name,undf_name,map_name,boundary_dofs_name, enforce_bc_arg.proxy_name]))
             parent.add(CommentGen(parent, ""))
-
-
-        #    if(fs .eq. W2) then
-        #       boundary_dofs => x_p%vspace%get_boundary_dofs()
-        #    end if
-
-        #if(fs.eq.W2) then ! this is yuk but haven't done others yet
-	#          call enforce_bc_w2(nlayers,ndf,undf,map,boundary_dofs,Ax_p%data)
-        #end if
 
 class FSDescriptor(object):
     ''' Provides information about a particular function space '''
