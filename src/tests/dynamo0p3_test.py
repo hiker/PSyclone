@@ -260,14 +260,14 @@ class TestPSyDynamo0p3API:
         assert(str(generated_code).find(output2)!=-1)
         output3 = "INTEGER, pointer :: boundary_dofs_w2(:,:) => null()"
         assert(str(generated_code).find(output3)!=-1)
-        output4 = "fs = a_proxy%which_function_space()"
+        output4 = "fs = f2_proxy%which_function_space()"
         assert(str(generated_code).find(output4)!=-1)
         output5 = '''IF (fs .eq. w2) THEN
-        boundary_dofs_w2 => a_proxy%vspace%get_boundary_dofs()
+        boundary_dofs_w2 => f2_proxy%vspace%get_boundary_dofs()
       END IF'''
         assert(str(generated_code).find(output5)!=-1)
         output6='''IF (fs .eq. w2) THEN
-          CALL enforce_bc_w2(nlayers, ndf_any_space1, undf_any_space1, map_any_space1, boundary_dofs_w2, a_proxy)'''
+          CALL enforce_bc_w2(nlayers, ndf_any_space_1, undf_any_space_1, map_any_space_1, boundary_dofs_w2, f1_proxy)'''
         assert(str(generated_code).find(output6)!=-1)
 
     def test_kernel_specific2(self):
