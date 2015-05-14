@@ -560,7 +560,10 @@ class DynInvoke(Invoke):
         invoke_sub.add(CommentGen(invoke_sub, ""))
         # use the first argument
         first_var = self.psy_unique_vars[0]
-        nlayers_name = self._name_space_manager.add_name("nlayers")
+        # use our namespace manager to create a unique name unless
+        # the context and label match and in this case return the
+        # previous name
+        nlayers_name = self._name_space_manager.create_name(root_name="nlayers",context="PSyVars",label="nlayers")
         invoke_sub.add(AssignGen(invoke_sub, lhs=nlayers_name,
                        rhs=first_var.proxy_name_indexed+"%"+
                            first_var.ref_name+"%get_nlayers()"))
@@ -843,8 +846,12 @@ class DynKern(Kern):
             qr_arg = call.args[len(call.args)-1]
             self._qr_text = qr_arg.text
             self._name_space_manager = NameSpaceFactory().create()
-            self._qr_name = self._name_space_manager.add_name(self._qr_text,
-                                                              qr_arg.varName)
+            # use our namespace manager to create a unique name unless
+            # the context and label match and in this case return the
+            # previous name
+            self._qr_name = self._name_space_manager.create_name(root_name=self._qr_text,
+                                                                 context="AlgArgs",
+                                                                 label=qr_arg.varName)
 
     @property
     def fs_descriptors(self):
@@ -1029,8 +1036,8 @@ class DynKern(Kern):
             map_name = self.fs_descriptors.map_name(kern_func_space_name)
             w2_proxy_name = reference_arg.proxy_name
             self._name_space_manager = NameSpaceFactory().create()
-            fs_name = self._name_space_manager.add_name("fs")
-            boundary_dofs_name = self._name_space_manager.add_name("boundary_dofs_"+space_name)
+            fs_name = self._name_space_manager.create_name(root_name="fs")
+            boundary_dofs_name = self._name_space_manager.create_name(root_name="boundary_dofs_"+space_name)
             
             parent.add(UseGen(parent, name = "function_space_mod",
                               only = True, funcnames = [space_name]))
@@ -1050,7 +1057,7 @@ class DynKern(Kern):
             parent.add(CommentGen(parent, ""))
             if_then = IfThenGen(parent, fs_name+" .eq. "+space_name)
             parent.add(if_then)
-            nlayers_name = self._name_space_manager.add_name("nlayers","nlayers")
+            nlayers_name = self._name_space_manager.create_name(root_name="nlayers",context="PSyVars",label="nlayers")
             if_then.add(CallGen(if_then, "enforce_bc_w2", [nlayers_name,ndf_name,undf_name,map_name,boundary_dofs_name, enforce_bc_arg.proxy_name]))
             parent.add(CommentGen(parent, ""))
 
