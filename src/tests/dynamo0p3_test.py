@@ -260,7 +260,7 @@ class TestPSyDynamo0p3API:
         assert(str(generated_code).find(output2)!=-1)
         output3 = "INTEGER, pointer :: boundary_dofs_w2(:,:) => null()"
         assert(str(generated_code).find(output3)!=-1)
-        output4 = "fs = f2_proxy%which_function_space()"
+        output4 = "fs = f2%which_function_space()"
         assert(str(generated_code).find(output4)!=-1)
         output5 = '''IF (fs .eq. w2) THEN
         boundary_dofs_w2 => f2_proxy%vspace%get_boundary_dofs()
