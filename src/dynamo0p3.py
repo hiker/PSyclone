@@ -1039,7 +1039,7 @@ class DynKern(Kern):
             parent.add(DeclGen(parent, datatype = "integer", entity_decls = [fs_name]))
             new_parent, position = parent.start_parent_loop()
             new_parent.add(AssignGen(new_parent, lhs=fs_name,
-                                     rhs=w2_proxy_name+"%which_function_space()"),
+                                     rhs=reference_arg.name+"%which_function_space()"),
                                      position = ["before", position])
             if_then = IfThenGen(new_parent, fs_name+" .eq. "+space_name)
             new_parent.add(if_then, position = ["before", position])
