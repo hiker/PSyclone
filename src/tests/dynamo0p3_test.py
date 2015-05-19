@@ -254,6 +254,8 @@ class TestPSyDynamo0p3API:
         ast,invokeInfo=parse(os.path.join(BASE_PATH,"12_kernel_specific.f90"),api="dynamo0.3")
         psy=PSyFactory("dynamo0.3").create(invokeInfo)
         generated_code = psy.gen
+        output0 = "USE enforce_bc_mod, ONLY: enforce_bc_w2"
+        assert(str(generated_code).find(output0)!=-1)
         output1 = "USE function_space_mod, ONLY: w2"
         assert(str(generated_code).find(output1)!=-1)
         output2 = "INTEGER fs"
