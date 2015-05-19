@@ -179,6 +179,17 @@ class TestPSyDynamo0p3API:
         assert(str(generated_code).find("SUBROUTINE invoke_0_testkern_chi_type(f1, chi)")!=-1 and \
                   str(generated_code).find("TYPE(field_type), intent(inout) :: f1, chi(3)")!=-1)
 
+    def test_vector_field_2(self):
+        '''tests that a vector field is indexed correctly in the PSy layer'''
+        ast,invokeInfo=parse(os.path.join(BASE_PATH,"8_vector_field_2.f90"),api="dynamo0.3")
+        psy=PSyFactory("dynamo0.3").create(invokeInfo)
+        generated_code = psy.gen
+        # all references to chi_proxy should be chi_proxy(1)
+        assert(str(generated_code).find("chi_proxy%")==-1)
+        assert(str(generated_code).count("chi_proxy(1)%vspace")==5)
+        # use each chi field individually in the kernel
+        assert(str(generated_code).find("chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data")!=-1)
+
     def test_orientation(self):
         ''' tests that orientation information is created correctly in
         the PSy '''
