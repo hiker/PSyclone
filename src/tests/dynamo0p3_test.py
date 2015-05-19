@@ -269,7 +269,7 @@ class TestPSyDynamo0p3API:
       END IF'''
         assert(str(generated_code).find(output5)!=-1)
         output6='''IF (fs .eq. w2) THEN
-          CALL enforce_bc_w2(nlayers, ndf_any_space_1, undf_any_space_1, map_any_space_1, boundary_dofs_w2, f1_proxy)'''
+          CALL enforce_bc_w2(nlayers, ndf_any_space_1, undf_any_space_1, map_any_space_1, boundary_dofs_w2, f1_proxy%data)'''
         assert(str(generated_code).find(output6)!=-1)
 
     def test_kernel_specific2(self):
