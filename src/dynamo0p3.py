@@ -195,6 +195,10 @@ class DynArgDescriptor03(Descriptor):
         else:
             return False
 
+    @property
+    def vector_size(self):
+        return self._vector_size
+
     def __str__(self):
         res = "DynArgDescriptor03 object" + os.linesep
         res += "  argument_type[0]='{0}'".format(self._type)
