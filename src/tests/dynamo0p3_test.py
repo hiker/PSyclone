@@ -302,7 +302,6 @@ class TestPSyDynamo0p3API:
         output3="CALL ru_code(nlayers, a_proxy%data, b_proxy%data, c_proxy%data, d_proxy(1)%data, d_proxy(2)%data, d_proxy(3)%data, ndf_w2, undf_w2, map_w2, basis_w2, diff_basis_w2, boundary_dofs_w2, ndf_w3, undf_w3, map_w3, basis_w3, ndf_w0, undf_w0, map_w0, basis_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)"
         assert(str(generated_code).find(output3)!=-1)
 
-    @pytest.mark.xfail(reason="bug : vector field declarations are replicated")
     def test_multikernel_invoke_1(self):
         ''' Test that correct code is produced when there are multiple
         kernels within an invoke. We test the parts of the code that
@@ -312,7 +311,7 @@ class TestPSyDynamo0p3API:
         generated_code = psy.gen
         # check that argument names are not replicated
         output1 = "SUBROUTINE invoke_0(f1, f2, m1, m2)"
-        assert(str(generated_code).find(output1)==-1)
+        assert(str(generated_code).find(output1) != -1)
         # check that only one proxy initialisation is produced
         output2 = "f1_proxy = f1%get_proxy()"
         assert(str(generated_code).count(output2)==1)
@@ -326,7 +325,6 @@ class TestPSyDynamo0p3API:
         # simple check that two kernel calls exist
         assert(str(generated_code).count("CALL testkern_qr_code") == 2)
 
-    @pytest.mark.xfail(reason="bug : vector field declarations are replicated")
     def test_multikernel_invoke_vector_fields(self):
         ''' Test that correct code is produced when there are multiple
         kernels within an invoke with vector fields '''
@@ -340,7 +338,6 @@ class TestPSyDynamo0p3API:
         output2 = "TYPE(field_proxy_type) f1_proxy, chi_proxy(3), chi_proxy(3)"
         assert(str(generated_code).find(output2) == -1)
 
-    @pytest.mark.xfail(reason="bug : vector field declarations are replicated")
     def test_multikernel_invoke_orientation(self):
         ''' Test that correct code is produced when there are multiple
         kernels within an invoke with orientation '''
@@ -354,7 +351,6 @@ class TestPSyDynamo0p3API:
         output2 = "TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy(3), f3_proxy(3)"
         assert(str(generated_code).find(output2) == -1)
 
-    @pytest.mark.xfail(reason="bug : vector field declarations are replicated")
     def test_multikernel_invoke_operator(self):
         ''' Test that correct code is produced when there are multiple
         kernels within an invoke with operators '''

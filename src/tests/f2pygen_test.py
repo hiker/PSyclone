@@ -6,7 +6,7 @@
 #-------------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
-from f2pygen import ModuleGen, CommentGen, SubroutineGen, DoGen, CallGen, AllocateGen, DeallocateGen, IfThenGen, DeclGen
+from f2pygen import ModuleGen, CommentGen, SubroutineGen, DoGen, CallGen, AllocateGen, DeallocateGen, IfThenGen, DeclGen, TypeDeclGen
 import pytest
 
 class TestDeclare:
@@ -15,13 +15,28 @@ class TestDeclare:
         '''Check that the same scalar variable will only get declared once in
            a module and a subroutine'''
         variable_name = "arg_name"
+        datatype = "integer"
         module = ModuleGen(name="testmodule")
-        module.add(DeclGen(module, datatype="integer", entity_decls=[variable_name]))
-        module.add(DeclGen(module, datatype="integer", entity_decls=[variable_name]))
+        module.add(DeclGen(module, datatype=datatype, entity_decls=[variable_name]))
+        module.add(DeclGen(module, datatype=datatype, entity_decls=[variable_name]))
         subroutine=SubroutineGen(module,name="testsubroutine")
         module.add(subroutine)
-        subroutine.add(DeclGen(subroutine, datatype="integer", entity_decls=[variable_name]))
-        subroutine.add(DeclGen(subroutine, datatype="integer", entity_decls=[variable_name]))
+        subroutine.add(DeclGen(subroutine, datatype=datatype, entity_decls=[variable_name]))
+        subroutine.add(DeclGen(subroutine, datatype=datatype, entity_decls=[variable_name]))
+        generated_code=str(module.root)
+        assert generated_code.count(variable_name) == 2
+    def test_no_replication_types(self):
+        '''Check that the same array variable will only get declared once in
+           a module and a subroutine'''
+        variable_name = "arg_name"
+        datatype = "field_type"
+        module = ModuleGen(name="testmodule")
+        module.add(TypeDeclGen(module, datatype=datatype, entity_decls=[variable_name]))
+        module.add(TypeDeclGen(module, datatype=datatype, entity_decls=[variable_name]))
+        subroutine=SubroutineGen(module,name="testsubroutine")
+        module.add(subroutine)
+        subroutine.add(TypeDeclGen(subroutine, datatype=datatype, entity_decls=[variable_name]))
+        subroutine.add(TypeDeclGen(subroutine, datatype=datatype, entity_decls=[variable_name]))
         generated_code=str(module.root)
         assert generated_code.count(variable_name) == 2
 

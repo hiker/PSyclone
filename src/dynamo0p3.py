@@ -378,14 +378,14 @@ class DynInvoke(Invoke):
                             self._psy_proxy_unique_op_decs.append(
                                 tmp_name_proxy)
                     elif arg.type == "gh_field":
-                        if not arg.name in self._psy_unique_decs:
-                            if arg.vector_size > 1:
-                                tmp_name = arg.name+"("+str(arg.vector_size)+")"
-                                tmp_name_proxy = arg.name+"_proxy("+ \
-                                                 str(arg.vector_size)+")"
-                            else:
-                                tmp_name = arg.name
-                                tmp_name_proxy = arg.name+"_proxy"
+                        if arg.vector_size > 1:
+                            tmp_name = arg.name+"("+str(arg.vector_size)+")"
+                            tmp_name_proxy = arg.name+"_proxy("+ \
+                                             str(arg.vector_size)+")"
+                        else:
+                            tmp_name = arg.name
+                            tmp_name_proxy = arg.name+"_proxy"
+                        if not tmp_name in self._psy_unique_decs:
                             self._psy_unique_decs.append(tmp_name)
                             self._psy_proxy_unique_decs.append(tmp_name_proxy)
                             self._psy_field_info[arg.name] = arg
