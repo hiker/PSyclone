@@ -375,54 +375,57 @@ class DynInvoke(Invoke):
                 "Error, there are multiple kernels within this invoke with "
                 "kernel arguments declared as any_space. This is not yet "
                 "supported.")
-        # determine the number of qr arguments required and make sure
-        # the names are unique
+        # the baseclass works out the algorithms codes unique argument
+        # list and stores it in the self._alg_unique_args
+        # list. However, the base class currently ignores any qr
+        # arguments so we need to add them in.
         self._alg_unique_qr_args = []
-        self._psy_unique_qr_vars = []
-        self._qr_required = False
         for call in self.schedule.calls():
             if call.qr_required:
-                self._qr_required = True
                 if not call.qr_text in self._alg_unique_qr_args:
                     self._alg_unique_qr_args.append(call.qr_text)
+        self._alg_unique_args.extend(self._alg_unique_qr_args)
+        # we also need to work out the names to use for the qr
+        # arguments within the psy layer. These are stored in the
+        # _psy_unique_qr_vars list
+        self._psy_unique_qr_vars = []
+        for call in self.schedule.calls():
+            if call.qr_required:
                 if not call.qr_name in self._psy_unique_qr_vars:
                     self._psy_unique_qr_vars.append(call.qr_name)
-        self._alg_unique_args.extend(self._alg_unique_qr_args)
-        # this api supports vector fields so we need to declare and use them
-        # correctly in the psy layer.
-        self._psy_unique_decs = []
-        self._psy_unique_op_decs = []
-        self._psy_proxy_unique_decs = []
-        self._psy_proxy_unique_op_decs = []
-        self._psy_field_info = {}
-        self._proxy_name = {}
+
+    @property
+    def qr_required(self):
+        ''' Returns True if at least one of the kernels in this invoke
+        requires QR, otherwise returns False. '''
+        required = False
+        for call in self.schedule.calls():
+            if call.qr_required:
+                required = True
+                break
+        return required
+
+    def unique_declarations(self, datatype, proxy=False):
+        ''' Returns a list of all required declarations for the
+        specified datatype. If proxy is set to True then the
+        equivalent proxy declarations are returned instead. '''
+        if datatype not in VALID_ARG_TYPE_NAMES:
+            raise GenerationError(
+                "unique_declarations called with an invalid datatype. Expected "
+                "one of '{0}' but found '{1}'".format(\
+                    str(VALID_ARG_TYPE_NAMES), datatype))
+        declarations = []
         for call in self.schedule.calls():
             for arg in call.arguments.args:
                 if arg.text is not None:
-                    if arg.type == "gh_operator":
-                        if not arg.name in self._psy_unique_op_decs:
-                            self._psy_unique_op_decs.append(arg.name)
-                            self._psy_field_info[arg.name] = arg
-                            self._proxy_name[arg.name] = arg.name+"_proxy"
-                            tmp_name_proxy = arg.name+"_proxy"
-                            self._psy_proxy_unique_op_decs.append(
-                                tmp_name_proxy)
-                    elif arg.type == "gh_field":
-                        if arg.vector_size > 1:
-                            tmp_name = arg.name+"("+str(arg.vector_size)+")"
-                            tmp_name_proxy = arg.name+"_proxy("+ \
-                                             str(arg.vector_size)+")"
+                    if arg.type == datatype:
+                        if proxy:
+                            test_name = arg.proxy_declaration_name
                         else:
-                            tmp_name = arg.name
-                            tmp_name_proxy = arg.name+"_proxy"
-                        if not tmp_name in self._psy_unique_decs:
-                            self._psy_unique_decs.append(tmp_name)
-                            self._psy_proxy_unique_decs.append(tmp_name_proxy)
-                            self._psy_field_info[arg.name] = arg
-                            self._proxy_name[arg.name] = arg.name+"_proxy"
-                    else:
-                        raise GenerationError("Usupported arg type '{0}'"
-                                              " found ".format(arg.type))
+                            test_name = arg.declaration_name
+                        if not test_name in declarations:
+                            declarations.append(test_name)
+        return declarations
 
     def arg_for_funcspace(self, fs_name):
         ''' Returns an argument object which is on the requested
@@ -546,14 +549,16 @@ class DynInvoke(Invoke):
                                    args=self.psy_unique_var_names+
                                         self._psy_unique_qr_vars)
         # add the subroutine argument declarations fields
-        if len(self._psy_unique_decs) > 0:
+        field_declarations = self.unique_declarations("gh_field")
+        if len(field_declarations) > 0:
             invoke_sub.add(TypeDeclGen(invoke_sub, datatype="field_type",
-                                       entity_decls=self._psy_unique_decs,
+                                       entity_decls=field_declarations,
                                        intent="inout"))
         # operators
-        if len(self._psy_unique_op_decs) > 0:
+        operator_declarations = self.unique_declarations("gh_operator")
+        if len(operator_declarations) > 0:
             invoke_sub.add(TypeDeclGen(invoke_sub, datatype="operator_type",
-                                       entity_decls=self._psy_unique_op_decs,
+                                       entity_decls=operator_declarations,
                                        intent="inout"))
         # qr
         if len(self._psy_unique_qr_vars) > 0:
@@ -573,14 +578,17 @@ class DynInvoke(Invoke):
             else:
                 invoke_sub.add(AssignGen(invoke_sub, lhs=arg.proxy_name,
                                          rhs=arg.name+"%get_proxy()"))
-        if len(self._psy_proxy_unique_decs) > 0:
+        
+        field_proxy_decs = self.unique_declarations("gh_field", proxy=True)
+        if len(field_proxy_decs) > 0:
             invoke_sub.add(TypeDeclGen(invoke_sub,
                            datatype="field_proxy_type",
-                           entity_decls=self._psy_proxy_unique_decs))
-        if len(self._psy_proxy_unique_op_decs) > 0:
+                           entity_decls=field_proxy_decs))
+        op_proxy_decs = self.unique_declarations("gh_operator", proxy=True)
+        if len(op_proxy_decs) > 0:
             invoke_sub.add(TypeDeclGen(invoke_sub,
                            datatype="operator_proxy_type",
-                           entity_decls=self._psy_proxy_unique_op_decs))
+                           entity_decls=op_proxy_decs))
         # Initialise the number of layers
         invoke_sub.add(CommentGen(invoke_sub, ""))
         invoke_sub.add(CommentGen(invoke_sub, " Initialise number of layers"))
@@ -597,7 +605,7 @@ class DynInvoke(Invoke):
                            first_var.ref_name+"%get_nlayers()"))
         invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                entity_decls=[nlayers_name]))
-        if self._qr_required:
+        if self.qr_required:
             # declare and initialise qr values
             invoke_sub.add(CommentGen(invoke_sub, ""))
             invoke_sub.add(CommentGen(invoke_sub, " Initialise qr values"))
@@ -696,7 +704,7 @@ class DynInvoke(Invoke):
                                    allocatable=True,
                                    kind="r_def",
                                    entity_decls=operator_declarations))
-        if self._qr_required:
+        if self.qr_required:
             # add calls to compute the values of any basis arrays
             invoke_sub.add(CommentGen(invoke_sub, ""))
             invoke_sub.add(CommentGen(invoke_sub, " Compute basis arrays"))
@@ -739,7 +747,7 @@ class DynInvoke(Invoke):
         invoke_sub.add(CommentGen(invoke_sub, ""))
         # add content from the schedule
         self.schedule.gen_code(invoke_sub)
-        if self._qr_required:
+        if self.qr_required:
             # deallocate all allocated basis function arrays
             invoke_sub.add(CommentGen(invoke_sub, ""))
             invoke_sub.add(CommentGen(invoke_sub, " Deallocate basis arrays"))
@@ -864,8 +872,8 @@ class DynKern(Kern):
             # the context and label match and in this case return the
             # previous name
             self._qr_name = self._name_space_manager.create_name(
-                                root_name=self._qr_text, context="AlgArgs",
-                                label=qr_arg.varName)
+                                root_name=qr_arg.varName, context="AlgArgs",
+                                label=self._qr_text)
 
     @property
     def fs_descriptors(self):
@@ -1333,6 +1341,24 @@ class DynKernelArgument(Argument):
     def proxy_name(self):
         ''' Returns the proxy name for this argument. '''
         return self._name+"_proxy"
+
+    @property
+    def proxy_declaration_name(self):
+        ''' Returns the proxy name for this argument with the array
+        dimensions added if required. '''
+        if self._vector_size > 1:
+            return self.proxy_name+"("+str(self._vector_size)+")"
+        else:
+            return self.proxy_name
+
+    @property
+    def declaration_name(self):
+        ''' Returns the name for this argument with the array
+        dimensions added if required. '''
+        if self._vector_size > 1:
+            return self._name+"("+str(self._vector_size)+")"
+        else:
+            return self._name
 
     @property
     def proxy_name_indexed(self):
