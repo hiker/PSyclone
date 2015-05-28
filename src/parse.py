@@ -612,6 +612,11 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                     if len(kernel_path) > 0:
                         cdir = os.path.abspath(kernel_path)
 
+                        if not os.access(cdir, os.R_OK):
+                            raise IOError("Supplied kernel search path does not "
+                                          "exist or cannot be read: {0}".\
+                                          format(cdir))
+
                         # We recursively search down through the directory
                         # tree starting at the specified path
                         if os.path.exists(cdir):
@@ -632,12 +637,17 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                     # Check that we only found one match
                     if len(matches) != 1:
                         if len(matches) == 0:
-                            raise IOError("Kernel file '{0}.[fF]90' not found in {1}".format(modulename, cdir))
+                            raise IOError("Kernel file '{0}.[fF]90' not found in {1}".\
+                                          format(modulename, cdir))
                         else:
-                            raise IOError("More than one match for kernel file '{0}.[fF]90' found!".format(modulename))
+                            raise IOError("More than one match for kernel file "
+                                          "'{0}.[fF]90' found!".format(modulename))
                     else:
                         modast = fpapi.parse(matches[0])
 
-                    statement_kcalls.append(KernelCall(modulename, KernelTypeFactory(api=api).create(argname, modast),argargs))
+                    statement_kcalls.append(KernelCall(modulename, 
+                                                       KernelTypeFactory(api=api).\
+                                                       create(argname, modast),
+                                                       argargs))
             invokecalls[statement] = InvokeCall(statement_kcalls)
     return ast, FileInfo(container_name,invokecalls)
