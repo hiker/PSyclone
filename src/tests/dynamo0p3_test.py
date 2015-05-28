@@ -205,9 +205,10 @@ def test_orientation():
                              api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = psy.gen
+    print str(generated_code)
     assert str(generated_code).find("INTEGER, pointer :: orientation_w2(:)"
                                     " => null()") != -1
-    assert str(generated_code).find("orientation_w2 => f2_proxy%vspace%"
+    assert str(generated_code).find("orientation_w2 => f2_proxy%fs_from%"
                                     "get_cell_orientation(cell)") != -1
 
 def test_operator():

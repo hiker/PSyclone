@@ -956,10 +956,16 @@ class DynKern(Kern):
                 fs_descriptor = self._fs_descriptors.get_descriptor(unique_fs)
                 if fs_descriptor.orientation:
                     field = self._arguments.get_field(unique_fs)
+                    # print "ARPDBG, field type = ",field.type
+                    # TODO work out why field here has type gh_field
+                    # (since this prevents us using field.ref_name
+                    # in place of the explicit "fs_from"
+                    #+field.ref_name+
                     parent.add(AssignGen(parent, pointer=True,
                                lhs=fs_descriptor.orientation_name,
                                rhs=field.proxy_name_indexed+
-                                   "%vspace%get_cell_orientation(cell)"))
+                                   "%fs_from"
+                                   "%get_cell_orientation(cell)"))
         if self._fs_descriptors.orientation:
             orientation_decl_names = []
             for orientation_name in self._fs_descriptors.orientation_names:
