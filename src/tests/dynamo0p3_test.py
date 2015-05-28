@@ -208,7 +208,7 @@ def test_orientation():
     print str(generated_code)
     assert str(generated_code).find("INTEGER, pointer :: orientation_w2(:)"
                                     " => null()") != -1
-    assert str(generated_code).find("orientation_w2 => f2_proxy%fs_from%"
+    assert str(generated_code).find("orientation_w2 => f2_proxy%vspace%"
                                     "get_cell_orientation(cell)") != -1
 
 def test_operator():
@@ -251,6 +251,30 @@ def test_operator_nofield():
             " mm_w2_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data"
             ", chi_proxy(3)%data, ndf_w2, basis_w2, ndf_w0, undf_w0, map_w0, "
             "diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
+
+def test_operator_orientation():
+    ''' tests that an operator requiring orientation information is 
+        implemented correctly in the PSy layer '''
+    ast, invoke_info = parse(os.path.join(BASE_PATH, 
+                                          "10.2_operator_orient.f90"), \
+                                 api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    gen_str = str(psy.gen)
+    print gen_str
+    assert gen_str.find("SUBROUTINE invoke_0_testkern_operator"
+                        "_orient_type(mm_w1, chi, qr)") != -1
+    assert gen_str.find("TYPE(operator_type), intent(inout) ::"
+                        " mm_w1") != -1
+    assert gen_str.find("TYPE(operator_proxy_type) mm_w1_"
+                        "proxy") != -1
+    assert gen_str.find("mm_w1_proxy = mm_w1%get_proxy()") != -1
+    assert gen_str.find("orientation_w1 => mm_w1_proxy%fs_from%get_cell_orientation(cell)") != -1
+
+    assert gen_str.find(
+        "CALL testkern_operator_orient_code(cell, nlayers, mm_w1_proxy%ncell_3d, mm_"
+        "w1_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data, chi_pr"
+        "oxy(3)%data, ndf_w1, basis_w1, orientation_w1, ndf_w0, undf_w0, map_w0, diff_basis_w0, nqp_h"
+        ", nqp_v, wh, wv)") != -1
 
 def test_any_space_1():
     ''' tests that any_space is implemented correctly in the PSy
