@@ -201,7 +201,7 @@ class NameSpace(object):
                 self._context[context]={}
 
         # create our name
-        if not lname in self._reserved_names and not root_name in self._added_names:
+        if not lname in self._reserved_names and not lname in self._added_names:
             proposed_name = lname
         else:
             count = 1
@@ -229,9 +229,6 @@ class NameSpace(object):
             if lname in self._added_names:
                 raise RuntimeError("attempted to add a reserved name to a namespace that has already used that name")
             self._reserved_names.append(lname)
-            print "Added reserved name '{0}'".format(lname)
-        else:
-            print "Reserved name '{0}' has already been added. Ignoring"
 
     def add_reserved_names(self, names):
         ''' adds a list of reserved names '''
