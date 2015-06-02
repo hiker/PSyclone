@@ -36,11 +36,11 @@ class ExpressionNode(object):
 
         yield(self)
 
-    def walk2(self):
+    def walk_skipping_name(self):
         # Generator for depth-first walk of this expression, skipping the name part of the walk.
         for t in self.toks:
             if isinstance(t, ExpressionNode):
-                for index,i in enumerate(t.walk2()):
+                for index,i in enumerate(t.walk_skipping_name()):
                     if index>0:
                         yield(i)
         yield(self)

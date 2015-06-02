@@ -582,7 +582,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                         if a.args is not None:
                             # argument is an indexed array so extract the full text
                             fullText = ""
-                            for tok in a.walk2():
+                            for tok in a.walk_skipping_name():
                                 fullText+=str(tok)
                             argargs.append(Arg('indexed_variable',fullText,variableName))
                         else:
