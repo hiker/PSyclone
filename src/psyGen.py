@@ -194,12 +194,9 @@ class NameSpace(object):
                 context = context.lower()
             if context in self._context:
                 if label in self._context[context]:
-                    print "label '{0}' in context '{1}' exists. Returning value '{2}'".format(label,context,self._context[context][label])
+                    # context and label have already been supplied
                     return self._context[context][label]
-                else:
-                    print "context '{0}' has been used before but label '{1}' has not".format(context,label)
             else:
-                print "context '{0}' has not been used before".format(context)
                 # initialise the context so we can add the label value later
                 self._context[context]={}
 
@@ -216,14 +213,10 @@ class NameSpace(object):
 
         # store our name
         self._added_names.append(proposed_name)
-        print "Created name '{0}'".format(proposed_name)
         if context is not None and label is not None:
             self._context[context][label] = proposed_name
-            print "Added name '{0}' to context '{1}' and label '{2}'".format(proposed_name,context,label)
 
         return proposed_name
-
-
         
     def add_reserved_name(self, name):
         ''' adds a reserved name. create_name() will not return this name '''
