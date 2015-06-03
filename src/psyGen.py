@@ -235,68 +235,6 @@ class NameSpace(object):
         for name in names:
             self.add_reserved_name(name)
 
-class OldNameSpaceFactory(object):
-        # storage for the instance reference
-    _instance = None
-    def __init__(self, reset = False):
-        """ Create singleton instance """
-        # Check whether we already have an instance
-        if OldNameSpaceFactory._instance is None or reset:
-            # Create and remember instance
-            OldNameSpaceFactory._instance = OldNameSpace()
-    def create(self):
-        return OldNameSpaceFactory._instance
-
-class OldNameSpace(object):
-    ''' keeps a record of reserved names and used names for clashes and provides a
-        new name if there is a clash. '''
-    def __init__(self):
-        self._reserved_names = []
-        self._added_names = []
-        self._fullTextMap = {}
-    def add_reserved(self, names):
-        if len(self._added_names) > 0:
-            raise Exception("Error: OldNameSpace class: not coded for adding "
-                            "reserved names after used names")
-        for name in names:
-            lname = name.lower()
-            # silently ignore if this is already a reserved name
-            if not lname in self._reserved_names:
-                self._reserved_names.append(lname)
-    def add_name(self, name, fullText = None):
-        # We need to use the same name if fullText has been used before.
-        # If fullText has not been used but the name has been, then we
-        # need to use a new unique name.
-        lname = name.lower()
-        if fullText is not None:
-            lFullText = fullText.lower()
-            #print "OldNamespace: Trying to add name '"+lname+"' and fullText '"+lFullText+"'"
-            if lFullText in self._fullTextMap.keys():
-                #print "FullText already used, returning previous name '"+self._fullTextMap[lFullText]+"'"
-                return self._fullTextMap[lFullText]
-        else :
-            lFullText = lname
-        if lname not in self._reserved_names and lname not in self._added_names and \
-                                                 lname not in self._fullTextMap.keys():
-            self._added_names.append(lname)
-            #print "Name added"
-            self._fullTextMap[lFullText] = name
-            return name
-        else:
-            #print "Name is in use"
-            count = 1
-            proposed_lname = lname+"_"+str(count)
-            while proposed_lname in self._reserved_names or \
-                  proposed_lname in self._added_names or \
-                  proposed_lname in self._fullTextMap.keys():
-                count+=1
-                proposed_lname = lname+"_"+str(count)
-            proposed_name = name + "_" + str(count)
-            self._added_names.append(proposed_name)
-            #print "Using '{0}' in its place".format(proposed_name)
-            self._fullTextMap[lFullText] = proposed_name
-            return proposed_name
-
 class Invoke(object):
 
     def __str__(self):
@@ -341,7 +279,6 @@ class Invoke(object):
         tmp_arg_names = []
         for call in self.schedule.calls():
             for arg in call.arguments.args:
-                #print "arg text "+arg.text+" name "+arg.name
                 if arg.text is not None:
                     if not arg.text in self._alg_unique_args:
                         self._alg_unique_args.append(arg.text)
@@ -377,15 +314,6 @@ class Invoke(object):
         for var in self._psy_unique_vars:
             names.append(var.name)
         return names
-    #@property
-    #def unique_args(self):
-    #    return self._unique_args
-    #@property
-    #def orig_unique_args(self):
-    #    return self._orig_unique_args
-    #@property
-    #def orig_unique_args_full(self):
-    #    return self._orig_unique_args_full
     @property
     def schedule(self):
         return self._schedule
@@ -732,7 +660,6 @@ class Loop(Node):
 
         self._valid_loop_types = valid_loop_types
         self._loop_type = None       # inner, outer, colour, colours, ...
-        # TODO Perhaps store a field, so we can get field.name as well as field.space?????
         self._field = None
         self._field_name = None      # name of the field
         self._field_space = None     # v0, v1, ...,     cu, cv, ...
