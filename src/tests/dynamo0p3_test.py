@@ -10,15 +10,50 @@
 
 # imports
 import pytest
-from parse import parse
+from parse import parse, ParseError
 from psyGen import PSyFactory, GenerationError
 import os
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), \
                              "test_files", "dynamo0p3")
+CODE = '''
+module testkern_qr
+  type, extends(kernel_type) :: testkern_qr_type
+     type(arg_type), meta_args(4) =    &
+          (/ arg_type(gh_field,gh_write,w1), &
+             arg_type(gh_field,gh_read, w2), &
+             arg_type(gh_field,gh_read, w2), &
+             arg_type(gh_field,gh_read, w3)  &
+           /)
+     type(func_type), dimension(3) :: meta_funcs =    &
+          (/ func_type(w1, gh_basis), &
+             func_type(w2, gh_diff_basis), &
+             func_type(w3, gh_basis, gh_diff_basis)  &
+           /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => testkern_qr_code
+  end type testkern_qr_type
+contains
+  subroutine testkern_qr_code(a,b,c,d)
+  end subroutine testkern_qr_code
+end module testkern_qr
+'''
 
 # functions
+def test_function_space_descriptor_wrong_type():
+    ''' Tests that an error is raised when the function space descriptor metadata is not of type func_type '''
+    import fparser
+    from fparser import api as fpapi
+    from dynamo0p3 import DynKernelType03, DynFuncDescriptor03
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("func_type(w1","funked_up_type(w1",1)
+    ast = fpapi.parse(code, ignore_comments = False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError):
+        kernel_metadata = DynKernelType03(name,ast)
+
 def test_field():
     ''' Tests that a call with a set of fields and no basis
     functions produces correct code. '''

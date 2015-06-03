@@ -341,7 +341,7 @@ class KernelType(object):
                and statement.name == name:
                 ktype = statement
         if ktype is None:
-            raise RuntimeError("Kernel type %s not implemented" % name)
+            raise RuntimeError("Kernel type %s does not exist" % name)
         return ktype
 
 class DynKernelType(KernelType):
