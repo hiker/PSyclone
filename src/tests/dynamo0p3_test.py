@@ -13,6 +13,9 @@ import pytest
 from parse import parse, ParseError
 from psyGen import PSyFactory, GenerationError
 import os
+import fparser
+from fparser import api as fpapi
+from dynamo0p3 import DynKernelType03, DynFuncDescriptor03
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), \
@@ -23,7 +26,7 @@ module testkern_qr
      type(arg_type), meta_args(4) =    &
           (/ arg_type(gh_field,gh_write,w1), &
              arg_type(gh_field,gh_read, w2), &
-             arg_type(gh_field,gh_read, w2), &
+             arg_type(gh_operator,gh_read, w2, w2), &
              arg_type(gh_field,gh_read, w3)  &
            /)
      type(func_type), dimension(3) :: meta_funcs =    &
@@ -42,13 +45,193 @@ end module testkern_qr
 '''
 
 # functions
-def test_function_space_descriptor_wrong_type():
-    ''' Tests that an error is raised when the function space descriptor metadata is not of type func_type '''
-    import fparser
-    from fparser import api as fpapi
-    from dynamo0p3 import DynKernelType03, DynFuncDescriptor03
+def test_arg_descriptor_wrong_type():
+    ''' Tests that an error is raised when the argument descriptor
+    metadata is not of type arg_type. '''
     fparser.logging.disable('CRITICAL')
-    code = CODE.replace("func_type(w1","funked_up_type(w1",1)
+    code = CODE.replace("arg_type(gh_field,gh_read, w2)","arg_typ(gh_field,gh_read, w2)",1)
+    ast = fpapi.parse(code, ignore_comments = False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError):
+        kernel_metadata = DynKernelType03(name,ast)
+
+# valid num arguments field
+def test_arg_descriptor_field_type_too_few_args():
+    ''' Tests that an error is raised when the argument descriptor
+    metadata has fewer than 3 args. '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_field,gh_write,w1)","arg_typ(gh_field,gh_write)",1)
+    ast = fpapi.parse(code, ignore_comments = False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError):
+        kernel_metadata = DynKernelType03(name,ast)
+
+def test_arg_descriptor_field_type_too_many_args():
+    ''' Tests that an error is raised when the argument descriptor
+    metadata has more than 3 args. '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_field,gh_write,w1)","arg_typ(gh_field,gh_write,w1,w1)",1)
+    ast = fpapi.parse(code, ignore_comments = False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError):
+        kernel_metadata = DynKernelType03(name,ast)
+
+def test_arg_descriptor_operator_type_too_few_args():
+    ''' Tests that an error is raised when the operator descriptor
+    metadata has fewer than 4 args. '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)","arg_type(gh_operator, w2, w2)",1)
+    ast = fpapi.parse(code, ignore_comments = False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError):
+        kernel_metadata = DynKernelType03(name,ast)
+
+def test_arg_descriptor_operator_type_too_many_args():
+    ''' Tests that an error is raised when the operator descriptor
+    metadata has more than 4 args. '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_field,gh_write,w1)","arg_typ(gh_field,gh_write,w1,w1,gh_field)",1)
+    ast = fpapi.parse(code, ignore_comments = False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError):
+        kernel_metadata = DynKernelType03(name,ast)
+
+def test_arg_descriptor_invalid_type():
+    ''' Tests that an error is raised when an invalid descriptor type
+    name is provided as the first argument. '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("gh_operator","gh_operato",1)
+    ast = fpapi.parse(code, ignore_comments = False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError):
+        kernel_metadata = DynKernelType03(name,ast)
+
+def test_arg_descriptor_invalid_access_type():
+    ''' Tests that an error is raised when an invalid access
+    name is provided as the second argument. '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("gh_read","gh_ead",1)
+    ast = fpapi.parse(code, ignore_comments = False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError):
+        kernel_metadata = DynKernelType03(name,ast)
+
+def test_arg_descriptor_invalid_fs1():
+    ''' Tests that an error is raised when an invalid function space
+    name is provided as the third argument. '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("gh_field,gh_read, w3","gh_field,gh_read, w4",1)
+    ast = fpapi.parse(code, ignore_comments = False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError):
+        kernel_metadata = DynKernelType03(name,ast)
+
+def test_arg_descriptor_invalid_fs2():
+    ''' Tests that an error is raised when an invalid function space
+    name is provided as the third argument. '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("w2, w2","w2, w4",1)
+    ast = fpapi.parse(code, ignore_comments = False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError):
+        kernel_metadata = DynKernelType03(name,ast)
+
+def test_invalid_vector_operator():
+    ''' Tests that an error is raised when a vector does not use "*"
+    as it's operator. '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("gh_field,gh_write,w1","gh_field+3,gh_write,w1",1)
+    ast = fpapi.parse(code, ignore_comments = False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError):
+        kernel_metadata = DynKernelType03(name,ast)
+
+def test_invalid_vector_value_type():
+    ''' Tests that an error is raised when a vector value is not a valid integer '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("gh_field,gh_write,w1","gh_field*n,gh_write,w1",1)
+    ast = fpapi.parse(code, ignore_comments = False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError):
+        kernel_metadata = DynKernelType03(name,ast)
+
+def test_invalid_vector_value_range():
+    ''' Tests that an error is raised when a vector value is not a valid value (<2) '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("gh_field,gh_write,w1","gh_field*1,gh_write,w1",1)
+    ast = fpapi.parse(code, ignore_comments = False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError):
+        kernel_metadata = DynKernelType03(name,ast)
+
+# Testing that an error is raised when a vector value is not provided is
+# not required here as it causes a parse error in the generic code.
+
+def test_function_space_descriptor_wrong_type():
+    ''' Tests that an error is raised when the function space descriptor
+    metadata is not of type func_type. '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("func_type(w2","funced_up_type(w2",1)
+    ast = fpapi.parse(code, ignore_comments = False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError):
+        kernel_metadata = DynKernelType03(name,ast)
+
+def test_function_space_descriptor_too_few_args():
+    ''' Tests that an error is raised when there are two few arguments in
+    the function space descriptor metadata (must be at least 2). '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("w1, gh_basis","w1",1)
+    ast = fpapi.parse(code, ignore_comments = False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError):
+        kernel_metadata = DynKernelType03(name,ast)
+
+def test_function_space_descriptor_invalid_fs_type():
+    ''' Tests that an error is raised when an invalid function space name
+    is provided as the first argument. '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("w3, gh_basis","w4, gh_basis",1)
+    ast = fpapi.parse(code, ignore_comments = False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError):
+        kernel_metadata = DynKernelType03(name,ast)
+
+def test_function_space_descriptor_replicated_fs_type():
+    ''' Tests that an error is raised when a function space name
+    is replicated. '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("w3, gh_basis","w1, gh_basis",1)
+    ast = fpapi.parse(code, ignore_comments = False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError):
+        kernel_metadata = DynKernelType03(name,ast)
+
+def test_function_space_descriptor_invalid_op_type():
+    ''' Tests that an error is raised when an invalid function space
+    operator name is provided as an argument. '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("w2, gh_diff_basis","w2, gh_dif_basis",1)
+    ast = fpapi.parse(code, ignore_comments = False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError):
+        kernel_metadata = DynKernelType03(name,ast)
+
+def test_function_space_descriptor_replicated_op_type():
+    ''' Tests that an error is raised when a function space
+    operator name is replicated as an. '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("w3, gh_basis, gh_diff_basis","w3, gh_basis, gh_basis",1)
+    ast = fpapi.parse(code, ignore_comments = False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError):
+        kernel_metadata = DynKernelType03(name,ast)
+
+def test_function_space_descriptor_fs_type_not_in_arg_type():
+    ''' Tests that an error is raised when a function space
+    operator name is replicated as an. '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("w3, gh_basis","w0, gh_basis",1)
     ast = fpapi.parse(code, ignore_comments = False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):

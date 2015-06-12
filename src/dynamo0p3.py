@@ -120,7 +120,10 @@ class DynArgDescriptor03(Descriptor):
             # we expect 'field_type * n' to have been specified
             self._type = arg_type.args[0].toks[0].name
             operator = arg_type.args[0].toks[1]
-            self._vector_size = int(arg_type.args[0].toks[2])
+            try:
+                self._vector_size = int(arg_type.args[0].toks[2])
+            except TypeError:
+                raise ParseError("You need to provide an integer when you use vector notation for a field (field*n). Found '{0}'.".format(str(arg_type.args[0].toks[2])))
             if not self._type in VALID_ARG_TYPE_NAMES:
                 raise ParseError(
                     "Each meta_arg 1st argument must be one of {0} for the "
@@ -131,9 +134,9 @@ class DynArgDescriptor03(Descriptor):
                     "Each meta_arg 1st argument must use '*' if it is to be a "
                     "vector for the dynamo0.3 api, but found '{0}'".format(\
                         operator))
-            if not self._vector_size > 0:
+            if not self._vector_size > 1:
                 raise ParseError(
-                    "Each meta_arg 1st argument must use a positive integer "
+                    "Each meta_arg 1st argument must be an integer >1 "
                     "if it is to be a vector for the dynamo0.3 api, but found "
                     "'{0}'".format(self._vector_size))
 
@@ -280,9 +283,21 @@ class DynKernelType03(KernelType):
         self._func_descriptors = []
         # populate a list of function descriptor objects which we
         # return via the func_descriptors method.
+        arg_fs_names = []
+        for descriptor in self._arg_descriptors:
+            arg_fs_names.append(descriptor.function_space_name1)
+        used_fs_names = []
         for func_type in func_types:
-            self._func_descriptors.append(DynFuncDescriptor03(func_type))
-
+            descriptor = DynFuncDescriptor03(func_type)
+            fs_name = descriptor.function_space_name
+            # check that function space names in meta_funcs are specified in meata_args
+            if fs_name not in arg_fs_names:
+                raise ParseError("Function spaces specified in meta_funcs must exist in meta_args in the dynamo0.3 api, but '{0}' breaks this rule in ...\n'{1}'.".format(fs_name,self._ktype.content))
+            if fs_name not in used_fs_names:
+                used_fs_names.append(fs_name)
+            else:
+                raise ParseError("Function spaces in meta_funcs must be unique in the dynamo0.3 api, but '{0}' is replicated in ...\n'{1}'.".format(fs_name,self._ktype.content))
+            self._func_descriptors.append(descriptor)
     @property
     def func_descriptors(self):
         ''' Returns metadata about the function spaces within a
