@@ -527,8 +527,8 @@ class DynInvoke(Invoke):
 
     def diff_basis_required(self, func_space):
         ''' Returns true if at least one of the kernels in this invoke
-        requires a basis function for this function space, otherwise
-        it returns False. '''
+        requires a differential basis function for this function
+        space, otherwise it returns False.'''
         # look in each kernel
         for kern_call in self.schedule.kern_calls():
             # is there a descriptor for this function space?
