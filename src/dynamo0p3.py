@@ -45,32 +45,34 @@ class DynFuncDescriptor03(object):
         self._func_type = func_type
         if func_type.name != 'func_type':
             raise ParseError(
-                "Each meta_func value must be of type 'func_type' for the "
-                "dynamo0.3 api, but found '{0}'".format(func_type.name))
+                "In the dynamo0.3 API each meta_func entry must be of type 'func_type', "
+                "but found '{0}'".format(func_type.name))
         if len(func_type.args) < 2:
             raise ParseError(
-                "Each meta_func value must have at least 2 args for the "
-                "dynamo0.3 api, but found '{0}'".format(len(func_type.args)))
+                "In the dynamo0.3 API each meta_func entry must have at least 2 args, "
+                "but found '{0}'".format(len(func_type.args)))
         self._operator_names = []
         for idx, arg in enumerate(func_type.args):
             if idx == 0: # first func_type arg
                 if arg.name not in VALID_FUNCTION_SPACE_NAMES:
                     raise ParseError(
-                        "Each meta_func 1st argument must be one of {0} for "
-                        "the dynamo0.3 api, but found '{1}' in '{2}".format(\
+                        "In the dynamo0p3 API the 1st argument of a meta_func entry"
+                        " should be a valid function space name (one of {0}), but "
+                        "found '{1}' in '{2}'".format(\
                             VALID_FUNCTION_SPACE_NAMES, arg.name, func_type))
                 self._function_space_name = arg.name
             else: # subsequent func_type args
                 if arg.name not in VALID_OPERATOR_NAMES:
                     raise ParseError(
-                        "Each meta_func 2nd argument onwards must be one of "
-                        "{0} for the dynamo0.3 api, but found '{1}' in '{2}"\
+                        "In the dynamo0.3 API, the 2nd argument and all subsequent "
+                        "arguments of a meta_func entry should be a valid operator "
+                        "name (one of {0}), but found '{1}' in '{2}"\
                             .format(VALID_OPERATOR_NAMES, arg.name, func_type))
                 if arg.name in self._operator_names:
                     raise ParseError(
-                        "Each meta_func 2nd argument onwards must be unique "
-                        "for the dynamo0.3 api, but found '{0}' specified "
-                        "more than once in '{1}".format(arg.name, func_type))
+                        "In the dynamo0.3 API, it is an error to specify an operator "
+                        "name more than once in a meta_func entry, but '{0}' is "
+                        "replicated in '{1}".format(arg.name, func_type))
                 self._operator_names.append(arg.name)
         self._name = func_type.name
 
@@ -107,13 +109,13 @@ class DynArgDescriptor03(Descriptor):
         self._arg_type = arg_type
         if arg_type.name != 'arg_type':
             raise ParseError(
-                "Each meta_arg value must be of type 'arg_type' for the "
-                "dynamo0.3 api, but found '{0}'".format(arg_type.name))
+                "In the dynamo0.3 API aach meta_arg entry must be of type 'arg_type', "
+                "but found '{0}'".format(arg_type.name))
         # we require at least 3 args
         if len(arg_type.args) < 3:
             raise ParseError(
-                "Each meta_arg value must have at least 3 arguments for the "
-                "dynamo0.3 api")
+                "In the dynamo0.3 API each meta_arg entry must have at least 3 args, "
+                "but found '{0}'".format(len(arg_type.args)))
         # the first arg is the type of field, possibly with a *n appended
         self._vector_size = 1
         if isinstance(arg_type.args[0], expr.BinaryOperator):
@@ -123,30 +125,37 @@ class DynArgDescriptor03(Descriptor):
             try:
                 self._vector_size = int(arg_type.args[0].toks[2])
             except TypeError:
-                raise ParseError("You need to provide an integer when you use vector notation for a field (field*n). Found '{0}'.".format(str(arg_type.args[0].toks[2])))
+                raise ParseError("In the dynamo0.3 API vector notation expects the "
+                    "format (field*n) where n is an integer, but the following was "
+                    "found '{0}' in '{1}'.".format(str(arg_type.args[0].toks[2]), 
+                                                   arg_type))
             if not self._type in VALID_ARG_TYPE_NAMES:
                 raise ParseError(
-                    "Each meta_arg 1st argument must be one of {0} for the "
-                    "dynamo0.3 api, but found '{1}'".format(\
-                        VALID_ARG_TYPE_NAMES, self._type))
+                    "In the dynamo0.3 API the 1st argument of a meta_arg entry "
+                    "should be a valid argument type (one of {0}), but found "
+                    "'{1}' in '{2}'".format(\
+                        VALID_ARG_TYPE_NAMES, self._type, arg_type))
             if not operator == "*":
                 raise ParseError(
-                    "Each meta_arg 1st argument must use '*' if it is to be a "
-                    "vector for the dynamo0.3 api, but found '{0}'".format(\
-                        operator))
+                    "In the dynamo0.3 API the 1st argument of a meta_arg entry may "
+                    "be a vector but if so must use '*' as the separator in the "
+                    "format (field*n), but found '{0}' in '{1}'".format(operator, 
+                                                                        arg_type))
             if not self._vector_size > 1:
                 raise ParseError(
-                    "Each meta_arg 1st argument must be an integer >1 "
-                    "if it is to be a vector for the dynamo0.3 api, but found "
-                    "'{0}'".format(self._vector_size))
+                    "In the dynamo0.3 API the 1st argument of a meta_arg entry may "
+                    "be a vector but if so must contain a valid integer vector size "
+                    "in the format (field*n where n>1), but found '{0}' in '{1}'".\
+                    format(self._vector_size, arg_type))
 
         elif isinstance(arg_type.args[0], expr.FunctionVar):
             # we expect 'field_type' to have been specified
             if arg_type.args[0].name not in VALID_ARG_TYPE_NAMES:
                 raise ParseError(
-                    "Each meta_arg 1st argument must be one of {0} for the "
-                    "dynamo0.3 api, but found '{1}'".format(\
-                        VALID_ARG_TYPE_NAMES, arg_type.args[0].name))
+                    "In the dynamo0.3 API Each the 1st argument of a meta_arg entry "
+                    "should be a valid argument type (one of {0}), but found "
+                    "'{1}' in '{2}'".format(VALID_ARG_TYPE_NAMES, 
+                                            arg_type.args[0].name, arg_type))
             self._type = arg_type.args[0].name
         else:
             raise ParseError(
@@ -155,44 +164,47 @@ class DynArgDescriptor03(Descriptor):
         # The 2nd arg is an access descriptor
         if arg_type.args[1].name not in VALID_ACCESS_DESCRIPTOR_NAMES:
             raise ParseError(
-                "Each meta_arg 2nd argument must be one of {0} for the "
-                "dynamo0.3 api, but found '{1}'".format(\
-                    VALID_ACCESS_DESCRIPTOR_NAMES, arg_type.args[1].name))
+                "In the dynamo0.3 API the 2nd argument of a meta_arg entry must be "
+                "a valid access descriptor (one of {0}), but found '{1}' in "
+                "'{2}'".format(VALID_ACCESS_DESCRIPTOR_NAMES, arg_type.args[1].name,
+                               arg_type))
         self._access_descriptor = arg_type.args[1]
         if self._type == "gh_field":
             # we expect 3 arguments in total with the 3rd being a
             # function space
             if len(arg_type.args) != 3:
                 raise ParseError(
-                    "Each meta_arg value must have 3 arguments for the "
-                    "dynamo0.3 api if its first argument is gh_field")
+                    "In the dynamo0.3 API each meta_arg entry must have 3 arguments "
+                    "if its first argument is gh_field, but found {0} in '{1}'").\
+                    format(len(arg_type.args), arg_type)
             if arg_type.args[2].name not in VALID_FUNCTION_SPACE_NAMES:
                 raise ParseError(
-                    "Each meta_arg 3rd argument must be one of {0} for the "
-                    "dynamo0.3 api, but found '{1}' in '{2}".format(\
-                        VALID_FUNCTION_SPACE_NAMES, arg_type.args[2].name,\
-                            arg_type))
+                    "In the dynamo0.3 API the 3rd argument of a meta_arg entry must "
+                    "be a valid function space name (one of {0}), but found '{1}' "
+                    "in '{2}".format(VALID_FUNCTION_SPACE_NAMES, arg_type.args[2].name,\
+                                     arg_type))
             self._function_space1 = arg_type.args[2].name
         elif self._type == "gh_operator":
             # we expect 4 arguments with the 3rd and 4th each being a
             # function space
             if len(arg_type.args) != 4:
                 raise ParseError(
-                    "Each meta_arg value must have 4 arguments for the "
-                    "dynamo0.3 api if its first argument is gh_operator")
+                    "In the dynamo0.3 API each meta_arg entry must have 4 arguments "
+                    "if its first argument is gh_operator, but found {0} in '{1}'").\
+                    format(len(arg_type.args), arg_type)
             if arg_type.args[2].name not in VALID_FUNCTION_SPACE_NAMES:
                 raise ParseError(
-                    "Each meta_arg 3rd argument must be one of {0} in the "
-                    "dynamo0.3 api, but found '{1}' in '{2}".format(\
-                        VALID_FUNCTION_SPACE_NAMES, arg_type.args[2].name,\
-                            arg_type))
+                    "In the dynamo0.3 API the 3rd argument of a meta_arg entry must "
+                    "be a valid function space name (one of {0}), but found '{1}' "
+                    "in '{2}".format(VALID_FUNCTION_SPACE_NAMES, arg_type.args[2].name,\
+                                     arg_type))
             self._function_space1 = arg_type.args[2].name
             if arg_type.args[3].name not in VALID_FUNCTION_SPACE_NAMES:
                 raise ParseError(
-                    "Each meta_arg 4th argument must be one of {0} in the "
-                    "dynamo0.3 api, but found '{1}' in '{2}".format(\
-                        VALID_FUNCTION_SPACE_NAMES, arg_type.args[2].name,\
-                            arg_type))
+                    "In the dynamo0.3 API the 4th argument of a meta_arg entry must "
+                    "be a valid function space name (one of {0}), but found '{1}' "
+                    "in '{2}".format(VALID_FUNCTION_SPACE_NAMES, arg_type.args[2].name,\
+                                     arg_type))
             self._function_space2 = arg_type.args[3].name
         else: # we should never get to here
             raise ParseError(
@@ -292,11 +304,15 @@ class DynKernelType03(KernelType):
             fs_name = descriptor.function_space_name
             # check that function space names in meta_funcs are specified in meata_args
             if fs_name not in arg_fs_names:
-                raise ParseError("Function spaces specified in meta_funcs must exist in meta_args in the dynamo0.3 api, but '{0}' breaks this rule in ...\n'{1}'.".format(fs_name,self._ktype.content))
+                raise ParseError("In the dynamo0.3 API all function spaces specified "
+                      "in meta_funcs must exist in meta_args, but '{0}' breaks this "
+                      "rule in ...\n'{1}'.".format(fs_name,self._ktype.content))
             if fs_name not in used_fs_names:
                 used_fs_names.append(fs_name)
             else:
-                raise ParseError("Function spaces in meta_funcs must be unique in the dynamo0.3 api, but '{0}' is replicated in ...\n'{1}'.".format(fs_name,self._ktype.content))
+                raise ParseError("In the dynamo0.3 API function spaces specified "
+                      "in meta_funcs must be unique, but '{0}' is replicated in "
+                      "...\n'{1}'.".format(fs_name,self._ktype.content))
             self._func_descriptors.append(descriptor)
     @property
     def func_descriptors(self):
