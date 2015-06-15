@@ -214,11 +214,38 @@ class DynArgDescriptor03(Descriptor):
                             self._function_space1, None)
 
     @property
-    def function_space_name1(self):
-        ''' Returns the first function space name. For a field there
-        is only one function space, for an operator there are two,
-        with the first being the source function space. '''
-        return self._function_space1
+    def function_space_to(self):
+        ''' Return the "to" function space for a gh_operator. This is
+        the first function space specified in the metadata. Raise an
+        error if this is not an operator. '''
+        if self._type == "gh_operator":
+            return self._function_space1
+        else:
+            raise RuntimeError("function_space_to only makes sense for a "
+                  "gh_operator, but this is a '{0}'".format(self._type))
+    @property
+    def function_space_from(self):
+        ''' Return the "from" function space for a gh_operator. This is
+        the second function space specified in the metadata. Raise an
+        error if this is not an operator. '''
+        if self._type == "gh_operator":
+            return self._function_space2
+        else:
+            raise RuntimeError("function_space_from only makes sense for a "
+                  "gh_operator, but this is a '{0}'".format(self._type))
+
+    @property
+    def function_space(self):
+        ''' Return the function space name that this instance operates
+        on. In the case of a gh_operator, where there are 2 function
+        spaces, return function_space_from. '''
+        if self._type == "gh_field":
+            return self._function_space1
+        elif self._type == "gh_operator":
+            return self._function_space2
+        else:
+            raise RuntimeError("Internal error, DynArgDescriptor03:"
+                  "function_space(), should not get to here.")
 
     @property
     def is_any_space(self):
@@ -227,7 +254,7 @@ class DynArgDescriptor03(Descriptor):
         any_space_2, ... any_space_9, otherwise returns False. For
         operators, returns True if the source descriptor is of type
         any_space, else returns False. '''
-        if self.function_space_name1 in VALID_ANY_SPACE_NAMES:
+        if self.function_space in VALID_ANY_SPACE_NAMES:
             return True
         else:
             return False
@@ -255,9 +282,9 @@ class DynArgDescriptor03(Descriptor):
             res += "  function_space[2]='{0}'".format(self._function_space1) \
                    + os.linesep
         elif self._type == "gh_operator":
-            res += "  function_space_out[2]='{0}'".\
+            res += "  function_space_to[2]='{0}'".\
                    format(self._function_space1) + os.linesep
-            res += "  function_space_in[3]='{0}'".\
+            res += "  function_space_from[3]='{0}'".\
                    format(self._function_space2) + os.linesep
         else: # we should never get to here
             raise ParseError("Internal error in DynArgDescriptor03.__str__")
@@ -297,7 +324,7 @@ class DynKernelType03(KernelType):
         # return via the func_descriptors method.
         arg_fs_names = []
         for descriptor in self._arg_descriptors:
-            arg_fs_names.append(descriptor.function_space_name1)
+            arg_fs_names.append(descriptor.function_space)
         used_fs_names = []
         for func_type in func_types:
             descriptor = DynFuncDescriptor03(func_type)
