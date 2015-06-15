@@ -1287,15 +1287,15 @@ class FSDescriptors(object):
 
     def exists(self, fs_name):
         ''' Return True if a descriptor with the specified function
-        name exists, otherwise return False. '''
+        space name exists, otherwise return False. '''
         for descriptor in self._descriptors:
             if descriptor.fs_name == fs_name:
                 return True
         return False
 
     def get_descriptor(self, fs_name):
-        ''' Return the descriptor with the specified function name. If
-        it does not exist raise an error. '''
+        ''' Return the descriptor with the specified function space
+        name. If it does not exist raise an error.'''
         for descriptor in self._descriptors:
             if descriptor.fs_name == fs_name:
                 return descriptor
