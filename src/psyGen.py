@@ -317,7 +317,9 @@ class Invoke(object):
     @property
     def schedule(self):
         return self._schedule
-
+    @schedule.setter
+    def schedule(self, obj):
+        self._schedule = obj
     def gen(self):
         from f2pygen import ModuleGen
         module = ModuleGen("container")
