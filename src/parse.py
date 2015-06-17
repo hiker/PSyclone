@@ -237,7 +237,9 @@ class KernelTypeFactory(object):
             from config import SUPPORTEDAPIS as supportedTypes
             self._type=api
             if self._type not in supportedTypes:
-                raise ParseError("KernelTypeFactory: Unsupported API '{0}' specified. Supported types are {1}.".format(self._type, supportedTypes))
+                raise ParseError("KernelTypeFactory: Unsupported API '{0}' "
+                                 "specified. Supported types are {1}.".\
+                                 format(self._type, supportedTypes))
 
     def create(self,name,ast):
         if self._type=="gunghoproto":
@@ -247,10 +249,15 @@ class KernelTypeFactory(object):
         elif self._type=="dynamo0.3":
             from dynamo0p3 import DynKernelType03
             return DynKernelType03(name,ast)
-        elif self._type=="gocean":
+        elif self._type=="gocean0.1":
             return GOKernelType(name,ast)
+        elif self._type=="gocean1.0":
+            from gocean1p0 import GOKernelType1p0
+            return GOKernelType1p0(name,ast)
         else:
-            raise ParseError("KernelTypeFactory: Internal Error: Unsupported kernel type '{0}' found. Should not be possible.".format(self._myType))
+            raise ParseError("KernelTypeFactory: Internal Error: Unsupported "
+                             "kernel type '{0}' found. Should not be possible.".\
+                             format(self._myType))
 
 class KernelType(object):
     """ Kernel Metadata baseclass
@@ -263,10 +270,7 @@ class KernelType(object):
         self._ast = ast
         self.checkMetadataPublic(name,ast)
         self._ktype=self.getKernelMetadata(name,ast)
-        #print self._ktype
         self._iterates_over = self._ktype.get_variable('iterates_over').init
-        #print  self._ktype.get_variable('iterates_over')
-        #print self._iterates_over
         self._procedure = KernelProcedure(self._ktype, name, ast)
         self._inits=self.getkerneldescriptors(self._ktype)
         self._arg_descriptors=None # this is set up by the subclasses
@@ -372,7 +376,8 @@ class GOKernelType(KernelType):
             if len(init.args) != 3:
                 raise ParseError("'arg' type expects 3 arguments but found '{}' in '{}'".format(str(len(init.args)), init.args))
             self._arg_descriptors.append(GODescriptor(access,funcspace,stencil))
-        
+
+
 class GHProtoKernelType(KernelType):
 
     def __init__(self, name, ast):
@@ -458,6 +463,8 @@ class Arg(object):
         self._varName=varName
         if form not in formOptions:
             raise ParseError("Unknown arg type provided. Expected one of {0} but found {1}".format(str(formOptions),form))
+    def __str__(self):
+        return "Arg(form='{0}',text='{1}',varName='{2}'".format(self._form, self._text, str(self._varName))
     @property
     def form(self):
         return self._form
@@ -526,6 +533,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
         if api not in SUPPORTEDAPIS:
             raise ParseError("parse: Unsupported API '{0}' specified. Supported types are {1}.".format(api, SUPPORTEDAPIS))
 
+    from pyparsing import ParseException
 
     # drop cache
     fparser.parsefortran.FortranParser.cache.clear()
@@ -571,7 +579,11 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
            and statement.designator == invoke_name:
             statement_kcalls = []
             for arg in statement.items:
-                parsed = expr.expression.parseString(arg)[0]
+                try:
+                    parsed = expr.expression.parseString(arg)[0]
+                except ParseException:
+                    raise ParseError("Failed to parse string: {0}".format(arg))
+
                 argname = parsed.name
                 argargs=[]
                 for a in parsed.args:

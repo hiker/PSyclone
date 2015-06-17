@@ -46,12 +46,15 @@ class PSyFactory(object):
         elif self._type == "dynamo0.1":
             from dynamo0p1 import DynamoPSy
             return DynamoPSy(invoke_info)
-        elif self._type == "gocean":
-            from gocean0p1 import GOPSy
-            return GOPSy(invoke_info)
         elif self._type == "dynamo0.3":
             from dynamo0p3 import DynamoPSy
             return DynamoPSy(invoke_info)
+        elif self._type == "gocean0.1":
+            from gocean0p1 import GOPSy
+            return GOPSy(invoke_info)
+        elif self._type == "gocean1.0":
+            from gocean1p0 import GOPSy
+            return GOPSy(invoke_info)
         else:
             raise GenerationError("PSyFactory: Internal Error: Unsupported "
                                   "api type '{0}' found. Should not be "
@@ -928,7 +931,7 @@ class Kern(Call):
                       KernelArguments(call, self))
         self._iterates_over = call.ktype.iterates_over
         if check and len(call.ktype.arg_descriptors) != len(call.args):
-            raise GenerationError("error: In kernel '{0}' the number of arguments specified in the kernel metadata '{1}', must equal the number of arguments in the algorithm layer. However, I found '{2}'".format(alg_call.ktype.procedure.name, len(alg_call.ktype.arg_descriptors), len(call.args)))
+            raise GenerationError("error: In kernel '{0}' the number of arguments specified in the kernel metadata '{1}', must equal the number of arguments in the algorithm layer. However, I found '{2}'".format(call.ktype.procedure.name, len(call.ktype.arg_descriptors), len(call.args)))
         self._arg_descriptors = call.ktype.arg_descriptors
 
     def __str__(self):
