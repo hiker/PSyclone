@@ -680,7 +680,8 @@ class Loop(Node):
                 self._iterates_over = "unknown" # needs to inherit this?
                 self._field_space = "any"
             elif isinstance(call, KernelCall):
-                my_call = Kern(call, parent = self)
+                my_call = Kern()
+                my_call.load(call, parent = self)
                 self._iterates_over = my_call.iterates_over
                 self._iteration_space = my_call.iterates_over
                 self._field_space = my_call.arguments.iteration_space_arg().function_space
@@ -862,9 +863,9 @@ class Call(Node):
                                               self._y+self._height/2,
                                               text = self._name)
 
-    def __init__(self, parent, call, name, arguments):
+    def __init__(self, parent, module_name, name, arguments):
         Node.__init__(self, children = [], parent = parent)
-        self._module_name = call.module_name
+        self._module_name = module_name
         self._arguments = arguments
         self._name = name
 
@@ -926,13 +927,13 @@ class SetInfCall(Call):
         return
 
 class Kern(Call):
-    def __init__(self, KernelArguments, call, parent = None, check = True):
-        Call.__init__(self, parent, call, call.ktype.procedure.name,
-                      KernelArguments(call, self))
-        self._iterates_over = call.ktype.iterates_over
-        if check and len(call.ktype.arg_descriptors) != len(call.args):
-            raise GenerationError("error: In kernel '{0}' the number of arguments specified in the kernel metadata '{1}', must equal the number of arguments in the algorithm layer. However, I found '{2}'".format(call.ktype.procedure.name, len(call.ktype.arg_descriptors), len(call.args)))
-        self._arg_descriptors = call.ktype.arg_descriptors
+    def __init__(self, KernelArguments, ktype, module_name, args, parent = None, check = True):
+        Call.__init__(self, parent, module_name, ktype.procedure.name,
+                      KernelArguments(ktype, args, self))
+        self._iterates_over = ktype.iterates_over
+        if check and len(ktype.arg_descriptors) != len(args):
+            raise GenerationError("error: In kernel '{0}' the number of arguments specified in the kernel metadata '{1}', must equal the number of arguments in the algorithm layer. However, I found '{2}'".format(ktype.procedure.name, len(ktype.arg_descriptors), len(args)))
+        self._arg_descriptors = ktype.arg_descriptors
 
     def __str__(self):
         return "kern call: "+self._name

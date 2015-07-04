@@ -120,10 +120,12 @@ class DynKern(Kern):
     ''' Stores information about Dynamo Kernels as specified by the Kernel
         metadata. Uses this information to generate appropriate PSy layer
         code for the Kernel instance. '''
-    def __init__(self, call, parent = None):
+    def __init__(self):
         if False:
             self._arguments = DynKernelArguments(None, None) # for pyreverse
-        Kern.__init__(self, DynKernelArguments, call, parent)
+
+    def load(self, call, parent = None):
+        Kern.__init__(self, DynKernelArguments, call.ktype, call.module_name, call.args, parent)
 
     def local_vars(self):
         return ["cell","map"]
@@ -205,13 +207,13 @@ class DynKernelArguments(Arguments):
         as specified by the kernel argument metadata. This class currently
         adds no additional functionality to its base class other than
         ensuring that initialisation is performed correctly. '''
-    def __init__(self, call, parent_call):
+    def __init__(self, ktype, args, parent_call):
         if False:
             self._0_to_n = DynKernelArgument(None, None, None) # for pyreverse
         Arguments.__init__(self, parent_call)
         self._args = []
-        for (idx, arg) in enumerate (call.ktype.arg_descriptors):
-            self._args.append(DynKernelArgument(arg, call.args[idx],
+        for (idx, arg) in enumerate (ktype.arg_descriptors):
+            self._args.append(DynKernelArgument(arg, args[idx],
                                                 parent_call))
         self._dofs = []
 

@@ -910,20 +910,38 @@ class DynInf(Inf):
 
 class DynKern(Kern):
     ''' Stores information about Dynamo Kernels as specified by the
-    Kernel metadata. Uses this information to generate appropriate PSy
-    layer code for the Kernel instance. '''
+    Kernel metadata and associated algorithm call. Uses this
+    information to generate appropriate PSy layer code for the Kernel
+    instance or to generate a Kernel stub'''
 
-    def __init__(self, call, parent=None):
+    def __init__(self):
         if False:
             self._arguments = DynKernelArguments(None, None)  # for pyreverse
-        Kern.__init__(self, DynKernelArguments, call, parent, check=False)
-        self._func_descriptors = call.ktype.func_descriptors
-        self._fs_descriptors = FSDescriptors(call.ktype.func_descriptors)
+
+    def load(self, call, parent=None):
+        ''' sets up kernel information with the call object which is
+        created by the parser. This object includes information about
+        the invoke call and the associated kernel'''
+        self._setup(call.ktype, call.module_name, call.args, parent)
+
+    def load_meta(self, ktype):
+        ''' sets up kernel information with the kernel type object
+        which is created by the parser. The object includes the
+        metadata describing the kernel code '''
+        #ktype = KernelTypeFactory.create(name,ast)
+        #args is a list of Arg() objects
+        self._setup(ktype, "dummy_name", [], None)
+
+    def _setup(self, ktype, module_name, args, parent):
+        ''' internal setup of kernel information. Kernel metadata (ktype) is passed separately to invoke metadata (args). This allows us to generate xxx '''
+        Kern.__init__(self, DynKernelArguments, ktype, module_name, args, parent, check=False)
+        self._func_descriptors = ktype.func_descriptors
+        self._fs_descriptors = FSDescriptors(ktype.func_descriptors)
         # dynamo 0.3 api kernels require quadrature rule arguments to be
         # passed in if one or more basis functions are used by the kernel.
         self._qr_required = False
         self._qr_args = ["nqp_h", "nqp_v", "wh", "wv"]
-        for descriptor in call.ktype.func_descriptors:
+        for descriptor in ktype.func_descriptors:
             if len(descriptor.operator_names) > 0:
                 self._qr_required = True
                 break
@@ -931,33 +949,33 @@ class DynKern(Kern):
         # off in the base class
         if self._qr_required:
             # check we have an extra argument in the algorithm call
-            if len(call.ktype.arg_descriptors)+1 != len(call.args):
+            if len(ktype.arg_descriptors)+1 != len(args):
                 raise GenerationError(
                     "error: QR is required for kernel '{0}' which means that "
                     "a QR argument must be passed by the algorithm layer. "
                     "Therefore the number of arguments specified in the "
                     "kernel metadata '{1}', must be one less than the number "
                     "of arguments in the algorithm layer. However, I found "
-                    "'{2}'".format(call.ktype.procedure.name,
-                                   len(call.ktype.arg_descriptors),
-                                   len(call.args)))
+                    "'{2}'".format(ktype.procedure.name,
+                                   len(ktype.arg_descriptors),
+                                   len(args)))
         else:
             # check we have the same number of arguments in the
             # algorithm call and the kernel metadata
-            if len(call.ktype.arg_descriptors) != len(call.args):
+            if len(ktype.arg_descriptors) != len(args):
                 raise GenerationError(
                     "error: QR is not required for kernel '{0}'. Therefore "
                     "the number of arguments specified in the kernel "
                     "metadata '{1}', must equal the number of arguments in "
                     "the algorithm layer. However, I found '{2}'".
-                    format(call.ktype.procedure.name,
-                           len(call.ktype.arg_descriptors), len(call.args)))
+                    format(ktype.procedure.name,
+                           len(ktype.arg_descriptors), len(args)))
         # if there is a quadrature rule, what is the name of the
         # algorithm argument?
         self._qr_text = ""
         self._qr_name = ""
         if self._qr_required:
-            qr_arg = call.args[len(call.args)-1]
+            qr_arg = args[len(args)-1]
             self._qr_text = qr_arg.text
             self._name_space_manager = NameSpaceFactory().create()
             # use our namespace manager to create a unique name unless
@@ -1005,6 +1023,19 @@ class DynKern(Kern):
                         arg.type == "gh_field":
                     return True
         return False
+
+    @property
+    def gen_stub(self):
+        ''' output a kernel stub '''
+        from f2pygen import ModuleGen, SubroutineGen
+        # create an empty PSy layer module
+        psy_module = ModuleGen(self.name+"_mod")
+        #for arg in self.args_args
+        # create the subroutine
+        sub_stub = SubroutineGen(psy_module, name=self.name+"_code",
+                                   args=["dummy"])
+        psy_module.add(sub_stub)
+        return psy_module.root
 
     def gen_code(self, parent):
         ''' Generates dynamo version 0.3 specific psy code for a call to
@@ -1346,14 +1377,13 @@ class DynKernelArguments(Arguments):
     ''' Provides information about Dynamo kernel call arguments
     collectively, as specified by the kernel argument metadata. '''
 
-    def __init__(self, call, parent_call):
+    def __init__(self, ktype, args, parent_call):
         if False:  # for pyreverse
             self._0_to_n = DynKernelArgument(None, None, None)
         Arguments.__init__(self, parent_call)
         self._args = []
-        for (idx, arg) in enumerate(call.ktype.arg_descriptors):
-            self._args.append(DynKernelArgument(arg, call.args[idx],
-                                                parent_call))
+        for (idx, arg) in enumerate(ktype.arg_descriptors):
+            self._args.append(DynKernelArgument(arg, args[idx], parent_call))
         self._dofs = []
 
     def get_field(self, func_space):

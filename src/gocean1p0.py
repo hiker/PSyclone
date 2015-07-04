@@ -226,18 +226,19 @@ class GOSchedule(Schedule):
                 inner_loop = GOLoop(call=None, parent=outer_loop)
                 inner_loop.loop_type = "inner"
                 outer_loop.addchild(inner_loop)
-                call = GOKern(call, parent=inner_loop)
-                inner_loop.addchild(call)
+                gocall = GOKern()
+                gocall.load(call, parent=inner_loop)
+                inner_loop.addchild(gocall)
                 # determine inner and outer loops space information from the
                 # child kernel call. This is only picked up automatically (by
                 # the inner loop) if the kernel call is passed into the inner
                 # loop.
-                inner_loop.iteration_space = call.iterates_over
+                inner_loop.iteration_space = gocall.iterates_over
                 outer_loop.iteration_space = inner_loop.iteration_space
-                inner_loop.field_space = call.arguments.iteration_space_arg().\
+                inner_loop.field_space = gocall.arguments.iteration_space_arg().\
                                          function_space
                 outer_loop.field_space = inner_loop.field_space
-                inner_loop.field_name = call.arguments.iteration_space_arg().\
+                inner_loop.field_name = gocall.arguments.iteration_space_arg().\
                                         name
                 outer_loop.field_name = inner_loop.field_name
         Node.__init__(self, children=sequence)
@@ -325,10 +326,12 @@ class GOKern(Kern):
         metadata. Uses this information to generate appropriate PSy layer
         code for the Kernel instance. Specialises the gen_code method to
         create the appropriate GOcean specific kernel call. '''
-    def __init__(self, call, parent=None):
+    def __init__(self):
         if False:
             self._arguments = GOKernelArguments(None, None) # for pyreverse
-        Kern.__init__(self, GOKernelArguments, call, parent, check=False)
+
+    def load(self, call, parent=None):
+        Kern.__init__(self, GOKernelArguments, call.ktype, call.module_name, call.args, parent, check=False)
 
         # Pull out the grid index-offset that this kernel expects and
         # store it here. This is used to check that all of the kernels
@@ -411,21 +414,21 @@ class GOKernelArguments(Arguments):
         argument-access types.
 
     '''
-    def __init__(self, call, parent_call):
+    def __init__(self, ktype, args, parent_call):
         if False:
             self._0_to_n = GOKernelArgument(None, None, None) # for pyreverse
         Arguments.__init__(self, parent_call)
 
         self._args = []
         # Loop over the kernel arguments obtained from the meta data
-        for (idx, arg) in enumerate(call.ktype.arg_descriptors):
+        for (idx, arg) in enumerate(ktype.arg_descriptors):
             # arg is a GO1p0Descriptor object
             if arg.type == "grid_property":
                 # This is an argument supplied by the psy layer
                 self._args.append(GOKernelGridArgument(arg))
             elif arg.type == "scalar" or arg.type == "field":
                 # This is a kernel argument supplied by the Algorithm layer
-                self._args.append(GOKernelArgument(arg, call.args[idx],
+                self._args.append(GOKernelArgument(arg, args[idx],
                                                    parent_call))
             else:
                 raise ParseError("Invalid kernel argument type. Found '{0}' "
