@@ -611,9 +611,9 @@ class GOKernelType1p0(KernelType):
         return 'GOcean 1.0 kernel '+self._name+', index-offset = '+\
             self._index_offset +', iterates-over = '+self._iterates_over
 
-    def __init__(self, name, ast):
+    def __init__(self, ast, name=None):
         # Initialise the base class
-        KernelType.__init__(self, name, ast)
+        KernelType.__init__(self, ast, name=name)
 
         # What grid offset scheme this kernel expects
         self._index_offset = self._ktype.get_variable('index_offset').init

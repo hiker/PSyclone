@@ -56,7 +56,7 @@ def test_arg_descriptor_wrong_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(name, ast)
+        _ = DynKernelType03(ast, name=name)
 
 
 def test_ad_field_type_too_few_args():
@@ -68,7 +68,7 @@ def test_ad_field_type_too_few_args():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(name, ast)
+        _ = DynKernelType03(ast, name=name)
 
 
 def test_ad_fld_type_too_many_args():
@@ -80,7 +80,7 @@ def test_ad_fld_type_too_many_args():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(name, ast)
+        _ = DynKernelType03(ast, name=name)
 
 
 def test_ad_op_type_too_few_args():
@@ -92,7 +92,7 @@ def test_ad_op_type_too_few_args():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(name, ast)
+        _ = DynKernelType03(ast, name=name)
 
 
 def test_ad_op_type_too_many_args():
@@ -104,7 +104,7 @@ def test_ad_op_type_too_many_args():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(name, ast)
+        _ = DynKernelType03(ast, name=name)
 
 
 def test_ad_invalid_type():
@@ -115,7 +115,7 @@ def test_ad_invalid_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(name, ast)
+        _ = DynKernelType03(ast, name=name)
 
 
 def test_ad_invalid_access_type():
@@ -126,7 +126,7 @@ def test_ad_invalid_access_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(name, ast)
+        _ = DynKernelType03(ast, name=name)
 
 
 def test_arg_descriptor_invalid_fs1():
@@ -137,7 +137,7 @@ def test_arg_descriptor_invalid_fs1():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(name, ast)
+        _ = DynKernelType03(ast, name=name)
 
 
 def test_arg_descriptor_invalid_fs2():
@@ -148,7 +148,7 @@ def test_arg_descriptor_invalid_fs2():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(name, ast)
+        _ = DynKernelType03(ast, name=name)
 
 
 def test_invalid_vector_operator():
@@ -159,7 +159,7 @@ def test_invalid_vector_operator():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(name, ast)
+        _ = DynKernelType03(ast, name=name)
 
 
 def test_invalid_vector_value_type():
@@ -170,7 +170,7 @@ def test_invalid_vector_value_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(name, ast)
+        _ = DynKernelType03(ast, name=name)
 
 
 def test_invalid_vector_value_range():
@@ -181,7 +181,7 @@ def test_invalid_vector_value_range():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(name, ast)
+        _ = DynKernelType03(ast, name=name)
 
 # Testing that an error is raised when a vector value is not provided is
 # not required here as it causes a parse error in the generic code.
@@ -195,7 +195,7 @@ def test_fs_descriptor_wrong_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(name, ast)
+        _ = DynKernelType03(ast, name=name)
 
 
 def test_fs_descriptor_too_few_args():
@@ -206,7 +206,7 @@ def test_fs_descriptor_too_few_args():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(name, ast)
+        _ = DynKernelType03(ast, name=name)
 
 
 def test_fs_desc_invalid_fs_type():
@@ -217,7 +217,7 @@ def test_fs_desc_invalid_fs_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(name, ast)
+        _ = DynKernelType03(ast, name=name)
 
 
 def test_fs_desc_replicated_fs_type():
@@ -228,7 +228,7 @@ def test_fs_desc_replicated_fs_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(name, ast)
+        _ = DynKernelType03(ast, name=name)
 
 
 def test_fs_desc_invalid_op_type():
@@ -239,7 +239,7 @@ def test_fs_desc_invalid_op_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(name, ast)
+        _ = DynKernelType03(ast, name=name)
 
 
 def test_fs_desc_replicated_op_type():
@@ -251,7 +251,7 @@ def test_fs_desc_replicated_op_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(name, ast)
+        _ = DynKernelType03(ast, name=name)
 
 
 def test_fsdesc_fs_not_in_argdesc():
@@ -262,7 +262,7 @@ def test_fsdesc_fs_not_in_argdesc():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(name, ast)
+        _ = DynKernelType03(ast, name=name)
 
 
 def test_field():

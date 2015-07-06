@@ -313,8 +313,8 @@ class DynKernelType03(KernelType):
     ''' Captures the Kernel subroutine code and metadata describing
     the subroutine for the Dynamo 0.3 API. '''
 
-    def __init__(self, name, ast):
-        KernelType.__init__(self, name, ast)
+    def __init__(self, ast, name=None):
+        KernelType.__init__(self, ast, name=name)
         # parse the arg_type metadata
         self._arg_descriptors = []
         for arg_type in self._inits:
