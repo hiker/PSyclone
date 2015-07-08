@@ -801,3 +801,48 @@ def test_loopfuse():
     # both kernel calls are within the loop
     for kern_id in kern_idxs:
         assert kern_id > do_idx and kern_id < enddo_idx
+
+# tests for dynamo0.3 stub generator
+
+from genkernelstub import generate
+import pytest
+
+def test_non_existant_filename():
+    ''' fail if the file does not exist '''
+    with pytest.raises(IOError):
+        generate("non_existant_file.f90", api="dynamo0.3")
+
+def test_invalid_api():
+    ''' fail if the specified api is not supported '''
+    with pytest.raises(GenerationError):
+        generate("test_files/dynamo0p3/ru_kernel_mod.f90",api="dynamo0.1")
+
+def test_file_content_not_fortran():
+    ''' fail if the kernel file does not contain fortran '''
+    with pytest.raises(ParseError):
+        generate("dynamo0p3_test.py",api="dynamo0.3")
+
+def test_file_fortran_invalid():
+    ''' fail if the fortran in the kernel is not valid '''
+    with pytest.raises(ParseError):
+        generate("test_files/dynamo0p3/testkern_invalid_fortran.F90",api="dynamo0.3")
+
+def test_file_fortran_not_kernel():
+    ''' fail if file is valid fortran but is not a kernel file '''
+    with pytest.raises(ParseError):
+        generate("test_files/dynamo0p3/1_single_invoke.f90",api="dynamo0.3")
+
+def test_module_name_too_short():
+    ''' fail if length of kernel module name is too short ''' 
+    with pytest.raises(ParseError):
+        generate("test_files/dynamo0p3/testkern_short_name.F90",api="dynamo0.3")
+
+def test_module_name_convention():
+    ''' fail if kernel module name does not have _mod at end '''
+    with pytest.raises(ParseError):
+        generate("test_files/dynamo0p3/testkern.F90",api="dynamo0.3")
+
+def test_kernel_datatype_not_found():
+    ''' fail if kernel datatype is not found '''
+    with pytest.raises(RuntimeError):
+        generate("test_files/dynamo0p3/testkern_no_datatype.F90",api="dynamo0.3")

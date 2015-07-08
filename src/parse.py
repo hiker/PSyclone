@@ -268,15 +268,27 @@ class KernelType(object):
     def __init__(self, ast, name=None):
 
         if name is None:
-            raise ParseError("calling KernelType without passing the name of the type is not yet supported")
-        #if name is None:
-        #    # if no name is supplied then use the module name to determine the type name. The convention is the the module is called <name/>_mod and the type is called <name/>_type
-        #    for statement, depth  in fpapi.walk(ast, -1):
-        #        if isinstance(statement, fparser.block_statements.Type):
-        #            name = statement.name
-        #if name is None:
-        # we could see if there is only one type declared at this point and use that?
-        #    raise()
+            # if no name is supplied then use the module name to
+            # determine the type name. The assumed convention is that
+            # the module is called <name/>_mod and the type is called
+            # <name/>_type
+            found = False
+            for statement, depth  in fpapi.walk(ast, -1):
+                if isinstance(statement, fparser.block_statements.Module):
+                    module_name = statement.name
+                    found = True
+                    break
+            if not found:
+                raise ParseError("Error KernelType, the file does not contain a module. Is it a Kernel file?")
+
+            mn_len = len(module_name)
+            if mn_len<5:
+                raise ParseError("Error, module name '{0}' is too short to have '_mod' as an extension. This convention is assumed.".format(module_name))
+            base_name = module_name.lower()[:mn_len-4]
+            extension_name = module_name.lower()[mn_len-4:mn_len]
+            if extension_name != "_mod":
+                raise ParseError("Error, module name '{0}' does not have '_mod' as an extension. This convention is assumed.".format(module_name))
+            name = base_name + "_type"
 
         self._name = name
         self._ast = ast
