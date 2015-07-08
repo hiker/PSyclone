@@ -49,7 +49,18 @@ if __name__=="__main__":
     parser.add_argument('filename', help='Kernel metadata')
     args = parser.parse_args()
 
-    stub = gen_kernel_stub(args.filename, api=args.api)
+    try:
+        stub = generate(args.filename, api=args.api)
+    except (IOError, ParseError, GenerationError, RuntimeError) as e:
+        print "Error:",e
+        exit(1)
+    except Exception as e:
+        print "Error, unexpected exception:\n"
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        print exc_type
+        print exc_value
+        traceback.print_tb(exc_traceback)
+        exit(1)
 
     if args.o is not None:
         file = open(args.o, "w")
