@@ -930,7 +930,7 @@ class DynKern(Kern):
         metadata describing the kernel code '''
         #ktype = KernelTypeFactory.create(name,ast)
         #args is a list of Arg() objects
-        self._setup(ktype, "dummy_name", [], None)
+        self._setup(ktype, "dummy_name", None, None)
 
     def _setup(self, ktype, module_name, args, parent):
         ''' internal setup of kernel information. Kernel metadata (ktype) is passed separately to invoke metadata (args). This allows us to generate xxx '''
@@ -945,36 +945,37 @@ class DynKern(Kern):
             if len(descriptor.operator_names) > 0:
                 self._qr_required = True
                 break
-        # perform some consistency checks as we have switched these
-        # off in the base class
-        if self._qr_required:
-            # check we have an extra argument in the algorithm call
-            if len(ktype.arg_descriptors)+1 != len(args):
-                raise GenerationError(
-                    "error: QR is required for kernel '{0}' which means that "
-                    "a QR argument must be passed by the algorithm layer. "
-                    "Therefore the number of arguments specified in the "
-                    "kernel metadata '{1}', must be one less than the number "
-                    "of arguments in the algorithm layer. However, I found "
-                    "'{2}'".format(ktype.procedure.name,
-                                   len(ktype.arg_descriptors),
-                                   len(args)))
-        else:
-            # check we have the same number of arguments in the
-            # algorithm call and the kernel metadata
-            if len(ktype.arg_descriptors) != len(args):
-                raise GenerationError(
-                    "error: QR is not required for kernel '{0}'. Therefore "
-                    "the number of arguments specified in the kernel "
-                    "metadata '{1}', must equal the number of arguments in "
-                    "the algorithm layer. However, I found '{2}'".
-                    format(ktype.procedure.name,
-                           len(ktype.arg_descriptors), len(args)))
+        if args is not None:
+            # perform some consistency checks as we have switched these
+            # off in the base class
+            if self._qr_required:
+                # check we have an extra argument in the algorithm call
+                if len(ktype.arg_descriptors)+1 != len(args):
+                    raise GenerationError(
+                        "error: QR is required for kernel '{0}' which means that "
+                        "a QR argument must be passed by the algorithm layer. "
+                        "Therefore the number of arguments specified in the "
+                        "kernel metadata '{1}', must be one less than the number "
+                        "of arguments in the algorithm layer. However, I found "
+                        "'{2}'".format(ktype.procedure.name,
+                                       len(ktype.arg_descriptors),
+                                       len(args)))
+            else:
+                # check we have the same number of arguments in the
+                # algorithm call and the kernel metadata
+                if len(ktype.arg_descriptors) != len(args):
+                    raise GenerationError(
+                        "error: QR is not required for kernel '{0}'. Therefore "
+                        "the number of arguments specified in the kernel "
+                        "metadata '{1}', must equal the number of arguments in "
+                        "the algorithm layer. However, I found '{2}'".
+                        format(ktype.procedure.name,
+                               len(ktype.arg_descriptors), len(args)))
         # if there is a quadrature rule, what is the name of the
         # algorithm argument?
         self._qr_text = ""
         self._qr_name = ""
-        if self._qr_required:
+        if self._qr_required and args is not None:
             qr_arg = args[len(args)-1]
             self._qr_text = qr_arg.text
             self._name_space_manager = NameSpaceFactory().create()
@@ -1381,9 +1382,12 @@ class DynKernelArguments(Arguments):
         if False:  # for pyreverse
             self._0_to_n = DynKernelArgument(None, None, None)
         Arguments.__init__(self, parent_call)
-        self._args = []
-        for (idx, arg) in enumerate(ktype.arg_descriptors):
-            self._args.append(DynKernelArgument(arg, args[idx], parent_call))
+        if args is None:
+            self._args = None # we may have no algorithm argument information
+        else:
+            self._args = []
+            for (idx, arg) in enumerate(ktype.arg_descriptors):
+                self._args.append(DynKernelArgument(arg, args[idx], parent_call))
         self._dofs = []
 
     def get_field(self, func_space):

@@ -71,7 +71,7 @@ if __name__=="__main__":
     except AlgorithmError as e:
         print "Warning:",e
         exit(0)
-    except (OSError, IOError, ParseError,GenerationError,RuntimeError) as e:
+    except (OSError, IOError, ParseError, GenerationError, RuntimeError) as e:
         print "Error:",e
         exit(1)
     except Exception as e:

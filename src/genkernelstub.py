@@ -14,6 +14,8 @@ from psyGen import GenerationError
 from parse import ParseError
 from config import SUPPORTEDSTUBAPIS
 import os
+import sys
+import traceback
 
 def generate(filename,api=""):
 
@@ -38,7 +40,7 @@ def generate(filename,api=""):
     metadata = DynKernelType03(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-    return kernel.genstub
+    return kernel.gen_stub
 
 if __name__=="__main__":
 
