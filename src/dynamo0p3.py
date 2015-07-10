@@ -985,7 +985,7 @@ class DynKern(Kern):
         # algorithm argument?
         self._qr_text = ""
         self._qr_name = ""
-        if self._qr_required
+        if self._qr_required:
             qr_arg = args[len(args)-1]
             self._qr_text = qr_arg.text
             self._name_space_manager = NameSpaceFactory().create()
