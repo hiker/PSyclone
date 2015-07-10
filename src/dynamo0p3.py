@@ -928,9 +928,14 @@ class DynKern(Kern):
         ''' sets up kernel information with the kernel type object
         which is created by the parser. The object includes the
         metadata describing the kernel code '''
-        #ktype = KernelTypeFactory.create(name,ast)
-        #args is a list of Arg() objects
-        self._setup(ktype, "dummy_name", None, None)
+
+        #create a name for each argument
+        from parse import Arg
+        args=[]
+        for idx, descriptor in enumerate(ktype.arg_descriptors):
+            args.append(Arg("variable", "field_"+str(idx)))
+        args.append(Arg("variable", "qr"))
+        self._setup(ktype, "dummy_name", args, None)
 
     def _setup(self, ktype, module_name, args, parent):
         ''' internal setup of kernel information. Kernel metadata (ktype) is passed separately to invoke metadata (args). This allows us to generate xxx '''
@@ -1025,16 +1030,78 @@ class DynKern(Kern):
                     return True
         return False
 
+    def _create_arg_list(self, parent):
+        from f2pygen import DeclGen, AssignGen
+        # create the argument list
+        arglist = []
+        if self._arguments.has_operator:
+            # 0.5: provide cell position
+            arglist.append("cell")
+        # 1: provide mesh height
+        arglist.append("nlayers")
+        # 2: Provide data associated with fields in the order
+        #    specified in the metadata.  If we have a vector field
+        #    then generate the appropriate number of arguments.
+        for arg in self._arguments.args:
+            if arg.type == "gh_field":
+                dataref = "%data"
+                if arg.vector_size > 1:
+                    for idx in range(1, arg.vector_size+1):
+                        arglist.append(arg.proxy_name+"("+str(idx)+")"+dataref)
+                else:
+                    arglist.append(arg.proxy_name+dataref)
+            elif arg.type == "gh_operator":
+                arglist.append(arg.proxy_name_indexed+"%ncell_3d")
+                arglist.append(arg.proxy_name_indexed+"%local_stencil")
+            else:
+                raise GenerationError(
+                    "Unexpected arg type found in "
+                    "dynamo0p3.py:DynKern:gen_code(). Expected one of"
+                    " [gh_field, gh_operator] but found " + arg.type)
+        # 3: For each function space (in the order they appear in the
+        # metadata arguments)
+        for unique_fs in self.arguments.unique_fss:
+            # 3.1 Provide compulsory arguments common to operators and
+            # fields on a space
+            arglist.extend(self._fs_descriptors.compulsory_args(unique_fs))
+            # 3.1.1 Provide additional compulsory arguments if there
+            # is a field on this space
+            if self.field_on_space(unique_fs):
+                arglist.extend(self._fs_descriptors.compulsory_args_field(
+                        unique_fs))
+            # 3.2 Provide optional arguments
+            if self._fs_descriptors.exists(unique_fs):
+                descriptor = self._fs_descriptors.get_descriptor(unique_fs)
+                arglist.extend(descriptor.operator_names)
+            # 3.3 Fix for boundary_dofs array in ru_kernel
+            if self.name == "ru_code" and unique_fs == "w2":
+                arglist.append("boundary_dofs_w2")
+                parent.add(DeclGen(parent, datatype="integer", pointer=True,
+                                   entity_decls=[
+                            "boundary_dofs_w2(:,:) => null()"]))
+                proxy_name = self._arguments.get_field("w2").proxy_name
+                new_parent, position = parent.start_parent_loop()
+                new_parent.add(AssignGen(new_parent, pointer=True,
+                                         lhs="boundary_dofs_w2",
+                                         rhs=proxy_name +
+                                         "%vspace%get_boundary_dofs()"),
+                               position=["before", position])
+        # 4: Provide qr arguments if required
+        if self._qr_required:
+            arglist.extend(self._qr_args)
+        return arglist
+
     @property
     def gen_stub(self):
         ''' output a kernel stub '''
         from f2pygen import ModuleGen, SubroutineGen
         # create an empty PSy layer module
         psy_module = ModuleGen(self.name+"_mod")
-        #for arg in self.args_args
+
+        arglist = self._create_arg_list(psy_module)
         # create the subroutine
         sub_stub = SubroutineGen(psy_module, name=self.name+"_code",
-                                   args=["dummy"])
+                                   args=arglist)
         psy_module.add(sub_stub)
         return psy_module.root
 
@@ -1093,63 +1160,9 @@ class DynKern(Kern):
             parent.add(DeclGen(parent, datatype="integer", pointer=True,
                                entity_decls=orientation_decl_names))
             parent.add(CommentGen(parent, ""))
-        # create the argument list
-        arglist = []
-        if self._arguments.has_operator:
-            # 0.5: provide cell position
-            arglist.append("cell")
-        # 1: provide mesh height
-        arglist.append("nlayers")
-        # 2: Provide data associated with fields in the order
-        #    specified in the metadata.  If we have a vector field
-        #    then generate the appropriate number of arguments.
-        for arg in self._arguments.args:
-            if arg.type == "gh_field":
-                dataref = "%data"
-                if arg.vector_size > 1:
-                    for idx in range(1, arg.vector_size+1):
-                        arglist.append(arg.proxy_name+"("+str(idx)+")"+dataref)
-                else:
-                    arglist.append(arg.proxy_name+dataref)
-            elif arg.type == "gh_operator":
-                arglist.append(arg.proxy_name_indexed+"%ncell_3d")
-                arglist.append(arg.proxy_name_indexed+"%local_stencil")
-            else:
-                raise GenerationError(
-                    "Unexpected arg type found in "
-                    "dynamo0p3.py:DynKern:gen_code(). Expected one of"
-                    " [gh_field, gh_operator] but found " + arg.type)
-        # 3: For each function space (in the order they appear in the
-        # metadata arguments)
-        for unique_fs in self.arguments.unique_fss:
-            # 3.1 Provide compulsory arguments common to operators and
-            # fields on a space
-            arglist.extend(self._fs_descriptors.compulsory_args(unique_fs))
-            # 3.1.1 Provide additional compulsory arguments if there
-            # is a field on this space
-            if self.field_on_space(unique_fs):
-                arglist.extend(self._fs_descriptors.compulsory_args_field(
-                               unique_fs))
-            # 3.2 Provide optional arguments
-            if self._fs_descriptors.exists(unique_fs):
-                descriptor = self._fs_descriptors.get_descriptor(unique_fs)
-                arglist.extend(descriptor.operator_names)
-            # 3.3 Fix for boundary_dofs array in ru_kernel
-            if self.name == "ru_code" and unique_fs == "w2":
-                arglist.append("boundary_dofs_w2")
-                parent.add(DeclGen(parent, datatype="integer", pointer=True,
-                                   entity_decls=[
-                                       "boundary_dofs_w2(:,:) => null()"]))
-                proxy_name = self._arguments.get_field("w2").proxy_name
-                new_parent, position = parent.start_parent_loop()
-                new_parent.add(AssignGen(new_parent, pointer=True,
-                                         lhs="boundary_dofs_w2",
-                                         rhs=proxy_name +
-                                             "%vspace%get_boundary_dofs()"),
-                               position=["before", position])
-        # 4: Provide qr arguments if required
-        if self._qr_required:
-            arglist.extend(self._qr_args)
+
+        arglist = self._create_arg_list(parent)
+
         # generate the kernel call and associated use statement
         parent.add(CallGen(parent, self._name, arglist))
         parent.parent.add(UseGen(parent.parent, name=self._module_name,
