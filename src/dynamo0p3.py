@@ -922,6 +922,7 @@ class DynKern(Kern):
         ''' sets up kernel information with the call object which is
         created by the parser. This object includes information about
         the invoke call and the associated kernel'''
+        self._setup_qr(call.ktype.func_descriptors)
         self._setup(call.ktype, call.module_name, call.args, parent)
 
     def load_meta(self, ktype):
@@ -933,9 +934,19 @@ class DynKern(Kern):
         from parse import Arg
         args=[]
         for idx, descriptor in enumerate(ktype.arg_descriptors):
-            args.append(Arg("variable", "field_"+str(idx)))
-        args.append(Arg("variable", "qr"))
+            args.append(Arg("variable", "field_"+str(idx+1)))
+        # initialise qr so we can test whether it is required
+        self._setup_qr(ktype.func_descriptors)
+        if self._qr_required:
+            args.append(Arg("variable", "qr"))
         self._setup(ktype, "dummy_name", args, None)
+
+    def _setup_qr(self,func_descriptors):
+        self._qr_required = False
+        for descriptor in func_descriptors:
+            if len(descriptor.operator_names) > 0:
+                self._qr_required = True
+                break
 
     def _setup(self, ktype, module_name, args, parent):
         ''' internal setup of kernel information. Kernel metadata (ktype) is passed separately to invoke metadata (args). This allows us to generate xxx '''
@@ -944,43 +955,37 @@ class DynKern(Kern):
         self._fs_descriptors = FSDescriptors(ktype.func_descriptors)
         # dynamo 0.3 api kernels require quadrature rule arguments to be
         # passed in if one or more basis functions are used by the kernel.
-        self._qr_required = False
         self._qr_args = ["nqp_h", "nqp_v", "wh", "wv"]
-        for descriptor in ktype.func_descriptors:
-            if len(descriptor.operator_names) > 0:
-                self._qr_required = True
-                break
-        if args is not None:
-            # perform some consistency checks as we have switched these
-            # off in the base class
-            if self._qr_required:
-                # check we have an extra argument in the algorithm call
-                if len(ktype.arg_descriptors)+1 != len(args):
-                    raise GenerationError(
-                        "error: QR is required for kernel '{0}' which means that "
-                        "a QR argument must be passed by the algorithm layer. "
-                        "Therefore the number of arguments specified in the "
-                        "kernel metadata '{1}', must be one less than the number "
-                        "of arguments in the algorithm layer. However, I found "
-                        "'{2}'".format(ktype.procedure.name,
-                                       len(ktype.arg_descriptors),
-                                       len(args)))
-            else:
-                # check we have the same number of arguments in the
-                # algorithm call and the kernel metadata
-                if len(ktype.arg_descriptors) != len(args):
-                    raise GenerationError(
-                        "error: QR is not required for kernel '{0}'. Therefore "
-                        "the number of arguments specified in the kernel "
-                        "metadata '{1}', must equal the number of arguments in "
-                        "the algorithm layer. However, I found '{2}'".
-                        format(ktype.procedure.name,
-                               len(ktype.arg_descriptors), len(args)))
+        # perform some consistency checks as we have switched these
+        # off in the base class
+        if self._qr_required:
+            # check we have an extra argument in the algorithm call
+            if len(ktype.arg_descriptors)+1 != len(args):
+                raise GenerationError(
+                    "error: QR is required for kernel '{0}' which means that "
+                    "a QR argument must be passed by the algorithm layer. "
+                    "Therefore the number of arguments specified in the "
+                    "kernel metadata '{1}', must be one less than the number "
+                    "of arguments in the algorithm layer. However, I found "
+                    "'{2}'".format(ktype.procedure.name,
+                                   len(ktype.arg_descriptors),
+                                   len(args)))
+        else:
+            # check we have the same number of arguments in the
+            # algorithm call and the kernel metadata
+            if len(ktype.arg_descriptors) != len(args):
+                raise GenerationError(
+                    "error: QR is not required for kernel '{0}'. Therefore "
+                    "the number of arguments specified in the kernel "
+                    "metadata '{1}', must equal the number of arguments in "
+                    "the algorithm layer. However, I found '{2}'".
+                    format(ktype.procedure.name,
+                           len(ktype.arg_descriptors), len(args)))
         # if there is a quadrature rule, what is the name of the
         # algorithm argument?
         self._qr_text = ""
         self._qr_name = ""
-        if self._qr_required and args is not None:
+        if self._qr_required
             qr_arg = args[len(args)-1]
             self._qr_text = qr_arg.text
             self._name_space_manager = NameSpaceFactory().create()
@@ -1030,7 +1035,7 @@ class DynKern(Kern):
                     return True
         return False
 
-    def _create_arg_list(self, parent):
+    def _create_arg_list(self, parent, type="call"):
         from f2pygen import DeclGen, AssignGen
         # create the argument list
         arglist = []
@@ -1047,9 +1052,17 @@ class DynKern(Kern):
                 dataref = "%data"
                 if arg.vector_size > 1:
                     for idx in range(1, arg.vector_size+1):
-                        arglist.append(arg.proxy_name+"("+str(idx)+")"+dataref)
+                        if type=="subroutine":
+                            text = arg.name+"_"+arg.function_space+"_v"+str(idx)
+                        else:
+                            text = arg.proxy_name+"("+str(idx)+")"+dataref
+                        arglist.append(text)
                 else:
-                    arglist.append(arg.proxy_name+dataref)
+                    if type=="subroutine":
+                        text = arg.name+"_"+arg.function_space
+                    else:
+                        text = arg.proxy_name+dataref
+                    arglist.append(text)
             elif arg.type == "gh_operator":
                 arglist.append(arg.proxy_name_indexed+"%ncell_3d")
                 arglist.append(arg.proxy_name_indexed+"%local_stencil")
@@ -1098,7 +1111,7 @@ class DynKern(Kern):
         # create an empty PSy layer module
         psy_module = ModuleGen(self.name+"_mod")
 
-        arglist = self._create_arg_list(psy_module)
+        arglist = self._create_arg_list(psy_module, type="subroutine")
         # create the subroutine
         sub_stub = SubroutineGen(psy_module, name=self.name+"_code",
                                    args=arglist)
