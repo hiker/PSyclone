@@ -938,6 +938,7 @@ class DynKern(Kern):
         # initialise qr so we can test whether it is required
         self._setup_qr(ktype.func_descriptors)
         if self._qr_required:
+            # it is required so add a qr algorithm argument
             args.append(Arg("variable", "qr"))
         self._setup(ktype, "dummy_name", args, None)
 
@@ -955,7 +956,7 @@ class DynKern(Kern):
         self._fs_descriptors = FSDescriptors(ktype.func_descriptors)
         # dynamo 0.3 api kernels require quadrature rule arguments to be
         # passed in if one or more basis functions are used by the kernel.
-        self._qr_args = ["nqp_h", "nqp_v", "wh", "wv"]
+        self._qr_args = {"nh":"nqp_h", "nv":"nqp_v", "h":"wh", "v":"wv"}
         # perform some consistency checks as we have switched these
         # off in the base class
         if self._qr_required:
@@ -1042,8 +1043,14 @@ class DynKern(Kern):
         if self._arguments.has_operator:
             # 0.5: provide cell position
             arglist.append("cell")
+            if type == "subroutine":
+                parent.add(DeclGen(parent, datatype="integer", intent="in",
+                                   entity_decls=["cell"]))
         # 1: provide mesh height
         arglist.append("nlayers")
+        if type == "subroutine":
+            parent.add(DeclGen(parent, datatype="integer", intent="in",
+                               entity_decls=["nlayers"]))
         # 2: Provide data associated with fields in the order
         #    specified in the metadata.  If we have a vector field
         #    then generate the appropriate number of arguments.
@@ -1054,12 +1061,18 @@ class DynKern(Kern):
                     for idx in range(1, arg.vector_size+1):
                         if type=="subroutine":
                             text = arg.name+"_"+arg.function_space+"_v"+str(idx)
+                            parent.add(DeclGen(parent, datatype="real",
+                                       kind="r_def", dimension="undfXXX",
+                                       intent="inXXX", entity_decls=[text]))
                         else:
                             text = arg.proxy_name+"("+str(idx)+")"+dataref
                         arglist.append(text)
                 else:
                     if type=="subroutine":
                         text = arg.name+"_"+arg.function_space
+                        parent.add(DeclGen(parent, datatype="real",
+                                           kind="r_def", dimension="undfXXX",
+                                           intent="inXXX", entity_decls=[text]))
                     else:
                         text = arg.proxy_name+dataref
                     arglist.append(text)
@@ -1077,31 +1090,54 @@ class DynKern(Kern):
             # 3.1 Provide compulsory arguments common to operators and
             # fields on a space
             arglist.extend(self._fs_descriptors.compulsory_args(unique_fs))
+            if type == "subroutine":
+                parent.add(DeclGen(parent, datatype="integer", intent="in",
+                           entity_decls=self._fs_descriptors.compulsory_args(unique_fs)))
             # 3.1.1 Provide additional compulsory arguments if there
             # is a field on this space
             if self.field_on_space(unique_fs):
                 arglist.extend(self._fs_descriptors.compulsory_args_field(
                         unique_fs))
+                if type == "subroutine":
+                    parent.add(DeclGen(parent, datatype="integer", intent="in",
+                                       entity_decls=self._fs_descriptors.compulsory_args_field(unique_fs)))
             # 3.2 Provide optional arguments
             if self._fs_descriptors.exists(unique_fs):
                 descriptor = self._fs_descriptors.get_descriptor(unique_fs)
                 arglist.extend(descriptor.operator_names)
+                if type == "subroutine":
+                     parent.add(DeclGen(parent, datatype="real", intent="in",
+                                        dimension="TBD",
+                                       entity_decls=descriptor.operator_names))
             # 3.3 Fix for boundary_dofs array in ru_kernel
             if self.name == "ru_code" and unique_fs == "w2":
                 arglist.append("boundary_dofs_w2")
-                parent.add(DeclGen(parent, datatype="integer", pointer=True,
-                                   entity_decls=[
-                            "boundary_dofs_w2(:,:) => null()"]))
-                proxy_name = self._arguments.get_field("w2").proxy_name
-                new_parent, position = parent.start_parent_loop()
-                new_parent.add(AssignGen(new_parent, pointer=True,
-                                         lhs="boundary_dofs_w2",
-                                         rhs=proxy_name +
-                                         "%vspace%get_boundary_dofs()"),
-                               position=["before", position])
+                if type == "subroutine":
+                    parent.add(DeclGen(parent, datatype="integer", intent="in",
+                                        dimension="TBD",
+                                       entity_decls=["boundary_dofs_w2"]))
+                if type == "call":
+                    parent.add(DeclGen(parent, datatype="integer", pointer=True,
+                                       entity_decls=[
+                                "boundary_dofs_w2(:,:) => null()"]))
+                    proxy_name = self._arguments.get_field("w2").proxy_name
+                    new_parent, position = parent.start_parent_loop()
+                    new_parent.add(AssignGen(new_parent, pointer=True,
+                                             lhs="boundary_dofs_w2",
+                                             rhs=proxy_name +
+                                             "%vspace%get_boundary_dofs()"),
+                                   position=["before", position])
         # 4: Provide qr arguments if required
         if self._qr_required:
-            arglist.extend(self._qr_args)
+            arglist.extend([self._qr_args["nh"], self._qr_args["nv"],
+                            self._qr_args["h"], self._qr_args["v"]])
+            if type == "subroutine":
+                parent.add(DeclGen(parent, datatype="integer", intent="in",
+                                   entity_decls=[self._qr_args["nh"], self._qr_args["nv"]]))
+                parent.add(DeclGen(parent, datatype="real", kind="r_def", intent="in", dimension=self._qr_args["nh"], 
+                                   entity_decls=[self._qr_args["h"]]))
+                parent.add(DeclGen(parent, datatype="real", kind="r_def", intent="in", dimension=self._qr_args["nv"], 
+                                   entity_decls=[self._qr_args["v"]]))
         return arglist
 
     @property
@@ -1111,10 +1147,13 @@ class DynKern(Kern):
         # create an empty PSy layer module
         psy_module = ModuleGen(self.name+"_mod")
 
-        arglist = self._create_arg_list(psy_module, type="subroutine")
         # create the subroutine
-        sub_stub = SubroutineGen(psy_module, name=self.name+"_code",
-                                   args=arglist)
+        sub_stub = SubroutineGen(psy_module, name=self.name+"_code")
+        # create the arglist and declarations
+        arglist = self._create_arg_list(sub_stub, type="subroutine")
+        # add the arglist
+        sub_stub.args=arglist
+        # add the subroutine to the parent module
         psy_module.add(sub_stub)
         return psy_module.root
 
