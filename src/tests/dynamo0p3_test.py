@@ -877,12 +877,13 @@ def test_intent():
     IMPLICIT NONE
     CONTAINS
     SUBROUTINE dummy_code_code(nlayers, field_1_w1, field_2_w1, field_3_w1, ndf_w1, undf_w1, map_w1)
+      USE constants_mod, ONLY: r_def
       INTEGER, intent(in) :: nlayers
+      INTEGER, intent(in) :: undf_w1
       REAL(KIND=r_def), intent(out), dimension(undf_w1) :: field_1_w1
       REAL(KIND=r_def), intent(inout), dimension(undf_w1) :: field_2_w1
       REAL(KIND=r_def), intent(in), dimension(undf_w1) :: field_3_w1
       INTEGER, intent(in) :: ndf_w1
-      INTEGER, intent(in) :: undf_w1
       INTEGER, intent(in), dimension(ndf_w1) :: map_w1
     END SUBROUTINE dummy_code_code
   END MODULE dummy_code_mod'''
@@ -921,22 +922,23 @@ def test_spaces():
     IMPLICIT NONE
     CONTAINS
     SUBROUTINE dummy_code_code(nlayers, field_1_w0, field_2_w1, field_3_w2, field_4_w3, ndf_w0, undf_w0, map_w0, ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)
+      USE constants_mod, ONLY: r_def
       INTEGER, intent(in) :: nlayers
+      INTEGER, intent(in) :: undf_w0
+      INTEGER, intent(in) :: undf_w1
+      INTEGER, intent(in) :: undf_w2
+      INTEGER, intent(in) :: undf_w3
       REAL(KIND=r_def), intent(out), dimension(undf_w0) :: field_1_w0
       REAL(KIND=r_def), intent(out), dimension(undf_w1) :: field_2_w1
       REAL(KIND=r_def), intent(out), dimension(undf_w2) :: field_3_w2
       REAL(KIND=r_def), intent(out), dimension(undf_w3) :: field_4_w3
       INTEGER, intent(in) :: ndf_w0
-      INTEGER, intent(in) :: undf_w0
       INTEGER, intent(in), dimension(ndf_w0) :: map_w0
       INTEGER, intent(in) :: ndf_w1
-      INTEGER, intent(in) :: undf_w1
       INTEGER, intent(in), dimension(ndf_w1) :: map_w1
       INTEGER, intent(in) :: ndf_w2
-      INTEGER, intent(in) :: undf_w2
       INTEGER, intent(in), dimension(ndf_w2) :: map_w2
       INTEGER, intent(in) :: ndf_w3
-      INTEGER, intent(in) :: undf_w3
       INTEGER, intent(in), dimension(ndf_w3) :: map_w3
     END SUBROUTINE dummy_code_code
   END MODULE dummy_code_mod'''
@@ -972,12 +974,13 @@ def test_vectors():
     IMPLICIT NONE
     CONTAINS
     SUBROUTINE dummy_code_code(nlayers, field_1_w0_v1, field_1_w0_v2, field_1_w0_v3, ndf_w0, undf_w0, map_w0)
+      USE constants_mod, ONLY: r_def
       INTEGER, intent(in) :: nlayers
+      INTEGER, intent(in) :: undf_w0
       REAL(KIND=r_def), intent(out), dimension(undf_w0) :: field_1_w0_v1
       REAL(KIND=r_def), intent(out), dimension(undf_w0) :: field_1_w0_v2
       REAL(KIND=r_def), intent(out), dimension(undf_w0) :: field_1_w0_v3
       INTEGER, intent(in) :: ndf_w0
-      INTEGER, intent(in) :: undf_w0
       INTEGER, intent(in), dimension(ndf_w0) :: map_w0
     END SUBROUTINE dummy_code_code
   END MODULE dummy_code_mod'''
@@ -1016,6 +1019,7 @@ def test_operators():
     IMPLICIT NONE
     CONTAINS
     SUBROUTINE dummy_code_code(cell, nlayers, op_1_ncell_3d, op_1, op_2_ncell_3d, op_2, op_3_ncell_3d, op_3, op_4_ncell_3d, op_4, ndf_w0, ndf_w1, ndf_w2, ndf_w3)
+      USE constants_mod, ONLY: r_def
       INTEGER, intent(in) :: cell
       INTEGER, intent(in) :: nlayers
       INTEGER, intent(in) :: op_1_ncell_3d
@@ -1072,8 +1076,11 @@ def test_basis():
     IMPLICIT NONE
     CONTAINS
     SUBROUTINE dummy_code_code(cell, nlayers, field_1_w0, op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, undf_w0, map_w0, basis_w0, ndf_w1, ndf_w2, undf_w2, map_w2, basis_w2, ndf_w3, basis_w3, nqp_h, nqp_v, wh, wv)
+      USE constants_mod, ONLY: r_def
       INTEGER, intent(in) :: cell
       INTEGER, intent(in) :: nlayers
+      INTEGER, intent(in) :: undf_w0
+      INTEGER, intent(in) :: undf_w2
       REAL(KIND=r_def), intent(out), dimension(undf_w0) :: field_1_w0
       INTEGER, intent(in) :: op_2_ncell_3d
       REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,op_2_ncell_3d) :: op_2
@@ -1081,12 +1088,10 @@ def test_basis():
       INTEGER, intent(in) :: op_4_ncell_3d
       REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,op_4_ncell_3d) :: op_4
       INTEGER, intent(in) :: ndf_w0
-      INTEGER, intent(in) :: undf_w0
       INTEGER, intent(in), dimension(ndf_w0) :: map_w0
       REAL, intent(in), dimension(1,ndf_w0,nqp_h,nqp_v) :: basis_w0
       INTEGER, intent(in) :: ndf_w1
       INTEGER, intent(in) :: ndf_w2
-      INTEGER, intent(in) :: undf_w2
       INTEGER, intent(in), dimension(ndf_w2) :: map_w2
       REAL, intent(in), dimension(3,ndf_w2,nqp_h,nqp_v) :: basis_w2
       INTEGER, intent(in) :: ndf_w3
@@ -1168,8 +1173,11 @@ def test_diff_basis():
     IMPLICIT NONE
     CONTAINS
     SUBROUTINE dummy_code_code(cell, nlayers, field_1_w0, op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, undf_w0, map_w0, diff_basis_w0, ndf_w1, ndf_w2, undf_w2, map_w2, diff_basis_w2, ndf_w3, nqp_h, nqp_v, wh, wv)
+      USE constants_mod, ONLY: r_def
       INTEGER, intent(in) :: cell
       INTEGER, intent(in) :: nlayers
+      INTEGER, intent(in) :: undf_w0
+      INTEGER, intent(in) :: undf_w2
       REAL(KIND=r_def), intent(out), dimension(undf_w0) :: field_1_w0
       INTEGER, intent(in) :: op_2_ncell_3d
       REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,op_2_ncell_3d) :: op_2
@@ -1177,12 +1185,10 @@ def test_diff_basis():
       INTEGER, intent(in) :: op_4_ncell_3d
       REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,op_4_ncell_3d) :: op_4
       INTEGER, intent(in) :: ndf_w0
-      INTEGER, intent(in) :: undf_w0
       INTEGER, intent(in), dimension(ndf_w0) :: map_w0
       REAL, intent(in), dimension(3,ndf_w0,nqp_h,nqp_v) :: diff_basis_w0
       INTEGER, intent(in) :: ndf_w1
       INTEGER, intent(in) :: ndf_w2
-      INTEGER, intent(in) :: undf_w2
       INTEGER, intent(in), dimension(ndf_w2) :: map_w2
       REAL, intent(in), dimension(1,ndf_w2,nqp_h,nqp_v) :: diff_basis_w2
       INTEGER, intent(in) :: ndf_w3
@@ -1292,8 +1298,11 @@ def test_orientation():
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
     output = '''    SUBROUTINE dummy_code_code(cell, nlayers, field_1_w0, op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, undf_w0, map_w0, orientation_w0, ndf_w1, orientation_w1, ndf_w2, undf_w2, map_w2, orientation_w2, ndf_w3, orientation_w3, nqp_h, nqp_v, wh, wv)
+      USE constants_mod, ONLY: r_def
       INTEGER, intent(in) :: cell
       INTEGER, intent(in) :: nlayers
+      INTEGER, intent(in) :: undf_w0
+      INTEGER, intent(in) :: undf_w2
       REAL(KIND=r_def), intent(out), dimension(undf_w0) :: field_1_w0
       INTEGER, intent(in) :: op_2_ncell_3d
       REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,op_2_ncell_3d) :: op_2
@@ -1301,13 +1310,11 @@ def test_orientation():
       INTEGER, intent(in) :: op_4_ncell_3d
       REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,op_4_ncell_3d) :: op_4
       INTEGER, intent(in) :: ndf_w0
-      INTEGER, intent(in) :: undf_w0
       INTEGER, intent(in), dimension(ndf_w0) :: map_w0
       REAL, intent(in), dimension(ndf_w0) :: orientation_w0
       INTEGER, intent(in) :: ndf_w1
       REAL, intent(in), dimension(ndf_w1) :: orientation_w1
       INTEGER, intent(in) :: ndf_w2
-      INTEGER, intent(in) :: undf_w2
       INTEGER, intent(in), dimension(ndf_w2) :: map_w2
       REAL, intent(in), dimension(ndf_w2) :: orientation_w2
       INTEGER, intent(in) :: ndf_w3
@@ -1335,7 +1342,11 @@ def test_ru_kernel_stub_gen():
     IMPLICIT NONE
     CONTAINS
     SUBROUTINE ru_code_code(nlayers, field_1_w2, field_2_w3, field_3_w0, field_4_w0_v1, field_4_w0_v2, field_4_w0_v3, ndf_w2, undf_w2, map_w2, basis_w2, diff_basis_w2, boundary_dofs_w2, ndf_w3, undf_w3, map_w3, basis_w3, ndf_w0, undf_w0, map_w0, basis_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)
+      USE constants_mod, ONLY: r_def
       INTEGER, intent(in) :: nlayers
+      INTEGER, intent(in) :: undf_w2
+      INTEGER, intent(in) :: undf_w3
+      INTEGER, intent(in) :: undf_w0
       REAL(KIND=r_def), intent(inout), dimension(undf_w2) :: field_1_w2
       REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field_2_w3
       REAL(KIND=r_def), intent(in), dimension(undf_w0) :: field_3_w0
@@ -1343,17 +1354,14 @@ def test_ru_kernel_stub_gen():
       REAL(KIND=r_def), intent(in), dimension(undf_w0) :: field_4_w0_v2
       REAL(KIND=r_def), intent(in), dimension(undf_w0) :: field_4_w0_v3
       INTEGER, intent(in) :: ndf_w2
-      INTEGER, intent(in) :: undf_w2
       INTEGER, intent(in), dimension(ndf_w2) :: map_w2
       REAL, intent(in), dimension(3,ndf_w2,nqp_h,nqp_v) :: basis_w2
       REAL, intent(in), dimension(1,ndf_w2,nqp_h,nqp_v) :: diff_basis_w2
       INTEGER, intent(in), dimension(ndf_w2,2) :: boundary_dofs_w2
       INTEGER, intent(in) :: ndf_w3
-      INTEGER, intent(in) :: undf_w3
       INTEGER, intent(in), dimension(ndf_w3) :: map_w3
       REAL, intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) :: basis_w3
       INTEGER, intent(in) :: ndf_w0
-      INTEGER, intent(in) :: undf_w0
       INTEGER, intent(in), dimension(ndf_w0) :: map_w0
       REAL, intent(in), dimension(1,ndf_w0,nqp_h,nqp_v) :: basis_w0
       REAL, intent(in), dimension(3,ndf_w0,nqp_h,nqp_v) :: diff_basis_w0

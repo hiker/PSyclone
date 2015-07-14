@@ -1043,58 +1043,81 @@ class DynKern(Kern):
                     return True
         return False
 
-    def _create_arg_list(self, parent, type="call"):
+    def _create_arg_list(self, parent, my_type="call"):
         ''' creates the kernel call or kernel stub subroutine argument
         list. For kernel stubs it also creates the data
         declarations. '''
-        from f2pygen import DeclGen, AssignGen
+        from f2pygen import DeclGen, AssignGen, UseGen
+        if my_type == "subroutine":
+            # add in any required USE associations
+            parent.add(UseGen(parent, name="constants_mod", only="True", funcnames=["r_def"]))
         # create the argument list
         arglist = []
         if self._arguments.has_operator:
             # 0.5: provide cell position
             arglist.append("cell")
-            if type == "subroutine":
+            if my_type == "subroutine":
                 parent.add(DeclGen(parent, datatype="integer", intent="in",
                                    entity_decls=["cell"]))
         # 1: provide mesh height
         arglist.append("nlayers")
-        if type == "subroutine":
+        if my_type == "subroutine":
             parent.add(DeclGen(parent, datatype="integer", intent="in",
                                entity_decls=["nlayers"]))
         # 2: Provide data associated with fields in the order
         #    specified in the metadata.  If we have a vector field
         #    then generate the appropriate number of arguments.
+        first_arg=True
+        first_arg_decl = None
         for arg in self._arguments.args:
             undf_name = self._fs_descriptors.undf_name(arg.function_space)
             if arg.type == "gh_field":
                 dataref = "%data"
                 if arg.vector_size > 1:
                     for idx in range(1, arg.vector_size+1):
-                        if type=="subroutine":
+                        if my_type=="subroutine":
                             text = arg.name+"_"+arg.function_space+"_v"+str(idx)
                             intent = arg.intent
-                            parent.add(DeclGen(parent, datatype="real",
+                            decl = DeclGen(parent, datatype="real",
                                        kind="r_def", dimension=undf_name,
-                                       intent=intent, entity_decls=[text]))
+                                       intent=intent, entity_decls=[text])
+                            parent.add(decl)
+                            if first_arg:
+                                first_arg = False
+                                first_arg_decl = decl
                         else:
                             text = arg.proxy_name+"("+str(idx)+")"+dataref
                         arglist.append(text)
                 else:
-                    if type=="subroutine":
+                    if my_type=="subroutine":
                         text = arg.name+"_"+arg.function_space
                         intent = arg.intent
-                        parent.add(DeclGen(parent, datatype="real",
-                                           kind="r_def", dimension=undf_name,
-                                           intent=intent, entity_decls=[text]))
+                        decl = DeclGen(parent, datatype="real",
+                                       kind="r_def", dimension=undf_name,
+                                       intent=intent, entity_decls=[text])
+                        parent.add(decl)
+                        if first_arg:
+                            first_arg = False
+                            first_arg_decl = decl
                     else:
                         text = arg.proxy_name+dataref
                     arglist.append(text)
             elif arg.type == "gh_operator":
-                if type == "subroutine":
+                if my_type == "subroutine":
+                    # check whether the operator works on the same space.
+                    if arg.descriptor.function_space_from != arg.descriptor.function_space_to:
+                        raise GenerationError("Stub gen currently assumes that operators work on the same function"
+                                              "space, therefore the declarations will be incorrect. The generator"
+                                              "needs to know which dimension is 'from' and which is 'to' before we"
+                                              "can generate the correct code.")
                     size = arg.name+"_ncell_3d"
                     arglist.append(size)
-                    parent.add(DeclGen(parent, datatype="integer",
-                                       intent="in", entity_decls=[size]))
+                    decl = DeclGen(parent, datatype="integer",
+                                   intent="in", entity_decls=[size])
+                    parent.add(decl)
+                    if first_arg:
+                        first_arg = False
+                        first_arg_decl = decl
                     text = arg.name
                     arglist.append(text)
                     intent = arg.intent
@@ -1117,7 +1140,7 @@ class DynKern(Kern):
             # fields on a space. There is one: "ndf".
             ndf_name = self._fs_descriptors.ndf_name(unique_fs)
             arglist.append(ndf_name)
-            if type == "subroutine":
+            if my_type == "subroutine":
                 parent.add(DeclGen(parent, datatype="integer", intent="in",
                            entity_decls=[ndf_name]))
             # 3.1.1 Provide additional compulsory arguments if there
@@ -1127,9 +1150,17 @@ class DynKern(Kern):
                 arglist.append(undf_name)
                 map_name = self._fs_descriptors.map_name(unique_fs)
                 arglist.append(map_name)
-                if type == "subroutine":
+                if my_type == "subroutine":
+                    # ndf* declarations need to be before argument
+                    # declarations as some compilers don't like
+                    # declarations after they have been used. We place
+                    # ndf* before the first argument declaration
+                    # (field or operator) (rather than after nlayers)
+                    # as this keeps the declarations in the order
+                    # specified in the metadata and first used by
+                    # fields/operators.
                     parent.add(DeclGen(parent, datatype="integer", intent="in",
-                                       entity_decls=[undf_name]))
+                                       entity_decls=[undf_name]), position=["before",first_arg_decl.root])
                     parent.add(DeclGen(parent, datatype="integer", intent="in",
                                        dimension=ndf_name,
                                        entity_decls=[map_name]))
@@ -1139,7 +1170,7 @@ class DynKern(Kern):
                 if descriptor.requires_basis:
                     basis_name = descriptor.basis_name
                     arglist.append(basis_name)
-                    if type == "subroutine":
+                    if my_type == "subroutine":
                         # basis w0=1,w1=?,w2=3,w3=1
                         first_dim = None
                         if unique_fs.lower() in ["w0", "w3"]:
@@ -1158,7 +1189,7 @@ class DynKern(Kern):
                 if descriptor.requires_diff_basis:
                     diff_basis_name = descriptor.diff_basis_name
                     arglist.append(diff_basis_name)
-                    if type == "subroutine":
+                    if my_type == "subroutine":
                         # diff_basis w0=3,w1=?,w2=1,w3=?
                         first_dim = None
                         if unique_fs.lower() == "w2":
@@ -1178,19 +1209,19 @@ class DynKern(Kern):
                     # orientation w2=ndf
                     orientation_name = descriptor.orientation_name
                     arglist.append(orientation_name)
-                    if type == "subroutine":
+                    if my_type == "subroutine":
                         parent.add(DeclGen(parent, datatype="real", intent="in",
                                            dimension=ndf_name,
                                            entity_decls=[orientation_name]))
             # 3.3 Fix for boundary_dofs array in ru_kernel
             if self.name == "ru_code" and unique_fs == "w2":
                 arglist.append("boundary_dofs_w2")
-                if type == "subroutine":
+                if my_type == "subroutine":
                     ndf_name = self._fs_descriptors.ndf_name("w2")
                     parent.add(DeclGen(parent, datatype="integer", intent="in",
                                         dimension=ndf_name+",2",
                                        entity_decls=["boundary_dofs_w2"]))
-                if type == "call":
+                if my_type == "call":
                     parent.add(DeclGen(parent, datatype="integer", pointer=True,
                                        entity_decls=[
                                 "boundary_dofs_w2(:,:) => null()"]))
@@ -1205,7 +1236,7 @@ class DynKern(Kern):
         if self._qr_required:
             arglist.extend([self._qr_args["nh"], self._qr_args["nv"],
                             self._qr_args["h"], self._qr_args["v"]])
-            if type == "subroutine":
+            if my_type == "subroutine":
                 parent.add(DeclGen(parent, datatype="integer", intent="in",
                                    entity_decls=[self._qr_args["nh"], self._qr_args["nv"]]))
                 parent.add(DeclGen(parent, datatype="real", kind="r_def", intent="in", dimension=self._qr_args["nh"], 
@@ -1224,7 +1255,7 @@ class DynKern(Kern):
         # create the subroutine
         sub_stub = SubroutineGen(psy_module, name=self.name+"_code")
         # create the arglist and declarations
-        arglist = self._create_arg_list(sub_stub, type="subroutine")
+        arglist = self._create_arg_list(sub_stub, my_type="subroutine")
         # add the arglist
         sub_stub.args=arglist
         # add the subroutine to the parent module
@@ -1596,6 +1627,10 @@ class DynKernelArgument(Argument):
         Argument.__init__(self, call, arg_info, arg.access)
         self._vector_size = arg.vector_size
         self._type = arg.type
+
+    @property
+    def descriptor(self):
+        return self._arg
 
     @property
     def ref_name(self):
