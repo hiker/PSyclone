@@ -200,7 +200,7 @@ class DynArgDescriptor03(Descriptor):
                 raise ParseError(
                     "In the dynamo0.3 API each meta_arg entry must have 4 "
                     "arguments if its first argument is gh_operator, but "
-                    "found {0} in '{1}'").format(len(arg_type.args), arg_type)
+                    "found {0} in '{1}'".format(len(arg_type.args), arg_type))
             if arg_type.args[2].name not in VALID_FUNCTION_SPACE_NAMES:
                 raise ParseError(
                     "In the dynamo0.3 API the 3rd argument of a meta_arg "
@@ -934,7 +934,14 @@ class DynKern(Kern):
         from parse import Arg
         args=[]
         for idx, descriptor in enumerate(ktype.arg_descriptors):
-            args.append(Arg("variable", "field_"+str(idx+1)))
+            pre = None
+            if descriptor.type.lower() == "gh_operator":
+                pre = "op_"
+            elif descriptor.type.lower() == "gh_field":
+                pre = "field_"
+            else:
+                raise GenerationError("load_meta expected one of 'gh_field, gh_operator' but found '{0}'".format(descriptor.type))
+            args.append(Arg("variable", pre+str(idx+1)))
         # initialise qr so we can test whether it is required
         self._setup_qr(ktype.func_descriptors)
         if self._qr_required:
@@ -1037,6 +1044,9 @@ class DynKern(Kern):
         return False
 
     def _create_arg_list(self, parent, type="call"):
+        ''' creates the kernel call or kernel stub subroutine argument
+        list. For kernel stubs it also creates the data
+        declarations. '''
         from f2pygen import DeclGen, AssignGen
         # create the argument list
         arglist = []
@@ -1055,30 +1065,46 @@ class DynKern(Kern):
         #    specified in the metadata.  If we have a vector field
         #    then generate the appropriate number of arguments.
         for arg in self._arguments.args:
+            undf_name = self._fs_descriptors.undf_name(arg.function_space)
             if arg.type == "gh_field":
                 dataref = "%data"
                 if arg.vector_size > 1:
                     for idx in range(1, arg.vector_size+1):
                         if type=="subroutine":
                             text = arg.name+"_"+arg.function_space+"_v"+str(idx)
+                            intent = arg.intent
                             parent.add(DeclGen(parent, datatype="real",
-                                       kind="r_def", dimension="undfXXX",
-                                       intent="inXXX", entity_decls=[text]))
+                                       kind="r_def", dimension=undf_name,
+                                       intent=intent, entity_decls=[text]))
                         else:
                             text = arg.proxy_name+"("+str(idx)+")"+dataref
                         arglist.append(text)
                 else:
                     if type=="subroutine":
                         text = arg.name+"_"+arg.function_space
+                        intent = arg.intent
                         parent.add(DeclGen(parent, datatype="real",
-                                           kind="r_def", dimension="undfXXX",
-                                           intent="inXXX", entity_decls=[text]))
+                                           kind="r_def", dimension=undf_name,
+                                           intent=intent, entity_decls=[text]))
                     else:
                         text = arg.proxy_name+dataref
                     arglist.append(text)
             elif arg.type == "gh_operator":
-                arglist.append(arg.proxy_name_indexed+"%ncell_3d")
-                arglist.append(arg.proxy_name_indexed+"%local_stencil")
+                if type == "subroutine":
+                    size = arg.name+"_ncell_3d"
+                    arglist.append(size)
+                    parent.add(DeclGen(parent, datatype="integer",
+                                       intent="in", entity_decls=[size]))
+                    text = arg.name
+                    arglist.append(text)
+                    intent = arg.intent
+                    ndf_name = self._fs_descriptors.ndf_name(arg.function_space)
+                    parent.add(DeclGen(parent, datatype="real",
+                                       kind="r_def", dimension=ndf_name+","+ndf_name+","+size,
+                                       intent=intent, entity_decls=[text]))
+                else:
+                    arglist.append(arg.proxy_name_indexed+"%ncell_3d")
+                    arglist.append(arg.proxy_name_indexed+"%local_stencil")
             else:
                 raise GenerationError(
                     "Unexpected arg type found in "
@@ -1088,33 +1114,81 @@ class DynKern(Kern):
         # metadata arguments)
         for unique_fs in self.arguments.unique_fss:
             # 3.1 Provide compulsory arguments common to operators and
-            # fields on a space
-            arglist.extend(self._fs_descriptors.compulsory_args(unique_fs))
+            # fields on a space. There is one: "ndf".
+            ndf_name = self._fs_descriptors.ndf_name(unique_fs)
+            arglist.append(ndf_name)
             if type == "subroutine":
                 parent.add(DeclGen(parent, datatype="integer", intent="in",
-                           entity_decls=self._fs_descriptors.compulsory_args(unique_fs)))
+                           entity_decls=[ndf_name]))
             # 3.1.1 Provide additional compulsory arguments if there
             # is a field on this space
             if self.field_on_space(unique_fs):
-                arglist.extend(self._fs_descriptors.compulsory_args_field(
-                        unique_fs))
+                undf_name = self._fs_descriptors.undf_name(unique_fs)
+                arglist.append(undf_name)
+                map_name = self._fs_descriptors.map_name(unique_fs)
+                arglist.append(map_name)
                 if type == "subroutine":
                     parent.add(DeclGen(parent, datatype="integer", intent="in",
-                                       entity_decls=self._fs_descriptors.compulsory_args_field(unique_fs)))
+                                       entity_decls=[undf_name]))
+                    parent.add(DeclGen(parent, datatype="integer", intent="in",
+                                       dimension=ndf_name,
+                                       entity_decls=[map_name]))
             # 3.2 Provide optional arguments
             if self._fs_descriptors.exists(unique_fs):
                 descriptor = self._fs_descriptors.get_descriptor(unique_fs)
-                arglist.extend(descriptor.operator_names)
-                if type == "subroutine":
-                     parent.add(DeclGen(parent, datatype="real", intent="in",
-                                        dimension="TBD",
-                                       entity_decls=descriptor.operator_names))
+                if descriptor.requires_basis:
+                    basis_name = descriptor.basis_name
+                    arglist.append(basis_name)
+                    if type == "subroutine":
+                        # basis w0=1,w1=?,w2=3,w3=1
+                        first_dim = None
+                        if unique_fs.lower() in ["w0", "w3"]:
+                            first_dim = "1"
+                        elif unique_fs.lower() == "w2":
+                            first_dim = "3"
+                        elif unique_fs.lower() == "w1":
+                            raise GenerationError("I don't know what dimension to use for a basis function in w1 space")
+                        else:
+                            raise GenerationError("Unknown space, expecting one of 'W0,W1,W2,W3' but found '{0}'".format(unique_fs))
+                        parent.add(DeclGen(parent, datatype="real", intent="in",
+                                           dimension=first_dim+","+ndf_name+","+
+                                           self._qr_args["nh"]+","+
+                                           self._qr_args["nv"],
+                                           entity_decls=[basis_name]))
+                if descriptor.requires_diff_basis:
+                    diff_basis_name = descriptor.diff_basis_name
+                    arglist.append(diff_basis_name)
+                    if type == "subroutine":
+                        # diff_basis w0=3,w1=?,w2=1,w3=?
+                        first_dim = None
+                        if unique_fs.lower() == "w2":
+                            first_dim = "1"
+                        elif unique_fs.lower() == "w0":
+                            first_dim = "3"
+                        elif unique_fs.lower() in ["w1","w3"]:
+                            raise GenerationError("I don't know what dimension to use for a differential basis function in w1 or w3 space")
+                        else:
+                            raise GenerationError("Unknown space, expecting one of 'W0,W1,W2,W3' but found '{0}'".format(unique_fs))
+                        parent.add(DeclGen(parent, datatype="real", intent="in",
+                                           dimension=first_dim+","+ndf_name+","+
+                                           self._qr_args["nh"]+","+
+                                           self._qr_args["nv"],
+                                           entity_decls=[diff_basis_name]))
+                if descriptor.requires_orientation:
+                    # orientation w2=ndf
+                    orientation_name = descriptor.orientation_name
+                    arglist.append(orientation_name)
+                    if type == "subroutine":
+                        parent.add(DeclGen(parent, datatype="real", intent="in",
+                                           dimension=ndf_name,
+                                           entity_decls=[orientation_name]))
             # 3.3 Fix for boundary_dofs array in ru_kernel
             if self.name == "ru_code" and unique_fs == "w2":
                 arglist.append("boundary_dofs_w2")
                 if type == "subroutine":
+                    ndf_name = self._fs_descriptors.ndf_name("w2")
                     parent.add(DeclGen(parent, datatype="integer", intent="in",
-                                        dimension="TBD",
+                                        dimension=ndf_name+",2",
                                        entity_decls=["boundary_dofs_w2"]))
                 if type == "call":
                     parent.add(DeclGen(parent, datatype="integer", pointer=True,
@@ -1295,6 +1369,16 @@ class FSDescriptor(object):
             return False
 
     @property
+    def requires_orientation(self):
+        ''' Returns True if an orientation function is
+        associated with this function space, otherwise it returns
+        False. '''
+        if "gh_orientation" in self._descriptor.operator_names:
+            return True
+        else:
+            return False
+
+    @property
     def operator_names(self):
         ''' Returns a list of the names of the operators associated
         with this function space. The names are unique to the function
@@ -1387,7 +1471,8 @@ class FSDescriptors(object):
     def compulsory_args_field(self, func_space):
         ''' Args that a field requires for the specified function
         space in addition to the compulsory args. '''
-        return [self.undf_name(func_space), self.map_name(func_space)]
+        return {"undf":self.undf_name(func_space),
+                "map":self.map_name(func_space)}
 
     def ndf_name(self, func_space):
         ''' Returns a ndf name for this function space. '''
@@ -1573,3 +1658,14 @@ class DynKernelArgument(Argument):
         ''' Returns the expected finite element function space for this
             argument as specified by the kernel argument metadata. '''
         return self._arg.function_space
+
+    @property
+    def intent(self):
+        if self.access == "gh_read":
+            return "in"
+        elif self.access == "gh_write":
+            return "out"
+        elif self.access == "gh_inc":
+            return "inout"
+        else:
+            raise GenerationError("Expecting argument access to be one of 'gh_read, gh_write, gh_inc' but found '{0}'".format(self.access))

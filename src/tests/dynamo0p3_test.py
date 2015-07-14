@@ -15,7 +15,7 @@ from psyGen import PSyFactory, GenerationError
 import os
 import fparser
 from fparser import api as fpapi
-from dynamo0p3 import DynKernelType03
+from dynamo0p3 import DynKernelType03, DynKern
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -846,3 +846,526 @@ def test_kernel_datatype_not_found():
     ''' fail if kernel datatype is not found '''
     with pytest.raises(RuntimeError):
         generate("test_files/dynamo0p3/testkern_no_datatype.F90",api="dynamo0.3")
+
+# fields : intent
+INTENT = '''
+module dummy_mod
+  type, extends(kernel_type) :: dummy_type
+     type(arg_type), meta_args(3) =    &
+          (/ arg_type(gh_field,gh_write,w1), &
+             arg_type(gh_field,gh_inc, w1), &
+             arg_type(gh_field,gh_read, w1)  &
+           /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => dummy_code
+  end type dummy_type
+contains
+  subroutine dummy_code()
+  end subroutine dummy_code
+end module dummy_mod
+'''
+
+def test_intent():
+    ''' test that field intent is generated correctly for kernel stubs '''
+    ast = fpapi.parse(INTENT, ignore_comments=False)
+    metadata = DynKernelType03(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = kernel.gen_stub
+    output = '''  MODULE dummy_code_mod
+    IMPLICIT NONE
+    CONTAINS
+    SUBROUTINE dummy_code_code(nlayers, field_1_w1, field_2_w1, field_3_w1, ndf_w1, undf_w1, map_w1)
+      INTEGER, intent(in) :: nlayers
+      REAL(KIND=r_def), intent(out), dimension(undf_w1) :: field_1_w1
+      REAL(KIND=r_def), intent(inout), dimension(undf_w1) :: field_2_w1
+      REAL(KIND=r_def), intent(in), dimension(undf_w1) :: field_3_w1
+      INTEGER, intent(in) :: ndf_w1
+      INTEGER, intent(in) :: undf_w1
+      INTEGER, intent(in), dimension(ndf_w1) :: map_w1
+    END SUBROUTINE dummy_code_code
+  END MODULE dummy_code_mod'''
+    print output
+    print str(generated_code)
+    assert str(generated_code).find(output) != -1
+
+# fields : spaces
+SPACES = '''
+module dummy_mod
+  type, extends(kernel_type) :: dummy_type
+     type(arg_type), meta_args(4) =    &
+          (/ arg_type(gh_field,gh_write, w0), &
+             arg_type(gh_field,gh_write, w1), &
+             arg_type(gh_field,gh_write, w2), &
+             arg_type(gh_field,gh_write, w3)  &
+           /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => dummy_code
+  end type dummy_type
+contains
+  subroutine dummy_code()
+  end subroutine dummy_code
+end module dummy_mod
+'''
+
+def test_spaces():
+    ''' test that field spaces are handled correctly for kernel stubs '''
+    ast = fpapi.parse(SPACES, ignore_comments=False)
+    metadata = DynKernelType03(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = kernel.gen_stub
+    output = '''  MODULE dummy_code_mod
+    IMPLICIT NONE
+    CONTAINS
+    SUBROUTINE dummy_code_code(nlayers, field_1_w0, field_2_w1, field_3_w2, field_4_w3, ndf_w0, undf_w0, map_w0, ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)
+      INTEGER, intent(in) :: nlayers
+      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: field_1_w0
+      REAL(KIND=r_def), intent(out), dimension(undf_w1) :: field_2_w1
+      REAL(KIND=r_def), intent(out), dimension(undf_w2) :: field_3_w2
+      REAL(KIND=r_def), intent(out), dimension(undf_w3) :: field_4_w3
+      INTEGER, intent(in) :: ndf_w0
+      INTEGER, intent(in) :: undf_w0
+      INTEGER, intent(in), dimension(ndf_w0) :: map_w0
+      INTEGER, intent(in) :: ndf_w1
+      INTEGER, intent(in) :: undf_w1
+      INTEGER, intent(in), dimension(ndf_w1) :: map_w1
+      INTEGER, intent(in) :: ndf_w2
+      INTEGER, intent(in) :: undf_w2
+      INTEGER, intent(in), dimension(ndf_w2) :: map_w2
+      INTEGER, intent(in) :: ndf_w3
+      INTEGER, intent(in) :: undf_w3
+      INTEGER, intent(in), dimension(ndf_w3) :: map_w3
+    END SUBROUTINE dummy_code_code
+  END MODULE dummy_code_mod'''
+    print output
+    print str(generated_code)
+    assert str(generated_code).find(output) != -1
+
+# fields : vectors
+VECTORS = '''
+module dummy_mod
+  type, extends(kernel_type) :: dummy_type
+     type(arg_type), meta_args(1) =    &
+          (/ arg_type(gh_field*3,gh_write, w0) &
+           /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => dummy_code
+  end type dummy_type
+contains
+  subroutine dummy_code()
+  end subroutine dummy_code
+end module dummy_mod
+'''
+
+def test_vectors():
+    ''' test that field vectors are handled correctly for kernel stubs '''
+    ast = fpapi.parse(VECTORS, ignore_comments=False)
+    metadata = DynKernelType03(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = kernel.gen_stub
+    output = '''  MODULE dummy_code_mod
+    IMPLICIT NONE
+    CONTAINS
+    SUBROUTINE dummy_code_code(nlayers, field_1_w0_v1, field_1_w0_v2, field_1_w0_v3, ndf_w0, undf_w0, map_w0)
+      INTEGER, intent(in) :: nlayers
+      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: field_1_w0_v1
+      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: field_1_w0_v2
+      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: field_1_w0_v3
+      INTEGER, intent(in) :: ndf_w0
+      INTEGER, intent(in) :: undf_w0
+      INTEGER, intent(in), dimension(ndf_w0) :: map_w0
+    END SUBROUTINE dummy_code_code
+  END MODULE dummy_code_mod'''
+    print output
+    print str(generated_code)
+    assert str(generated_code).find(output) != -1
+
+# operators : spaces and intent
+OPERATORS = '''
+module dummy_mod
+  type, extends(kernel_type) :: dummy_type
+     type(arg_type), meta_args(4) =    &
+          (/ arg_type(gh_operator,gh_write, w0, w0), &
+             arg_type(gh_operator,gh_inc,   w1, w1), &
+             arg_type(gh_operator,gh_read,  w2, w2), &
+             arg_type(gh_operator,gh_write, w3, w3)  &
+           /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => dummy_code
+  end type dummy_type
+contains
+  subroutine dummy_code()
+  end subroutine dummy_code
+end module dummy_mod
+'''
+
+def test_operators():
+    ''' test that operators are handled correctly for kernel stubs '''
+    ast = fpapi.parse(OPERATORS, ignore_comments=False)
+    metadata = DynKernelType03(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = kernel.gen_stub
+    output = '''  MODULE dummy_code_mod
+    IMPLICIT NONE
+    CONTAINS
+    SUBROUTINE dummy_code_code(cell, nlayers, op_1_ncell_3d, op_1, op_2_ncell_3d, op_2, op_3_ncell_3d, op_3, op_4_ncell_3d, op_4, ndf_w0, ndf_w1, ndf_w2, ndf_w3)
+      INTEGER, intent(in) :: cell
+      INTEGER, intent(in) :: nlayers
+      INTEGER, intent(in) :: op_1_ncell_3d
+      REAL(KIND=r_def), intent(out), dimension(ndf_w0,ndf_w0,op_1_ncell_3d) :: op_1
+      INTEGER, intent(in) :: op_2_ncell_3d
+      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,op_2_ncell_3d) :: op_2
+      INTEGER, intent(in) :: op_3_ncell_3d
+      REAL(KIND=r_def), intent(in), dimension(ndf_w2,ndf_w2,op_3_ncell_3d) :: op_3
+      INTEGER, intent(in) :: op_4_ncell_3d
+      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,op_4_ncell_3d) :: op_4
+      INTEGER, intent(in) :: ndf_w0
+      INTEGER, intent(in) :: ndf_w1
+      INTEGER, intent(in) :: ndf_w2
+      INTEGER, intent(in) :: ndf_w3
+    END SUBROUTINE dummy_code_code
+  END MODULE dummy_code_mod'''
+    print output
+    print str(generated_code)
+    assert str(generated_code).find(output) != -1
+
+# basis function : spaces
+BASIS = '''
+module dummy_mod
+  type, extends(kernel_type) :: dummy_type
+     type(arg_type), meta_args(4) =    &
+          (/ arg_type(gh_field,   gh_write,w0), &
+             arg_type(gh_operator,gh_inc,  w1, w1), &
+             arg_type(gh_field,   gh_read, w2), &
+             arg_type(gh_operator,gh_write,w3, w3)  &
+           /)
+     type(func_type), meta_funcs(3) =    &
+          (/ func_type(w0, gh_basis), &
+             func_type(w2, gh_basis), &
+             func_type(w3, gh_basis)  &
+           /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => dummy_code
+  end type dummy_type
+contains
+  subroutine dummy_code()
+  end subroutine dummy_code
+end module dummy_mod
+'''
+
+def test_basis():
+    ''' Test that basis functions are handled correctly for kernel stubs '''
+    ast = fpapi.parse(BASIS, ignore_comments=False)
+    metadata = DynKernelType03(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = kernel.gen_stub
+    output = '''  MODULE dummy_code_mod
+    IMPLICIT NONE
+    CONTAINS
+    SUBROUTINE dummy_code_code(cell, nlayers, field_1_w0, op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, undf_w0, map_w0, basis_w0, ndf_w1, ndf_w2, undf_w2, map_w2, basis_w2, ndf_w3, basis_w3, nqp_h, nqp_v, wh, wv)
+      INTEGER, intent(in) :: cell
+      INTEGER, intent(in) :: nlayers
+      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: field_1_w0
+      INTEGER, intent(in) :: op_2_ncell_3d
+      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,op_2_ncell_3d) :: op_2
+      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: field_3_w2
+      INTEGER, intent(in) :: op_4_ncell_3d
+      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,op_4_ncell_3d) :: op_4
+      INTEGER, intent(in) :: ndf_w0
+      INTEGER, intent(in) :: undf_w0
+      INTEGER, intent(in), dimension(ndf_w0) :: map_w0
+      REAL, intent(in), dimension(1,ndf_w0,nqp_h,nqp_v) :: basis_w0
+      INTEGER, intent(in) :: ndf_w1
+      INTEGER, intent(in) :: ndf_w2
+      INTEGER, intent(in) :: undf_w2
+      INTEGER, intent(in), dimension(ndf_w2) :: map_w2
+      REAL, intent(in), dimension(3,ndf_w2,nqp_h,nqp_v) :: basis_w2
+      INTEGER, intent(in) :: ndf_w3
+      REAL, intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) :: basis_w3
+      INTEGER, intent(in) :: nqp_h, nqp_v
+      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh
+      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv
+    END SUBROUTINE dummy_code_code
+  END MODULE dummy_code_mod'''
+    print output
+    print str(generated_code)
+    assert str(generated_code).find(output) != -1
+
+# basis function : w1 space
+BASIS_W1 = '''
+module dummy_mod
+  type, extends(kernel_type) :: dummy_type
+     type(arg_type), meta_args(1) =    &
+          (/ arg_type(gh_field,gh_write,w1) &
+           /)
+     type(func_type), meta_funcs(1) =    &
+          (/ func_type(w1,gh_basis) &
+           /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => dummy_code
+  end type dummy_type
+contains
+  subroutine dummy_code()
+  end subroutine dummy_code
+end module dummy_mod
+'''
+
+def test_basis_w1():
+    ''' Test that the use of the w1 basis function raises an error as
+    we don't know what the dimensions are for this as there are no
+    examples of its use.'''
+    ast = fpapi.parse(BASIS_W1, ignore_comments=False)
+    metadata = DynKernelType03(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    with pytest.raises(GenerationError):
+        generated_code = kernel.gen_stub
+
+
+# diff basis function : spaces
+DIFF_BASIS = '''
+module dummy_mod
+  type, extends(kernel_type) :: dummy_type
+     type(arg_type), meta_args(4) =    &
+          (/ arg_type(gh_field,   gh_write,w0), &
+             arg_type(gh_operator,gh_inc,  w1, w1), &
+             arg_type(gh_field,   gh_read, w2), &
+             arg_type(gh_operator,gh_write,w3, w3)  &
+           /)
+     type(func_type), meta_funcs(2) =    &
+          (/ func_type(w0, gh_diff_basis), &
+             func_type(w2, gh_diff_basis) &
+           /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => dummy_code
+  end type dummy_type
+contains
+  subroutine dummy_code()
+  end subroutine dummy_code
+end module dummy_mod
+'''
+
+def test_diff_basis():
+    ''' Test that differential basis functions are handled correctly
+    for kernel stubs '''
+    ast = fpapi.parse(DIFF_BASIS, ignore_comments=False)
+    metadata = DynKernelType03(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = kernel.gen_stub
+    output = '''  MODULE dummy_code_mod
+    IMPLICIT NONE
+    CONTAINS
+    SUBROUTINE dummy_code_code(cell, nlayers, field_1_w0, op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, undf_w0, map_w0, diff_basis_w0, ndf_w1, ndf_w2, undf_w2, map_w2, diff_basis_w2, ndf_w3, nqp_h, nqp_v, wh, wv)
+      INTEGER, intent(in) :: cell
+      INTEGER, intent(in) :: nlayers
+      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: field_1_w0
+      INTEGER, intent(in) :: op_2_ncell_3d
+      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,op_2_ncell_3d) :: op_2
+      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: field_3_w2
+      INTEGER, intent(in) :: op_4_ncell_3d
+      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,op_4_ncell_3d) :: op_4
+      INTEGER, intent(in) :: ndf_w0
+      INTEGER, intent(in) :: undf_w0
+      INTEGER, intent(in), dimension(ndf_w0) :: map_w0
+      REAL, intent(in), dimension(3,ndf_w0,nqp_h,nqp_v) :: diff_basis_w0
+      INTEGER, intent(in) :: ndf_w1
+      INTEGER, intent(in) :: ndf_w2
+      INTEGER, intent(in) :: undf_w2
+      INTEGER, intent(in), dimension(ndf_w2) :: map_w2
+      REAL, intent(in), dimension(1,ndf_w2,nqp_h,nqp_v) :: diff_basis_w2
+      INTEGER, intent(in) :: ndf_w3
+      INTEGER, intent(in) :: nqp_h, nqp_v
+      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh
+      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv
+    END SUBROUTINE dummy_code_code
+  END MODULE dummy_code_mod'''
+    print output
+    print str(generated_code)
+    assert str(generated_code).find(output) != -1
+
+# diff basis function : w1 space
+DIFF_BASIS_W1 = '''
+module dummy_mod
+  type, extends(kernel_type) :: dummy_type
+     type(arg_type), meta_args(1) =    &
+          (/ arg_type(gh_field,gh_write,w1) &
+           /)
+     type(func_type), meta_funcs(1) =    &
+          (/ func_type(w1,gh_diff_basis) &
+           /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => dummy_code
+  end type dummy_type
+contains
+  subroutine dummy_code()
+  end subroutine dummy_code
+end module dummy_mod
+'''
+
+def test_diff_basis_w1():
+    ''' Test that the use of the w1 differential basis function raises
+    an error as we don't know what the dimensions are for this as
+    there are no examples of its use.'''
+    ast = fpapi.parse(DIFF_BASIS_W1, ignore_comments=False)
+    metadata = DynKernelType03(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    with pytest.raises(GenerationError):
+        generated_code = kernel.gen_stub
+
+# diff basis function : w3 space
+DIFF_BASIS_W3 = '''
+module dummy_mod
+  type, extends(kernel_type) :: dummy_type
+     type(arg_type), meta_args(1) =    &
+          (/ arg_type(gh_field,gh_write,w3) &
+           /)
+     type(func_type), meta_funcs(1) =    &
+          (/ func_type(w3,gh_diff_basis) &
+           /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => dummy_code
+  end type dummy_type
+contains
+  subroutine dummy_code()
+  end subroutine dummy_code
+end module dummy_mod
+'''
+
+def test_diff_basis_w3():
+    ''' Test that the use of the w3 differential basis function raises
+    an error as we don't know what the dimensions are for this as
+    there are no examples of its use.'''
+    ast = fpapi.parse(DIFF_BASIS_W3, ignore_comments=False)
+    metadata = DynKernelType03(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    with pytest.raises(GenerationError):
+        generated_code = kernel.gen_stub
+
+# orientation : spaces
+ORIENTATION = '''
+module dummy_mod
+  type, extends(kernel_type) :: dummy_type
+     type(arg_type), meta_args(4) =    &
+          (/ arg_type(gh_field,   gh_write,w0), &
+             arg_type(gh_operator,gh_inc,  w1, w1), &
+             arg_type(gh_field,   gh_read, w2), &
+             arg_type(gh_operator,gh_write,w3, w3)  &
+           /)
+     type(func_type), meta_funcs(4) =    &
+          (/ func_type(w0, gh_orientation), &
+             func_type(w1, gh_orientation), &
+             func_type(w2, gh_orientation), &
+             func_type(w3, gh_orientation) &
+           /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => dummy_code
+  end type dummy_type
+contains
+  subroutine dummy_code()
+  end subroutine dummy_code
+end module dummy_mod
+'''
+
+def test_orientation():
+    ''' Test that orientation is handled correctly for kernel
+    stubs '''
+    ast = fpapi.parse(ORIENTATION, ignore_comments=False)
+    metadata = DynKernelType03(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = kernel.gen_stub
+    output = '''    SUBROUTINE dummy_code_code(cell, nlayers, field_1_w0, op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, undf_w0, map_w0, orientation_w0, ndf_w1, orientation_w1, ndf_w2, undf_w2, map_w2, orientation_w2, ndf_w3, orientation_w3, nqp_h, nqp_v, wh, wv)
+      INTEGER, intent(in) :: cell
+      INTEGER, intent(in) :: nlayers
+      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: field_1_w0
+      INTEGER, intent(in) :: op_2_ncell_3d
+      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,op_2_ncell_3d) :: op_2
+      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: field_3_w2
+      INTEGER, intent(in) :: op_4_ncell_3d
+      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,op_4_ncell_3d) :: op_4
+      INTEGER, intent(in) :: ndf_w0
+      INTEGER, intent(in) :: undf_w0
+      INTEGER, intent(in), dimension(ndf_w0) :: map_w0
+      REAL, intent(in), dimension(ndf_w0) :: orientation_w0
+      INTEGER, intent(in) :: ndf_w1
+      REAL, intent(in), dimension(ndf_w1) :: orientation_w1
+      INTEGER, intent(in) :: ndf_w2
+      INTEGER, intent(in) :: undf_w2
+      INTEGER, intent(in), dimension(ndf_w2) :: map_w2
+      REAL, intent(in), dimension(ndf_w2) :: orientation_w2
+      INTEGER, intent(in) :: ndf_w3
+      REAL, intent(in), dimension(ndf_w3) :: orientation_w3
+      INTEGER, intent(in) :: nqp_h, nqp_v
+      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh
+      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv
+    END SUBROUTINE dummy_code_code
+  END MODULE dummy_code_mod'''
+    print output
+    print str(generated_code)
+    assert str(generated_code).find(output) != -1
+
+# ru_kernel boundary layer modification
+def test_ru_kernel_stub_gen():
+    ''' Test that the ru_kernel boundary layer argument modification
+    is handled correctly for kernel stubs'''
+    ast = fpapi.parse(os.path.join(BASE_PATH, "ru_kernel_mod.f90"),
+                      ignore_comments=False)
+    metadata = DynKernelType03(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = kernel.gen_stub
+    output = '''  MODULE ru_code_mod
+    IMPLICIT NONE
+    CONTAINS
+    SUBROUTINE ru_code_code(nlayers, field_1_w2, field_2_w3, field_3_w0, field_4_w0_v1, field_4_w0_v2, field_4_w0_v3, ndf_w2, undf_w2, map_w2, basis_w2, diff_basis_w2, boundary_dofs_w2, ndf_w3, undf_w3, map_w3, basis_w3, ndf_w0, undf_w0, map_w0, basis_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)
+      INTEGER, intent(in) :: nlayers
+      REAL(KIND=r_def), intent(inout), dimension(undf_w2) :: field_1_w2
+      REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field_2_w3
+      REAL(KIND=r_def), intent(in), dimension(undf_w0) :: field_3_w0
+      REAL(KIND=r_def), intent(in), dimension(undf_w0) :: field_4_w0_v1
+      REAL(KIND=r_def), intent(in), dimension(undf_w0) :: field_4_w0_v2
+      REAL(KIND=r_def), intent(in), dimension(undf_w0) :: field_4_w0_v3
+      INTEGER, intent(in) :: ndf_w2
+      INTEGER, intent(in) :: undf_w2
+      INTEGER, intent(in), dimension(ndf_w2) :: map_w2
+      REAL, intent(in), dimension(3,ndf_w2,nqp_h,nqp_v) :: basis_w2
+      REAL, intent(in), dimension(1,ndf_w2,nqp_h,nqp_v) :: diff_basis_w2
+      INTEGER, intent(in), dimension(ndf_w2,2) :: boundary_dofs_w2
+      INTEGER, intent(in) :: ndf_w3
+      INTEGER, intent(in) :: undf_w3
+      INTEGER, intent(in), dimension(ndf_w3) :: map_w3
+      REAL, intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) :: basis_w3
+      INTEGER, intent(in) :: ndf_w0
+      INTEGER, intent(in) :: undf_w0
+      INTEGER, intent(in), dimension(ndf_w0) :: map_w0
+      REAL, intent(in), dimension(1,ndf_w0,nqp_h,nqp_v) :: basis_w0
+      REAL, intent(in), dimension(3,ndf_w0,nqp_h,nqp_v) :: diff_basis_w0
+      INTEGER, intent(in) :: nqp_h, nqp_v
+      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh
+      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv
+    END SUBROUTINE ru_code_code
+  END MODULE ru_code_mod'''
+    print output
+    print str(generated_code)
+    assert str(generated_code).find(output) != -1
+
+# note, we do not need a separate test for qr as it is implicitly
+# tested for in the above examples.
+
