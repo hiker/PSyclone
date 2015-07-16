@@ -46,7 +46,7 @@ if __name__=="__main__":
 
     from config import SUPPORTEDSTUBAPIS,DEFAULTSTUBAPI
     parser = argparse.ArgumentParser(description='Create Kernel stub code from Kernel metadata')
-    parser.add_argument('-o', help='filename of output')
+    parser.add_argument('-o', '--outfile', help='filename of output')
     parser.add_argument('-api', default=DEFAULTSTUBAPI,help='choose a particular api from {0}, default {1}'.format(str(SUPPORTEDSTUBAPIS),DEFAULTSTUBAPI))
     parser.add_argument('filename', help='Kernel metadata')
     args = parser.parse_args()
@@ -64,8 +64,10 @@ if __name__=="__main__":
         traceback.print_tb(exc_traceback)
         exit(1)
 
-    if args.o is not None:
-        file = open(args.o, "w")
+    print dir(args)
+
+    if args.outfile is not None:
+        file = open(args.outfile, "w")
         file.write(str(stub))
         file.close()
     else:

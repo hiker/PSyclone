@@ -1,3 +1,4 @@
+.. _getting-going:
 Getting Going
 =============
 

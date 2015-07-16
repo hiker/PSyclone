@@ -61,6 +61,7 @@ Contents:
 
    getting_going
    api
+   stub_gen
    f2py_install
 ..   developers
 ..   kernel_layer
