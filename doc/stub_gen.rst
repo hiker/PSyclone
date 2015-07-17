@@ -231,16 +231,16 @@ we obtain the following output:
       REAL(KIND=r_def), intent(in), dimension(undf_w0) :: field_4_w0_v3
       INTEGER, intent(in) :: ndf_w2
       INTEGER, intent(in), dimension(ndf_w2) :: map_w2
-      REAL, intent(in), dimension(3,ndf_w2,nqp_h,nqp_v) :: basis_w2
-      REAL, intent(in), dimension(1,ndf_w2,nqp_h,nqp_v) :: diff_basis_w2
+      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2,nqp_h,nqp_v) :: basis_w2
+      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,nqp_h,nqp_v) :: diff_basis_w2
       INTEGER, intent(in), dimension(ndf_w2,2) :: boundary_dofs_w2
       INTEGER, intent(in) :: ndf_w3
       INTEGER, intent(in), dimension(ndf_w3) :: map_w3
-      REAL, intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) :: basis_w3
+      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) :: basis_w3
       INTEGER, intent(in) :: ndf_w0
       INTEGER, intent(in), dimension(ndf_w0) :: map_w0
-      REAL, intent(in), dimension(1,ndf_w0,nqp_h,nqp_v) :: basis_w0
-      REAL, intent(in), dimension(3,ndf_w0,nqp_h,nqp_v) :: diff_basis_w0
+      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,nqp_h,nqp_v) :: basis_w0
+      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,nqp_h,nqp_v) :: diff_basis_w0
       INTEGER, intent(in) :: nqp_h, nqp_v
       REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh
       REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv
@@ -322,7 +322,7 @@ rules, along with PSyclone's naming conventions, are:
 
     3) For each operation on the function space (``basis``, ``diff_basis``, ``orientation``) in the order specified in the metadata
 
-        1) If it is a basis function, include the associated argument. This is a real array with intent ``in``. It has four dimensions. The first dimension is 1 or 3 depending on the function space (w0=1,w1=3,w2=3,w3=1). The second dimension is the local degrees of freedom for the function space. The third argument is the quadrature rule size which is currently named ``nqp_h`` and the fourth argument is the quadrature rule size which is currently named ``nqp_v``.  The name of the argument is ``"basis_"<field_function_space>``
+        1) If it is a basis function, include the associated argument. This is a real array of kind r_def with intent ``in``. It has four dimensions. The first dimension is 1 or 3 depending on the function space (w0=1,w1=3,w2=3,w3=1). The second dimension is the local degrees of freedom for the function space. The third argument is the quadrature rule size which is currently named ``nqp_h`` and the fourth argument is the quadrature rule size which is currently named ``nqp_v``.  The name of the argument is ``"basis_"<field_function_space>``
         2) If it is a differential basis function, include the associated argument. The sizes and dimensions are the same as the basis function except for the size of the first dimension which is sized as 1 or 3 depending on different function space rules (w0=3,w1=3,w2=1,w3=1). The name of the argument is ``"diff_basis_"<field_function_space>``.
         3) If is an orientation array, include the associated argument. The argument is an integer array with intent ``in``. There is one dimension of size the local degrees of freedom for the function space. The name of the array is ``"orientation_"<field_function_space>``.
 
