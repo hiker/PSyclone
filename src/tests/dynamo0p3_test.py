@@ -1090,14 +1090,14 @@ def test_basis():
       REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,op_4_ncell_3d) :: op_4
       INTEGER, intent(in) :: ndf_w0
       INTEGER, intent(in), dimension(ndf_w0) :: map_w0
-      REAL, intent(in), dimension(1,ndf_w0,nqp_h,nqp_v) :: basis_w0
+      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,nqp_h,nqp_v) :: basis_w0
       INTEGER, intent(in) :: ndf_w1
-      REAL, intent(in), dimension(3,ndf_w1,nqp_h,nqp_v) :: basis_w1
+      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,nqp_h,nqp_v) :: basis_w1
       INTEGER, intent(in) :: ndf_w2
       INTEGER, intent(in), dimension(ndf_w2) :: map_w2
-      REAL, intent(in), dimension(3,ndf_w2,nqp_h,nqp_v) :: basis_w2
+      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2,nqp_h,nqp_v) :: basis_w2
       INTEGER, intent(in) :: ndf_w3
-      REAL, intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) :: basis_w3
+      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) :: basis_w3
       INTEGER, intent(in) :: nqp_h, nqp_v
       REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh
       REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv
@@ -1158,14 +1158,14 @@ def test_diff_basis():
       REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,op_4_ncell_3d) :: op_4
       INTEGER, intent(in) :: ndf_w0
       INTEGER, intent(in), dimension(ndf_w0) :: map_w0
-      REAL, intent(in), dimension(3,ndf_w0,nqp_h,nqp_v) :: diff_basis_w0
+      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,nqp_h,nqp_v) :: diff_basis_w0
       INTEGER, intent(in) :: ndf_w1
-      REAL, intent(in), dimension(3,ndf_w1,nqp_h,nqp_v) :: diff_basis_w1
+      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,nqp_h,nqp_v) :: diff_basis_w1
       INTEGER, intent(in) :: ndf_w2
       INTEGER, intent(in), dimension(ndf_w2) :: map_w2
-      REAL, intent(in), dimension(1,ndf_w2,nqp_h,nqp_v) :: diff_basis_w2
+      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,nqp_h,nqp_v) :: diff_basis_w2
       INTEGER, intent(in) :: ndf_w3
-      REAL, intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) :: diff_basis_w3
+      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) :: diff_basis_w3
       INTEGER, intent(in) :: nqp_h, nqp_v
       REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh
       REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv
@@ -1267,16 +1267,16 @@ def test_ru_kernel_stub_gen():
       REAL(KIND=r_def), intent(in), dimension(undf_w0) :: field_4_w0_v3
       INTEGER, intent(in) :: ndf_w2
       INTEGER, intent(in), dimension(ndf_w2) :: map_w2
-      REAL, intent(in), dimension(3,ndf_w2,nqp_h,nqp_v) :: basis_w2
-      REAL, intent(in), dimension(1,ndf_w2,nqp_h,nqp_v) :: diff_basis_w2
+      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2,nqp_h,nqp_v) :: basis_w2
+      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,nqp_h,nqp_v) :: diff_basis_w2
       INTEGER, intent(in), dimension(ndf_w2,2) :: boundary_dofs_w2
       INTEGER, intent(in) :: ndf_w3
       INTEGER, intent(in), dimension(ndf_w3) :: map_w3
-      REAL, intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) :: basis_w3
+      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) :: basis_w3
       INTEGER, intent(in) :: ndf_w0
       INTEGER, intent(in), dimension(ndf_w0) :: map_w0
-      REAL, intent(in), dimension(1,ndf_w0,nqp_h,nqp_v) :: basis_w0
-      REAL, intent(in), dimension(3,ndf_w0,nqp_h,nqp_v) :: diff_basis_w0
+      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,nqp_h,nqp_v) :: basis_w0
+      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,nqp_h,nqp_v) :: diff_basis_w0
       INTEGER, intent(in) :: nqp_h, nqp_v
       REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh
       REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv

@@ -1179,7 +1179,7 @@ class DynKern(Kern):
                             first_dim = "3"
                         else:
                             raise GenerationError("Unknown space, expecting one of 'W0,W1,W2,W3' but found '{0}'".format(unique_fs))
-                        parent.add(DeclGen(parent, datatype="real", intent="in",
+                        parent.add(DeclGen(parent, datatype="real", kind="r_def", intent="in",
                                            dimension=first_dim+","+ndf_name+","+
                                            self._qr_args["nh"]+","+
                                            self._qr_args["nv"],
@@ -1196,7 +1196,7 @@ class DynKern(Kern):
                             first_dim = "3"
                         else:
                             raise GenerationError("Unknown space, expecting one of 'W0,W1,W2,W3' but found '{0}'".format(unique_fs))
-                        parent.add(DeclGen(parent, datatype="real", intent="in",
+                        parent.add(DeclGen(parent, datatype="real", kind="r_def", intent="in",
                                            dimension=first_dim+","+ndf_name+","+
                                            self._qr_args["nh"]+","+
                                            self._qr_args["nv"],
