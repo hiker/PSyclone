@@ -1311,14 +1311,14 @@ def test_orientation():
       REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,op_4_ncell_3d) :: op_4
       INTEGER, intent(in) :: ndf_w0
       INTEGER, intent(in), dimension(ndf_w0) :: map_w0
-      REAL, intent(in), dimension(ndf_w0) :: orientation_w0
+      INTEGER, intent(in), dimension(ndf_w0) :: orientation_w0
       INTEGER, intent(in) :: ndf_w1
-      REAL, intent(in), dimension(ndf_w1) :: orientation_w1
+      INTEGER, intent(in), dimension(ndf_w1) :: orientation_w1
       INTEGER, intent(in) :: ndf_w2
       INTEGER, intent(in), dimension(ndf_w2) :: map_w2
-      REAL, intent(in), dimension(ndf_w2) :: orientation_w2
+      INTEGER, intent(in), dimension(ndf_w2) :: orientation_w2
       INTEGER, intent(in) :: ndf_w3
-      REAL, intent(in), dimension(ndf_w3) :: orientation_w3
+      INTEGER, intent(in), dimension(ndf_w3) :: orientation_w3
       INTEGER, intent(in) :: nqp_h, nqp_v
       REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh
       REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv

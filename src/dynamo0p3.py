@@ -1210,7 +1210,7 @@ class DynKern(Kern):
                     orientation_name = descriptor.orientation_name
                     arglist.append(orientation_name)
                     if my_type == "subroutine":
-                        parent.add(DeclGen(parent, datatype="real", intent="in",
+                        parent.add(DeclGen(parent, datatype="integer", intent="in",
                                            dimension=ndf_name,
                                            entity_decls=[orientation_name]))
             # 3.3 Fix for boundary_dofs array in ru_kernel
