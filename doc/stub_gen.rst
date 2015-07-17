@@ -106,13 +106,15 @@ directory. In the latter directory the majority start with
 and ``matrix_vector_mm_mod.F90``. The following test kernels can be used
 to generate kernel stub code:
 ::
-  tests/test_files/dynamo0p3/testkern_chi_2.F90
-  tests/test_files/dynamo0p3/testkern_chi.F90
-  tests/test_files/dynamo0p3/testkern_operator_mod.f90
-  tests/test_files/dynamo0p3/testkern_operator_nofield_mod.f90
-  tests/test_files/dynamo0p3/testkern_orientation.F90
-  tests/test_files/dynamo0p3/ru_kernel_mod.f90
-  tests/test_files/dynamo0p3/simple.f90
+    tests/test_files/dynamo0p3/testkern_chi_2.F90
+    tests/test_files/dynamo0p3/testkern_chi.F90
+    tests/test_files/dynamo0p3/testkern_operator_mod.f90
+    tests/test_files/dynamo0p3/testkern_operator_nofield_mod.f90
+    tests/test_files/dynamo0p3/testkern_orientation.F90
+    tests/test_files/dynamo0p3/testkern_operator_orient_mod.f90
+    tests/test_files/dynamo0p3/testkern_qr.F90
+    tests/test_files/dynamo0p3/ru_kernel_mod.f90
+    tests/test_files/dynamo0p3/simple.f90
 
 .. _stub-generation-example:
 
@@ -275,8 +277,6 @@ supported in the stub generator.
     tests/test_files/dynamo0p3/testkern.F90
     tests/test_files/dynamo0p3/testkern_invalid_fortran.F90
     tests/test_files/dynamo0p3/testkern_no_datatype.F90
-    tests/test_files/dynamo0p3/testkern_operator_orient_mod.f90
-    tests/test_files/dynamo0p3/testkern_qr.F90
     tests/test_files/dynamo0p3/testkern_short_name.F90
 
 ``testkern_invalid_fortran.F90``, ``testkern_no_datatype.F90``,
@@ -293,15 +293,6 @@ should fail with appropriate warnings because of that. For example:
 ::
     > python genkernelstub.py tests/test_files/dynamo0p3/testkern_any_space_1_mod.f90
     Error: "Generation Error: Unknown space, expecting one of 'W0,W1,W2,W3' but found 'any_space_1'"
-
-``testkern_operator_orient_mod.f90`` and ``testkern_qr.F90`` use basis
-functions on function spaces that have not been used by dynamo at this
-point so there is no example of correct output to base the stub
-generator on. Therefore these examples should fail with appropriate
-warnings. For example:
-::
-    > python genkernelstub.py tests/test_files/dynamo0p3/testkern_qr.F90 
-    Error: "Generation Error: I don't know what dimension to use for a basis function in w1 space"
 
 .. _stub-generation-rules:
 

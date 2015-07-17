@@ -1171,14 +1171,12 @@ class DynKern(Kern):
                     basis_name = descriptor.basis_name
                     arglist.append(basis_name)
                     if my_type == "subroutine":
-                        # basis w0=1,w1=?,w2=3,w3=1
+                        # basis w0=1,w1=3,w2=3,w3=1
                         first_dim = None
                         if unique_fs.lower() in ["w0", "w3"]:
                             first_dim = "1"
-                        elif unique_fs.lower() == "w2":
+                        elif unique_fs.lower() in ["w1", "w2"]:
                             first_dim = "3"
-                        elif unique_fs.lower() == "w1":
-                            raise GenerationError("I don't know what dimension to use for a basis function in w1 space")
                         else:
                             raise GenerationError("Unknown space, expecting one of 'W0,W1,W2,W3' but found '{0}'".format(unique_fs))
                         parent.add(DeclGen(parent, datatype="real", intent="in",
@@ -1190,14 +1188,12 @@ class DynKern(Kern):
                     diff_basis_name = descriptor.diff_basis_name
                     arglist.append(diff_basis_name)
                     if my_type == "subroutine":
-                        # diff_basis w0=3,w1=?,w2=1,w3=?
+                        # diff_basis w0=3,w1=3,w2=1,w3=1
                         first_dim = None
-                        if unique_fs.lower() == "w2":
+                        if unique_fs.lower() in ["w2", "w3"]:
                             first_dim = "1"
-                        elif unique_fs.lower() == "w0":
+                        elif unique_fs.lower() in ["w0", "w1"]:
                             first_dim = "3"
-                        elif unique_fs.lower() in ["w1","w3"]:
-                            raise GenerationError("I don't know what dimension to use for a differential basis function in w1 or w3 space")
                         else:
                             raise GenerationError("Unknown space, expecting one of 'W0,W1,W2,W3' but found '{0}'".format(unique_fs))
                         parent.add(DeclGen(parent, datatype="real", intent="in",
