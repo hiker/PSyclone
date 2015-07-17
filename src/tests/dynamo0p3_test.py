@@ -1050,8 +1050,9 @@ module dummy_mod
              arg_type(gh_field,   gh_read, w2), &
              arg_type(gh_operator,gh_write,w3, w3)  &
            /)
-     type(func_type), meta_funcs(3) =    &
+     type(func_type), meta_funcs(4) =    &
           (/ func_type(w0, gh_basis), &
+             func_type(w1, gh_basis), &
              func_type(w2, gh_basis), &
              func_type(w3, gh_basis)  &
            /)
@@ -1075,7 +1076,7 @@ def test_basis():
     output = '''  MODULE dummy_code_mod
     IMPLICIT NONE
     CONTAINS
-    SUBROUTINE dummy_code_code(cell, nlayers, field_1_w0, op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, undf_w0, map_w0, basis_w0, ndf_w1, ndf_w2, undf_w2, map_w2, basis_w2, ndf_w3, basis_w3, nqp_h, nqp_v, wh, wv)
+    SUBROUTINE dummy_code_code(cell, nlayers, field_1_w0, op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, undf_w0, map_w0, basis_w0, ndf_w1, basis_w1, ndf_w2, undf_w2, map_w2, basis_w2, ndf_w3, basis_w3, nqp_h, nqp_v, wh, wv)
       USE constants_mod, ONLY: r_def
       INTEGER, intent(in) :: cell
       INTEGER, intent(in) :: nlayers
@@ -1091,6 +1092,7 @@ def test_basis():
       INTEGER, intent(in), dimension(ndf_w0) :: map_w0
       REAL, intent(in), dimension(1,ndf_w0,nqp_h,nqp_v) :: basis_w0
       INTEGER, intent(in) :: ndf_w1
+      REAL, intent(in), dimension(3,ndf_w1,nqp_h,nqp_v) :: basis_w1
       INTEGER, intent(in) :: ndf_w2
       INTEGER, intent(in), dimension(ndf_w2) :: map_w2
       REAL, intent(in), dimension(3,ndf_w2,nqp_h,nqp_v) :: basis_w2
@@ -1105,38 +1107,6 @@ def test_basis():
     print str(generated_code)
     assert str(generated_code).find(output) != -1
 
-# basis function : w1 space
-BASIS_W1 = '''
-module dummy_mod
-  type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(1) =    &
-          (/ arg_type(gh_field,gh_write,w1) &
-           /)
-     type(func_type), meta_funcs(1) =    &
-          (/ func_type(w1,gh_basis) &
-           /)
-     integer, parameter :: iterates_over = cells
-   contains
-     procedure() :: code => dummy_code
-  end type dummy_type
-contains
-  subroutine dummy_code()
-  end subroutine dummy_code
-end module dummy_mod
-'''
-
-def test_basis_w1():
-    ''' Test that the use of the w1 basis function raises an error as
-    we don't know what the dimensions are for this as there are no
-    examples of its use.'''
-    ast = fpapi.parse(BASIS_W1, ignore_comments=False)
-    metadata = DynKernelType03(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    with pytest.raises(GenerationError):
-        generated_code = kernel.gen_stub
-
-
 # diff basis function : spaces
 DIFF_BASIS = '''
 module dummy_mod
@@ -1147,9 +1117,11 @@ module dummy_mod
              arg_type(gh_field,   gh_read, w2), &
              arg_type(gh_operator,gh_write,w3, w3)  &
            /)
-     type(func_type), meta_funcs(2) =    &
+     type(func_type), meta_funcs(4) =    &
           (/ func_type(w0, gh_diff_basis), &
-             func_type(w2, gh_diff_basis) &
+             func_type(w1, gh_diff_basis), &
+             func_type(w2, gh_diff_basis), &
+             func_type(w3, gh_diff_basis) &
            /)
      integer, parameter :: iterates_over = cells
    contains
@@ -1172,7 +1144,7 @@ def test_diff_basis():
     output = '''  MODULE dummy_code_mod
     IMPLICIT NONE
     CONTAINS
-    SUBROUTINE dummy_code_code(cell, nlayers, field_1_w0, op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, undf_w0, map_w0, diff_basis_w0, ndf_w1, ndf_w2, undf_w2, map_w2, diff_basis_w2, ndf_w3, nqp_h, nqp_v, wh, wv)
+    SUBROUTINE dummy_code_code(cell, nlayers, field_1_w0, op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, undf_w0, map_w0, diff_basis_w0, ndf_w1, diff_basis_w1, ndf_w2, undf_w2, map_w2, diff_basis_w2, ndf_w3, diff_basis_w3, nqp_h, nqp_v, wh, wv)
       USE constants_mod, ONLY: r_def
       INTEGER, intent(in) :: cell
       INTEGER, intent(in) :: nlayers
@@ -1188,10 +1160,12 @@ def test_diff_basis():
       INTEGER, intent(in), dimension(ndf_w0) :: map_w0
       REAL, intent(in), dimension(3,ndf_w0,nqp_h,nqp_v) :: diff_basis_w0
       INTEGER, intent(in) :: ndf_w1
+      REAL, intent(in), dimension(3,ndf_w1,nqp_h,nqp_v) :: diff_basis_w1
       INTEGER, intent(in) :: ndf_w2
       INTEGER, intent(in), dimension(ndf_w2) :: map_w2
       REAL, intent(in), dimension(1,ndf_w2,nqp_h,nqp_v) :: diff_basis_w2
       INTEGER, intent(in) :: ndf_w3
+      REAL, intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) :: diff_basis_w3
       INTEGER, intent(in) :: nqp_h, nqp_v
       REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh
       REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv
@@ -1200,68 +1174,6 @@ def test_diff_basis():
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
-
-# diff basis function : w1 space
-DIFF_BASIS_W1 = '''
-module dummy_mod
-  type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(1) =    &
-          (/ arg_type(gh_field,gh_write,w1) &
-           /)
-     type(func_type), meta_funcs(1) =    &
-          (/ func_type(w1,gh_diff_basis) &
-           /)
-     integer, parameter :: iterates_over = cells
-   contains
-     procedure() :: code => dummy_code
-  end type dummy_type
-contains
-  subroutine dummy_code()
-  end subroutine dummy_code
-end module dummy_mod
-'''
-
-def test_diff_basis_w1():
-    ''' Test that the use of the w1 differential basis function raises
-    an error as we don't know what the dimensions are for this as
-    there are no examples of its use.'''
-    ast = fpapi.parse(DIFF_BASIS_W1, ignore_comments=False)
-    metadata = DynKernelType03(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    with pytest.raises(GenerationError):
-        generated_code = kernel.gen_stub
-
-# diff basis function : w3 space
-DIFF_BASIS_W3 = '''
-module dummy_mod
-  type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(1) =    &
-          (/ arg_type(gh_field,gh_write,w3) &
-           /)
-     type(func_type), meta_funcs(1) =    &
-          (/ func_type(w3,gh_diff_basis) &
-           /)
-     integer, parameter :: iterates_over = cells
-   contains
-     procedure() :: code => dummy_code
-  end type dummy_type
-contains
-  subroutine dummy_code()
-  end subroutine dummy_code
-end module dummy_mod
-'''
-
-def test_diff_basis_w3():
-    ''' Test that the use of the w3 differential basis function raises
-    an error as we don't know what the dimensions are for this as
-    there are no examples of its use.'''
-    ast = fpapi.parse(DIFF_BASIS_W3, ignore_comments=False)
-    metadata = DynKernelType03(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    with pytest.raises(GenerationError):
-        generated_code = kernel.gen_stub
 
 # orientation : spaces
 ORIENTATION = '''
