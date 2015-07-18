@@ -1,9 +1,9 @@
-#-------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # (c) The copyright relating to this work is owned jointly by the Crown,
 # Met Office and NERC 2015.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-#-------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
 import argparse
@@ -17,17 +17,21 @@ import os
 import sys
 import traceback
 
-def generate(filename,api=""):
+
+def generate(filename, api=""):
 
     if api == "":
         from config import DEFAULTSTUBAPI
         api = DEFAULTSTUBAPI
     if api not in SUPPORTEDSTUBAPIS:
-        print "Unsupported API '{0}' specified. Supported API's are {1}.".format(api,SUPPORTEDSTUBAPIS)
-        raise GenerationError("generate: Unsupported API '{0}' specified. Supported types are {1}.".format(api, SUPPORTEDSTUBAPIS))
+        print "Unsupported API '{0}' specified. Supported API's are {1}.".\
+              format(api, SUPPORTEDSTUBAPIS)
+        raise GenerationError(
+            "generate: Unsupported API '{0}' specified. Supported types are "
+            "{1}.".format(api, SUPPORTEDSTUBAPIS))
 
     if not os.path.isfile(filename):
-        raise IOError, "file '%s' not found" % (filename)
+        raise IOError("file '{0}' not found".format(filename))
 
     # drop cache
     fparser.parsefortran.FortranParser.cache.clear()
@@ -42,19 +46,22 @@ def generate(filename,api=""):
     kernel.load_meta(metadata)
     return kernel.gen_stub
 
-if __name__=="__main__":
+if __name__ == "__main__":
 
-    from config import SUPPORTEDSTUBAPIS,DEFAULTSTUBAPI
-    parser = argparse.ArgumentParser(description='Create Kernel stub code from Kernel metadata')
-    parser.add_argument('-o', '--outfile', help='filename of output')
-    parser.add_argument('-api', default=DEFAULTSTUBAPI,help='choose a particular api from {0}, default {1}'.format(str(SUPPORTEDSTUBAPIS),DEFAULTSTUBAPI))
+    from config import SUPPORTEDSTUBAPIS, DEFAULTSTUBAPI
+    parser = argparse.ArgumentParser(description="Create Kernel stub code from"
+                                                 " Kernel metadata")
+    parser.add_argument("-o", "--outfile", help="filename of output")
+    parser.add_argument("-api", default=DEFAULTSTUBAPI,
+                        help="choose a particular api from {0}, default {1}".
+                             format(str(SUPPORTEDSTUBAPIS), DEFAULTSTUBAPI))
     parser.add_argument('filename', help='Kernel metadata')
     args = parser.parse_args()
 
     try:
         stub = generate(args.filename, api=args.api)
     except (IOError, ParseError, GenerationError, RuntimeError) as e:
-        print "Error:",e
+        print "Error:", e
         exit(1)
     except Exception as e:
         print "Error, unexpected exception:\n"
@@ -71,5 +78,4 @@ if __name__=="__main__":
         file.write(str(stub))
         file.close()
     else:
-        print "Kernel stub code:\n",stub
-
+        print "Kernel stub code:\n", stub
