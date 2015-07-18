@@ -807,45 +807,56 @@ def test_loopfuse():
 from genkernelstub import generate
 import pytest
 
+
 def test_non_existant_filename():
     ''' fail if the file does not exist '''
     with pytest.raises(IOError):
         generate("non_existant_file.f90", api="dynamo0.3")
 
+
 def test_invalid_api():
     ''' fail if the specified api is not supported '''
     with pytest.raises(GenerationError):
-        generate("test_files/dynamo0p3/ru_kernel_mod.f90",api="dynamo0.1")
+        generate("test_files/dynamo0p3/ru_kernel_mod.f90", api="dynamo0.1")
+
 
 def test_file_content_not_fortran():
     ''' fail if the kernel file does not contain fortran '''
     with pytest.raises(ParseError):
-        generate("dynamo0p3_test.py",api="dynamo0.3")
+        generate("dynamo0p3_test.py", api="dynamo0.3")
+
 
 def test_file_fortran_invalid():
     ''' fail if the fortran in the kernel is not valid '''
     with pytest.raises(ParseError):
-        generate("test_files/dynamo0p3/testkern_invalid_fortran.F90",api="dynamo0.3")
+        generate("test_files/dynamo0p3/testkern_invalid_fortran.F90",
+                 api="dynamo0.3")
+
 
 def test_file_fortran_not_kernel():
     ''' fail if file is valid fortran but is not a kernel file '''
     with pytest.raises(ParseError):
-        generate("test_files/dynamo0p3/1_single_invoke.f90",api="dynamo0.3")
+        generate("test_files/dynamo0p3/1_single_invoke.f90", api="dynamo0.3")
+
 
 def test_module_name_too_short():
-    ''' fail if length of kernel module name is too short ''' 
+    ''' fail if length of kernel module name is too short '''
     with pytest.raises(ParseError):
-        generate("test_files/dynamo0p3/testkern_short_name.F90",api="dynamo0.3")
+        generate("test_files/dynamo0p3/testkern_short_name.F90",
+                 api="dynamo0.3")
+
 
 def test_module_name_convention():
     ''' fail if kernel module name does not have _mod at end '''
     with pytest.raises(ParseError):
-        generate("test_files/dynamo0p3/testkern.F90",api="dynamo0.3")
+        generate("test_files/dynamo0p3/testkern.F90", api="dynamo0.3")
+
 
 def test_kernel_datatype_not_found():
     ''' fail if kernel datatype is not found '''
     with pytest.raises(RuntimeError):
-        generate("test_files/dynamo0p3/testkern_no_datatype.F90",api="dynamo0.3")
+        generate("test_files/dynamo0p3/testkern_no_datatype.F90",
+                 api="dynamo0.3")
 
 # fields : intent
 INTENT = '''
@@ -866,6 +877,7 @@ contains
 end module dummy_mod
 '''
 
+
 def test_intent():
     ''' test that field intent is generated correctly for kernel stubs '''
     ast = fpapi.parse(INTENT, ignore_comments=False)
@@ -873,20 +885,25 @@ def test_intent():
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
-    output = '''  MODULE dummy_code_mod
-    IMPLICIT NONE
-    CONTAINS
-    SUBROUTINE dummy_code_code(nlayers, field_1_w1, field_2_w1, field_3_w1, ndf_w1, undf_w1, map_w1)
-      USE constants_mod, ONLY: r_def
-      INTEGER, intent(in) :: nlayers
-      INTEGER, intent(in) :: undf_w1
-      REAL(KIND=r_def), intent(out), dimension(undf_w1) :: field_1_w1
-      REAL(KIND=r_def), intent(inout), dimension(undf_w1) :: field_2_w1
-      REAL(KIND=r_def), intent(in), dimension(undf_w1) :: field_3_w1
-      INTEGER, intent(in) :: ndf_w1
-      INTEGER, intent(in), dimension(ndf_w1) :: map_w1
-    END SUBROUTINE dummy_code_code
-  END MODULE dummy_code_mod'''
+    output = (
+        "  MODULE dummy_code_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE dummy_code_code(nlayers, field_1_w1, field_2_w1, "
+        "field_3_w1, ndf_w1, undf_w1, map_w1)\n"
+        "      USE constants_mod, ONLY: r_def\n"
+        "      INTEGER, intent(in) :: nlayers\n"
+        "      INTEGER, intent(in) :: undf_w1\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w1) :: "
+        "field_1_w1\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) :: "
+        "field_2_w1\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w1) :: "
+        "field_3_w1\n"
+        "      INTEGER, intent(in) :: ndf_w1\n"
+        "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
+        "    END SUBROUTINE dummy_code_code\n"
+        "  END MODULE dummy_code_mod")
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
@@ -911,6 +928,7 @@ contains
 end module dummy_mod
 '''
 
+
 def test_spaces():
     ''' test that field spaces are handled correctly for kernel stubs '''
     ast = fpapi.parse(SPACES, ignore_comments=False)
@@ -918,30 +936,37 @@ def test_spaces():
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
-    output = '''  MODULE dummy_code_mod
-    IMPLICIT NONE
-    CONTAINS
-    SUBROUTINE dummy_code_code(nlayers, field_1_w0, field_2_w1, field_3_w2, field_4_w3, ndf_w0, undf_w0, map_w0, ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)
-      USE constants_mod, ONLY: r_def
-      INTEGER, intent(in) :: nlayers
-      INTEGER, intent(in) :: undf_w0
-      INTEGER, intent(in) :: undf_w1
-      INTEGER, intent(in) :: undf_w2
-      INTEGER, intent(in) :: undf_w3
-      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: field_1_w0
-      REAL(KIND=r_def), intent(out), dimension(undf_w1) :: field_2_w1
-      REAL(KIND=r_def), intent(out), dimension(undf_w2) :: field_3_w2
-      REAL(KIND=r_def), intent(out), dimension(undf_w3) :: field_4_w3
-      INTEGER, intent(in) :: ndf_w0
-      INTEGER, intent(in), dimension(ndf_w0) :: map_w0
-      INTEGER, intent(in) :: ndf_w1
-      INTEGER, intent(in), dimension(ndf_w1) :: map_w1
-      INTEGER, intent(in) :: ndf_w2
-      INTEGER, intent(in), dimension(ndf_w2) :: map_w2
-      INTEGER, intent(in) :: ndf_w3
-      INTEGER, intent(in), dimension(ndf_w3) :: map_w3
-    END SUBROUTINE dummy_code_code
-  END MODULE dummy_code_mod'''
+    output = (
+        "  MODULE dummy_code_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE dummy_code_code(nlayers, field_1_w0, field_2_w1, "
+        "field_3_w2, field_4_w3, ndf_w0, undf_w0, map_w0, ndf_w1, undf_w1, "
+        "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)\n"
+        "      USE constants_mod, ONLY: r_def\n"
+        "      INTEGER, intent(in) :: nlayers\n"
+        "      INTEGER, intent(in) :: undf_w0\n"
+        "      INTEGER, intent(in) :: undf_w1\n"
+        "      INTEGER, intent(in) :: undf_w2\n"
+        "      INTEGER, intent(in) :: undf_w3\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
+        "field_1_w0\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w1) :: "
+        "field_2_w1\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w2) :: "
+        "field_3_w2\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w3) :: "
+        "field_4_w3\n"
+        "      INTEGER, intent(in) :: ndf_w0\n"
+        "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
+        "      INTEGER, intent(in) :: ndf_w1\n"
+        "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
+        "      INTEGER, intent(in) :: ndf_w2\n"
+        "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
+        "      INTEGER, intent(in) :: ndf_w3\n"
+        "      INTEGER, intent(in), dimension(ndf_w3) :: map_w3\n"
+        "    END SUBROUTINE dummy_code_code\n"
+        "  END MODULE dummy_code_mod")
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
@@ -963,6 +988,7 @@ contains
 end module dummy_mod
 '''
 
+
 def test_vectors():
     ''' test that field vectors are handled correctly for kernel stubs '''
     ast = fpapi.parse(VECTORS, ignore_comments=False)
@@ -970,20 +996,25 @@ def test_vectors():
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
-    output = '''  MODULE dummy_code_mod
-    IMPLICIT NONE
-    CONTAINS
-    SUBROUTINE dummy_code_code(nlayers, field_1_w0_v1, field_1_w0_v2, field_1_w0_v3, ndf_w0, undf_w0, map_w0)
-      USE constants_mod, ONLY: r_def
-      INTEGER, intent(in) :: nlayers
-      INTEGER, intent(in) :: undf_w0
-      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: field_1_w0_v1
-      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: field_1_w0_v2
-      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: field_1_w0_v3
-      INTEGER, intent(in) :: ndf_w0
-      INTEGER, intent(in), dimension(ndf_w0) :: map_w0
-    END SUBROUTINE dummy_code_code
-  END MODULE dummy_code_mod'''
+    output = (
+        "  MODULE dummy_code_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE dummy_code_code(nlayers, field_1_w0_v1, "
+        "field_1_w0_v2, field_1_w0_v3, ndf_w0, undf_w0, map_w0)\n"
+        "      USE constants_mod, ONLY: r_def\n"
+        "      INTEGER, intent(in) :: nlayers\n"
+        "      INTEGER, intent(in) :: undf_w0\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
+        "field_1_w0_v1\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
+        "field_1_w0_v2\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
+        "field_1_w0_v3\n"
+        "      INTEGER, intent(in) :: ndf_w0\n"
+        "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
+        "    END SUBROUTINE dummy_code_code\n"
+        "  END MODULE dummy_code_mod")
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
@@ -1008,6 +1039,7 @@ contains
 end module dummy_mod
 '''
 
+
 def test_operators():
     ''' test that operators are handled correctly for kernel stubs '''
     ast = fpapi.parse(OPERATORS, ignore_comments=False)
@@ -1015,27 +1047,34 @@ def test_operators():
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
-    output = '''  MODULE dummy_code_mod
-    IMPLICIT NONE
-    CONTAINS
-    SUBROUTINE dummy_code_code(cell, nlayers, op_1_ncell_3d, op_1, op_2_ncell_3d, op_2, op_3_ncell_3d, op_3, op_4_ncell_3d, op_4, ndf_w0, ndf_w1, ndf_w2, ndf_w3)
-      USE constants_mod, ONLY: r_def
-      INTEGER, intent(in) :: cell
-      INTEGER, intent(in) :: nlayers
-      INTEGER, intent(in) :: op_1_ncell_3d
-      REAL(KIND=r_def), intent(out), dimension(ndf_w0,ndf_w0,op_1_ncell_3d) :: op_1
-      INTEGER, intent(in) :: op_2_ncell_3d
-      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,op_2_ncell_3d) :: op_2
-      INTEGER, intent(in) :: op_3_ncell_3d
-      REAL(KIND=r_def), intent(in), dimension(ndf_w2,ndf_w2,op_3_ncell_3d) :: op_3
-      INTEGER, intent(in) :: op_4_ncell_3d
-      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,op_4_ncell_3d) :: op_4
-      INTEGER, intent(in) :: ndf_w0
-      INTEGER, intent(in) :: ndf_w1
-      INTEGER, intent(in) :: ndf_w2
-      INTEGER, intent(in) :: ndf_w3
-    END SUBROUTINE dummy_code_code
-  END MODULE dummy_code_mod'''
+    output = (
+        "  MODULE dummy_code_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE dummy_code_code(cell, nlayers, op_1_ncell_3d, op_1, "
+        "op_2_ncell_3d, op_2, op_3_ncell_3d, op_3, op_4_ncell_3d, op_4, "
+        "ndf_w0, ndf_w1, ndf_w2, ndf_w3)\n"
+        "      USE constants_mod, ONLY: r_def\n"
+        "      INTEGER, intent(in) :: cell\n"
+        "      INTEGER, intent(in) :: nlayers\n"
+        "      INTEGER, intent(in) :: op_1_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(out), dimension(ndf_w0,ndf_w0,"
+        "op_1_ncell_3d) :: op_1\n"
+        "      INTEGER, intent(in) :: op_2_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
+        "op_2_ncell_3d) :: op_2\n"
+        "      INTEGER, intent(in) :: op_3_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2,ndf_w2,"
+        "op_3_ncell_3d) :: op_3\n"
+        "      INTEGER, intent(in) :: op_4_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
+        "op_4_ncell_3d) :: op_4\n"
+        "      INTEGER, intent(in) :: ndf_w0\n"
+        "      INTEGER, intent(in) :: ndf_w1\n"
+        "      INTEGER, intent(in) :: ndf_w2\n"
+        "      INTEGER, intent(in) :: ndf_w3\n"
+        "    END SUBROUTINE dummy_code_code\n"
+        "  END MODULE dummy_code_mod")
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
@@ -1066,6 +1105,7 @@ contains
 end module dummy_mod
 '''
 
+
 def test_basis():
     ''' Test that basis functions are handled correctly for kernel stubs '''
     ast = fpapi.parse(BASIS, ignore_comments=False)
@@ -1073,36 +1113,48 @@ def test_basis():
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
-    output = '''  MODULE dummy_code_mod
-    IMPLICIT NONE
-    CONTAINS
-    SUBROUTINE dummy_code_code(cell, nlayers, field_1_w0, op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, undf_w0, map_w0, basis_w0, ndf_w1, basis_w1, ndf_w2, undf_w2, map_w2, basis_w2, ndf_w3, basis_w3, nqp_h, nqp_v, wh, wv)
-      USE constants_mod, ONLY: r_def
-      INTEGER, intent(in) :: cell
-      INTEGER, intent(in) :: nlayers
-      INTEGER, intent(in) :: undf_w0
-      INTEGER, intent(in) :: undf_w2
-      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: field_1_w0
-      INTEGER, intent(in) :: op_2_ncell_3d
-      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,op_2_ncell_3d) :: op_2
-      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: field_3_w2
-      INTEGER, intent(in) :: op_4_ncell_3d
-      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,op_4_ncell_3d) :: op_4
-      INTEGER, intent(in) :: ndf_w0
-      INTEGER, intent(in), dimension(ndf_w0) :: map_w0
-      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,nqp_h,nqp_v) :: basis_w0
-      INTEGER, intent(in) :: ndf_w1
-      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,nqp_h,nqp_v) :: basis_w1
-      INTEGER, intent(in) :: ndf_w2
-      INTEGER, intent(in), dimension(ndf_w2) :: map_w2
-      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2,nqp_h,nqp_v) :: basis_w2
-      INTEGER, intent(in) :: ndf_w3
-      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) :: basis_w3
-      INTEGER, intent(in) :: nqp_h, nqp_v
-      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh
-      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv
-    END SUBROUTINE dummy_code_code
-  END MODULE dummy_code_mod'''
+    output = (
+        "  MODULE dummy_code_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE dummy_code_code(cell, nlayers, field_1_w0, "
+        "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "
+        "undf_w0, map_w0, basis_w0, ndf_w1, basis_w1, ndf_w2, undf_w2, "
+        "map_w2, basis_w2, ndf_w3, basis_w3, nqp_h, nqp_v, wh, wv)\n"
+        "      USE constants_mod, ONLY: r_def\n"
+        "      INTEGER, intent(in) :: cell\n"
+        "      INTEGER, intent(in) :: nlayers\n"
+        "      INTEGER, intent(in) :: undf_w0\n"
+        "      INTEGER, intent(in) :: undf_w2\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
+        "field_1_w0\n"
+        "      INTEGER, intent(in) :: op_2_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
+        "op_2_ncell_3d) :: op_2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
+        "field_3_w2\n"
+        "      INTEGER, intent(in) :: op_4_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
+        "op_4_ncell_3d) :: op_4\n"
+        "      INTEGER, intent(in) :: ndf_w0\n"
+        "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,nqp_h,nqp_v) "
+        ":: basis_w0\n"
+        "      INTEGER, intent(in) :: ndf_w1\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,nqp_h,nqp_v) "
+        ":: basis_w1\n"
+        "      INTEGER, intent(in) :: ndf_w2\n"
+        "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2,nqp_h,nqp_v) "
+        ":: basis_w2\n"
+        "      INTEGER, intent(in) :: ndf_w3\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) "
+        ":: basis_w3\n"
+        "      INTEGER, intent(in) :: nqp_h, nqp_v\n"
+        "      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh\n"
+        "      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv\n"
+        "    END SUBROUTINE dummy_code_code\n"
+        "  END MODULE dummy_code_mod")
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
@@ -1133,6 +1185,7 @@ contains
 end module dummy_mod
 '''
 
+
 def test_diff_basis():
     ''' Test that differential basis functions are handled correctly
     for kernel stubs '''
@@ -1141,36 +1194,49 @@ def test_diff_basis():
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
-    output = '''  MODULE dummy_code_mod
-    IMPLICIT NONE
-    CONTAINS
-    SUBROUTINE dummy_code_code(cell, nlayers, field_1_w0, op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, undf_w0, map_w0, diff_basis_w0, ndf_w1, diff_basis_w1, ndf_w2, undf_w2, map_w2, diff_basis_w2, ndf_w3, diff_basis_w3, nqp_h, nqp_v, wh, wv)
-      USE constants_mod, ONLY: r_def
-      INTEGER, intent(in) :: cell
-      INTEGER, intent(in) :: nlayers
-      INTEGER, intent(in) :: undf_w0
-      INTEGER, intent(in) :: undf_w2
-      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: field_1_w0
-      INTEGER, intent(in) :: op_2_ncell_3d
-      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,op_2_ncell_3d) :: op_2
-      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: field_3_w2
-      INTEGER, intent(in) :: op_4_ncell_3d
-      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,op_4_ncell_3d) :: op_4
-      INTEGER, intent(in) :: ndf_w0
-      INTEGER, intent(in), dimension(ndf_w0) :: map_w0
-      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,nqp_h,nqp_v) :: diff_basis_w0
-      INTEGER, intent(in) :: ndf_w1
-      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,nqp_h,nqp_v) :: diff_basis_w1
-      INTEGER, intent(in) :: ndf_w2
-      INTEGER, intent(in), dimension(ndf_w2) :: map_w2
-      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,nqp_h,nqp_v) :: diff_basis_w2
-      INTEGER, intent(in) :: ndf_w3
-      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) :: diff_basis_w3
-      INTEGER, intent(in) :: nqp_h, nqp_v
-      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh
-      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv
-    END SUBROUTINE dummy_code_code
-  END MODULE dummy_code_mod'''
+    output = (
+        "  MODULE dummy_code_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE dummy_code_code(cell, nlayers, field_1_w0, "
+        "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "
+        "undf_w0, map_w0, diff_basis_w0, ndf_w1, diff_basis_w1, ndf_w2, "
+        "undf_w2, map_w2, diff_basis_w2, ndf_w3, diff_basis_w3, nqp_h, "
+        "nqp_v, wh, wv)\n"
+        "      USE constants_mod, ONLY: r_def\n"
+        "      INTEGER, intent(in) :: cell\n"
+        "      INTEGER, intent(in) :: nlayers\n"
+        "      INTEGER, intent(in) :: undf_w0\n"
+        "      INTEGER, intent(in) :: undf_w2\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
+        "field_1_w0\n"
+        "      INTEGER, intent(in) :: op_2_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
+        "op_2_ncell_3d) :: op_2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
+        "field_3_w2\n"
+        "      INTEGER, intent(in) :: op_4_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
+        "op_4_ncell_3d) :: op_4\n"
+        "      INTEGER, intent(in) :: ndf_w0\n"
+        "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,nqp_h,nqp_v) "
+        ":: diff_basis_w0\n"
+        "      INTEGER, intent(in) :: ndf_w1\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,nqp_h,nqp_v) "
+        ":: diff_basis_w1\n"
+        "      INTEGER, intent(in) :: ndf_w2\n"
+        "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,nqp_h,nqp_v) "
+        ":: diff_basis_w2\n"
+        "      INTEGER, intent(in) :: ndf_w3\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) "
+        ":: diff_basis_w3\n"
+        "      INTEGER, intent(in) :: nqp_h, nqp_v\n"
+        "      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh\n"
+        "      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv\n"
+        "    END SUBROUTINE dummy_code_code\n"
+        "  END MODULE dummy_code_mod")
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
@@ -1201,6 +1267,7 @@ contains
 end module dummy_mod
 '''
 
+
 def test_orientation():
     ''' Test that orientation is handled correctly for kernel
     stubs '''
@@ -1209,38 +1276,47 @@ def test_orientation():
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
-    output = '''    SUBROUTINE dummy_code_code(cell, nlayers, field_1_w0, op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, undf_w0, map_w0, orientation_w0, ndf_w1, orientation_w1, ndf_w2, undf_w2, map_w2, orientation_w2, ndf_w3, orientation_w3, nqp_h, nqp_v, wh, wv)
-      USE constants_mod, ONLY: r_def
-      INTEGER, intent(in) :: cell
-      INTEGER, intent(in) :: nlayers
-      INTEGER, intent(in) :: undf_w0
-      INTEGER, intent(in) :: undf_w2
-      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: field_1_w0
-      INTEGER, intent(in) :: op_2_ncell_3d
-      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,op_2_ncell_3d) :: op_2
-      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: field_3_w2
-      INTEGER, intent(in) :: op_4_ncell_3d
-      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,op_4_ncell_3d) :: op_4
-      INTEGER, intent(in) :: ndf_w0
-      INTEGER, intent(in), dimension(ndf_w0) :: map_w0
-      INTEGER, intent(in), dimension(ndf_w0) :: orientation_w0
-      INTEGER, intent(in) :: ndf_w1
-      INTEGER, intent(in), dimension(ndf_w1) :: orientation_w1
-      INTEGER, intent(in) :: ndf_w2
-      INTEGER, intent(in), dimension(ndf_w2) :: map_w2
-      INTEGER, intent(in), dimension(ndf_w2) :: orientation_w2
-      INTEGER, intent(in) :: ndf_w3
-      INTEGER, intent(in), dimension(ndf_w3) :: orientation_w3
-      INTEGER, intent(in) :: nqp_h, nqp_v
-      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh
-      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv
-    END SUBROUTINE dummy_code_code
-  END MODULE dummy_code_mod'''
+    output = (
+        "    SUBROUTINE dummy_code_code(cell, nlayers, field_1_w0, "
+        "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "
+        "undf_w0, map_w0, orientation_w0, ndf_w1, orientation_w1, ndf_w2, "
+        "undf_w2, map_w2, orientation_w2, ndf_w3, orientation_w3, nqp_h, "
+        "nqp_v, wh, wv)\n"
+        "      USE constants_mod, ONLY: r_def\n"
+        "      INTEGER, intent(in) :: cell\n"
+        "      INTEGER, intent(in) :: nlayers\n"
+        "      INTEGER, intent(in) :: undf_w0\n"
+        "      INTEGER, intent(in) :: undf_w2\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
+        "field_1_w0\n"
+        "      INTEGER, intent(in) :: op_2_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
+        "op_2_ncell_3d) :: op_2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
+        "field_3_w2\n"
+        "      INTEGER, intent(in) :: op_4_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
+        "op_4_ncell_3d) :: op_4\n"
+        "      INTEGER, intent(in) :: ndf_w0\n"
+        "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
+        "      INTEGER, intent(in), dimension(ndf_w0) :: orientation_w0\n"
+        "      INTEGER, intent(in) :: ndf_w1\n"
+        "      INTEGER, intent(in), dimension(ndf_w1) :: orientation_w1\n"
+        "      INTEGER, intent(in) :: ndf_w2\n"
+        "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
+        "      INTEGER, intent(in), dimension(ndf_w2) :: orientation_w2\n"
+        "      INTEGER, intent(in) :: ndf_w3\n"
+        "      INTEGER, intent(in), dimension(ndf_w3) :: orientation_w3\n"
+        "      INTEGER, intent(in) :: nqp_h, nqp_v\n"
+        "      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh\n"
+        "      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv\n"
+        "    END SUBROUTINE dummy_code_code\n"
+        "  END MODULE dummy_code_mod")
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
 
-# ru_kernel boundary layer modification
+
 def test_ru_kernel_stub_gen():
     ''' Test that the ru_kernel boundary layer argument modification
     is handled correctly for kernel stubs'''
@@ -1250,42 +1326,57 @@ def test_ru_kernel_stub_gen():
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
-    output = '''  MODULE ru_code_mod
-    IMPLICIT NONE
-    CONTAINS
-    SUBROUTINE ru_code_code(nlayers, field_1_w2, field_2_w3, field_3_w0, field_4_w0_v1, field_4_w0_v2, field_4_w0_v3, ndf_w2, undf_w2, map_w2, basis_w2, diff_basis_w2, boundary_dofs_w2, ndf_w3, undf_w3, map_w3, basis_w3, ndf_w0, undf_w0, map_w0, basis_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)
-      USE constants_mod, ONLY: r_def
-      INTEGER, intent(in) :: nlayers
-      INTEGER, intent(in) :: undf_w2
-      INTEGER, intent(in) :: undf_w3
-      INTEGER, intent(in) :: undf_w0
-      REAL(KIND=r_def), intent(inout), dimension(undf_w2) :: field_1_w2
-      REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field_2_w3
-      REAL(KIND=r_def), intent(in), dimension(undf_w0) :: field_3_w0
-      REAL(KIND=r_def), intent(in), dimension(undf_w0) :: field_4_w0_v1
-      REAL(KIND=r_def), intent(in), dimension(undf_w0) :: field_4_w0_v2
-      REAL(KIND=r_def), intent(in), dimension(undf_w0) :: field_4_w0_v3
-      INTEGER, intent(in) :: ndf_w2
-      INTEGER, intent(in), dimension(ndf_w2) :: map_w2
-      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2,nqp_h,nqp_v) :: basis_w2
-      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,nqp_h,nqp_v) :: diff_basis_w2
-      INTEGER, intent(in), dimension(ndf_w2,2) :: boundary_dofs_w2
-      INTEGER, intent(in) :: ndf_w3
-      INTEGER, intent(in), dimension(ndf_w3) :: map_w3
-      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) :: basis_w3
-      INTEGER, intent(in) :: ndf_w0
-      INTEGER, intent(in), dimension(ndf_w0) :: map_w0
-      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,nqp_h,nqp_v) :: basis_w0
-      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,nqp_h,nqp_v) :: diff_basis_w0
-      INTEGER, intent(in) :: nqp_h, nqp_v
-      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh
-      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv
-    END SUBROUTINE ru_code_code
-  END MODULE ru_code_mod'''
+    output = (
+        "  MODULE ru_code_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE ru_code_code(nlayers, field_1_w2, field_2_w3, "
+        "field_3_w0, field_4_w0_v1, field_4_w0_v2, field_4_w0_v3, ndf_w2, "
+        "undf_w2, map_w2, basis_w2, diff_basis_w2, boundary_dofs_w2, "
+        "ndf_w3, undf_w3, map_w3, basis_w3, ndf_w0, undf_w0, map_w0, "
+        "basis_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)\n"
+        "      USE constants_mod, ONLY: r_def\n"
+        "      INTEGER, intent(in) :: nlayers\n"
+        "      INTEGER, intent(in) :: undf_w2\n"
+        "      INTEGER, intent(in) :: undf_w3\n"
+        "      INTEGER, intent(in) :: undf_w0\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2) :: "
+        "field_1_w2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w3) :: "
+        "field_2_w3\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w0) :: "
+        "field_3_w0\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w0) :: "
+        "field_4_w0_v1\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w0) :: "
+        "field_4_w0_v2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w0) :: "
+        "field_4_w0_v3\n"
+        "      INTEGER, intent(in) :: ndf_w2\n"
+        "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2,nqp_h,nqp_v) "
+        ":: basis_w2\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,nqp_h,nqp_v) "
+        ":: diff_basis_w2\n"
+        "      INTEGER, intent(in), dimension(ndf_w2,2) :: boundary_dofs_w2\n"
+        "      INTEGER, intent(in) :: ndf_w3\n"
+        "      INTEGER, intent(in), dimension(ndf_w3) :: map_w3\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) "
+        ":: basis_w3\n"
+        "      INTEGER, intent(in) :: ndf_w0\n"
+        "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,nqp_h,nqp_v) "
+        ":: basis_w0\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,nqp_h,nqp_v) "
+        ":: diff_basis_w0\n"
+        "      INTEGER, intent(in) :: nqp_h, nqp_v\n"
+        "      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh\n"
+        "      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv\n"
+        "    END SUBROUTINE ru_code_code\n"
+        "  END MODULE ru_code_mod")
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
 
 # note, we do not need a separate test for qr as it is implicitly
 # tested for in the above examples.
-
