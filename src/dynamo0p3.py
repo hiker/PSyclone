@@ -1194,8 +1194,9 @@ class DynKern(Kern):
                             first_dim = "3"
                         else:
                             raise GenerationError(
-                                "Unknown space, expecting one of 'W0,W1,W2,W3'"
-                                " but found '{0}'".format(unique_fs))
+                                "Unsupported space for basis function, "
+                                "expecting one of 'W0,W1,W2,W3' but found "
+                                "'{0}'".format(unique_fs))
                         parent.add(DeclGen(parent, datatype="real",
                                            kind="r_def", intent="in",
                                            dimension=first_dim + "," +
@@ -1215,7 +1216,8 @@ class DynKern(Kern):
                             first_dim = "3"
                         else:
                             raise GenerationError(
-                                "Unknown space, expecting one of 'W0,W1,W2,W3'"
+                                "Unsupported space for differential basis "
+                                "function, expecting one of 'W0,W1,W2,W3'"
                                 " but found '{0}'".format(unique_fs))
                         parent.add(DeclGen(parent, datatype="real",
                                            kind="r_def", intent="in",
@@ -1431,25 +1433,6 @@ class FSDescriptor(object):
         else:
             return False
 
-    @property
-    def operator_names(self):
-        ''' Returns a list of the names of the operators associated
-        with this function space. The names are unique to the function
-        space, they are not the raw metadata values. '''
-        names = []
-        for operator_name in self._descriptor.operator_names:
-            if operator_name == "gh_orientation":
-                names.append(self.orientation_name)
-            elif operator_name == "gh_basis":
-                names.append(self.basis_name)
-            elif operator_name == "gh_diff_basis":
-                names.append(self.diff_basis_name)
-            else:
-                raise GenerationError(
-                    "FSDescriptor:operator_names: unsupported name '{0}' "
-                    "found".format(operator_name))
-        return names
-
     def name(self, operator_name):
         ''' Returns the names of the specified operator for this
         function space. The name is unique to the function space, it
@@ -1516,17 +1499,6 @@ class FSDescriptors(object):
         for descriptor in descriptors:
             self._descriptors.append(FSDescriptor(descriptor))
 
-    def compulsory_args(self, func_space):
-        ''' Args that all fields and operators require for the
-        specified function space. '''
-        return [self.ndf_name(func_space)]
-
-    def compulsory_args_field(self, func_space):
-        ''' Args that a field requires for the specified function
-        space in addition to the compulsory args. '''
-        return {"undf": self.undf_name(func_space),
-                "map": self.map_name(func_space)}
-
     def ndf_name(self, func_space):
         ''' Returns a ndf name for this function space. '''
         return "ndf_"+func_space
@@ -1585,13 +1557,10 @@ class DynKernelArguments(Arguments):
         if False:  # for pyreverse
             self._0_to_n = DynKernelArgument(None, None, None)
         Arguments.__init__(self, parent_call)
-        if args is None:
-            self._args = None  # we may have no algorithm argument information
-        else:
-            self._args = []
-            for (idx, arg) in enumerate(ktype.arg_descriptors):
-                self._args.append(DynKernelArgument(arg, args[idx],
-                                                    parent_call))
+        self._args = []
+        for (idx, arg) in enumerate(ktype.arg_descriptors):
+            self._args.append(DynKernelArgument(arg, args[idx],
+                                                parent_call))
         self._dofs = []
 
     def get_field(self, func_space):

@@ -1023,11 +1023,12 @@ def test_vectors():
 OPERATORS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(4) =    &
+     type(arg_type), meta_args(5) =    &
           (/ arg_type(gh_operator,gh_write, w0, w0), &
              arg_type(gh_operator,gh_inc,   w1, w1), &
              arg_type(gh_operator,gh_read,  w2, w2), &
-             arg_type(gh_operator,gh_write, w3, w3)  &
+             arg_type(gh_operator,gh_write, w3, w3), &
+             arg_type(gh_operator,gh_read, any_space_1, any_space_1)  &
            /)
      integer, parameter :: iterates_over = cells
    contains
@@ -1053,7 +1054,8 @@ def test_operators():
         "    CONTAINS\n"
         "    SUBROUTINE dummy_code_code(cell, nlayers, op_1_ncell_3d, op_1, "
         "op_2_ncell_3d, op_2, op_3_ncell_3d, op_3, op_4_ncell_3d, op_4, "
-        "ndf_w0, ndf_w1, ndf_w2, ndf_w3)\n"
+        "op_5_ncell_3d, op_5, ndf_w0, ndf_w1, ndf_w2, ndf_w3, "
+        "ndf_any_space_1)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      INTEGER, intent(in) :: cell\n"
         "      INTEGER, intent(in) :: nlayers\n"
@@ -1069,15 +1071,47 @@ def test_operators():
         "      INTEGER, intent(in) :: op_4_ncell_3d\n"
         "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
         "op_4_ncell_3d) :: op_4\n"
+        "      INTEGER, intent(in) :: op_5_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(in), dimension(ndf_any_space_1,"
+        "ndf_any_space_1,op_5_ncell_3d) :: op_5\n"
         "      INTEGER, intent(in) :: ndf_w0\n"
         "      INTEGER, intent(in) :: ndf_w1\n"
         "      INTEGER, intent(in) :: ndf_w2\n"
         "      INTEGER, intent(in) :: ndf_w3\n"
+        "      INTEGER, intent(in) :: ndf_any_space_1\n"
         "    END SUBROUTINE dummy_code_code\n"
         "  END MODULE dummy_code_mod")
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
+
+OPERATOR_DIFFERENT_SPACES = '''
+module dummy_mod
+  type, extends(kernel_type) :: dummy_type
+     type(arg_type), meta_args(1) =    &
+          (/ arg_type(gh_operator,gh_write, w0, w1) &
+           /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => dummy_code
+  end type dummy_type
+contains
+  subroutine dummy_code()
+  end subroutine dummy_code
+end module dummy_mod
+'''
+
+
+def test_operator_different_spaces():
+    ''' test that an error is raised when an operator has two
+    different spaces as this is not yet supported in the stub
+    generator. '''
+    ast = fpapi.parse(OPERATOR_DIFFERENT_SPACES, ignore_comments=False)
+    metadata = DynKernelType03(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    with pytest.raises(GenerationError):
+        generated_code = kernel.gen_stub
 
 # basis function : spaces
 BASIS = '''
@@ -1158,6 +1192,36 @@ def test_basis():
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
+
+BASIS_UNSUPPORTED_SPACE = '''
+module dummy_mod
+  type, extends(kernel_type) :: dummy_type
+     type(arg_type), meta_args(1) =    &
+          (/ arg_type(gh_field,gh_write, any_space_1) &
+           /)
+     type(func_type), meta_funcs(1) =    &
+          (/ func_type(any_space_1, gh_basis) &
+           /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => dummy_code
+  end type dummy_type
+contains
+  subroutine dummy_code()
+  end subroutine dummy_code
+end module dummy_mod
+'''
+
+
+def test_basis_unsupported_space():
+    ''' test that an error is raised when a basis function is on an
+    unsupported space (currently any_space_*) '''
+    ast = fpapi.parse(BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
+    metadata = DynKernelType03(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    with pytest.raises(GenerationError):
+        generated_code = kernel.gen_stub
 
 # diff basis function : spaces
 DIFF_BASIS = '''
@@ -1240,6 +1304,36 @@ def test_diff_basis():
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
+
+DIFF_BASIS_UNSUPPORTED_SPACE = '''
+module dummy_mod
+  type, extends(kernel_type) :: dummy_type
+     type(arg_type), meta_args(1) =    &
+          (/ arg_type(gh_field,gh_write, any_space_1) &
+           /)
+     type(func_type), meta_funcs(1) =    &
+          (/ func_type(any_space_1, gh_diff_basis) &
+           /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => dummy_code
+  end type dummy_type
+contains
+  subroutine dummy_code()
+  end subroutine dummy_code
+end module dummy_mod
+'''
+
+
+def test_diff_basis_unsupported_space():
+    ''' test that an error is raised when a differential basis
+    function is on an unsupported space (currently any_space_*)'''
+    ast = fpapi.parse(DIFF_BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
+    metadata = DynKernelType03(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    with pytest.raises(GenerationError):
+        generated_code = kernel.gen_stub
 
 # orientation : spaces
 ORIENTATION = '''
