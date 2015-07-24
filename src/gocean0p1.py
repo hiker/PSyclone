@@ -132,11 +132,13 @@ class GOSchedule(Schedule):
             if isinstance(call, InfCall):
                 sequence.append(GOInf.create(call, parent = self))
             else:
-                outer_loop = GOLoop(call = None, parent = self)
+                outer_loop = GOLoop(call=None,
+                                    parent=self, 
+                                    loop_type="outer")
                 sequence.append(outer_loop)
-                outer_loop.loop_type = "outer"
-                inner_loop = GOLoop(call = None, parent = outer_loop)
-                inner_loop.loop_type = "inner"
+                inner_loop = GOLoop(call=None,
+                                    parent=outer_loop, 
+                                    loop_type="inner")
                 outer_loop.addchild(inner_loop)
                 gocall = GOKern()
                 gocall.load(call, parent = inner_loop)
@@ -147,9 +149,11 @@ class GOSchedule(Schedule):
                 # loop.
                 inner_loop.iteration_space = gocall.iterates_over
                 outer_loop.iteration_space = inner_loop.iteration_space
-                inner_loop.field_space = gocall.arguments.iteration_space_arg().function_space
+                inner_loop.field_space = gocall.arguments.\
+                                         iteration_space_arg().function_space
                 outer_loop.field_space = inner_loop.field_space
-                inner_loop.field_name = gocall.arguments.iteration_space_arg().name
+                inner_loop.field_name = gocall.arguments.\
+                                        iteration_space_arg().name
                 outer_loop.field_name = inner_loop.field_name
         Node.__init__(self, children = sequence)
 
@@ -159,17 +163,18 @@ class GOLoop(Loop):
         require. Adds a GOcean specific setBounds method which tells the loop
         what to iterate over. Need to harmonise with the topology_name method
         in the Dynamo api. '''
-    def __init__(self, call = None, parent = None, variable_name = "",
-                 topology_name = ""):
+    def __init__(self, call = None, parent = None,
+                 topology_name = "", loop_type=""):
         Loop.__init__(self, GOInf, GOKern, call = call, parent = parent,
                       valid_loop_types = ["inner", "outer"])
-
-    def gen_code(self,parent):
+        self.loop_type = loop_type
 
         if self._loop_type == "inner":
             self._variable_name = "i"
         elif self._loop_type == "outer":
             self._variable_name = "j"
+
+    def gen_code(self,parent):
 
         if self.field_space=="every":
             from f2pygen import DeclGen, AssignGen
