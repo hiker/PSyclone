@@ -10,6 +10,15 @@ from generator import generate, GenerationError
 import pytest
 import os
 
+def delete_module(modname):
+   from sys import modules
+   del modules[modname]
+   for mod in modules.values():
+      try:
+         delattr(mod, modname)
+      except AttributeError:
+         pass
+
 class TestGenerate:
    ''' unit tests for the generate function '''
 
@@ -95,6 +104,111 @@ class TestGenerate:
                        kernel_path=os.path.join(root_path,
                                                 "test_files", "dynamo0p1",
                                                 "kernels3"))
+
+   def test_non_existant_script_filename(self):
+      ''' checks that generator.py raises an appropriate error when a
+          non-existant script file + path name is supplied'''       
+      import pytest
+      root_path = os.path.dirname(os.path.abspath(__file__))
+      with pytest.raises(IOError):
+         alg,psy=generate(os.path.join(root_path, "test_files", "dynamo0p3",
+                                       "1_single_invoke.f90"), 
+                          api="dynamo0.3", script_name="./non_existant.py")
+
+   def test_script_file_not_found(self):
+      ''' checks that generator.py raises an appropriate error when a
+          script file is supplied that can't be found in the Python path.'''       
+      import pytest
+      root_path = os.path.dirname(os.path.abspath(__file__))
+      with pytest.raises(GenerationError):
+         alg,psy=generate(os.path.join(root_path, "test_files", "dynamo0p3",
+                                       "1_single_invoke.f90"), 
+                          api="dynamo0.3", script_name="non_existant.py")
+
+   def test_script_file_too_short(self):
+      ''' checks that generator.py raises an appropriate error when a
+          script file name is too short to contain the '.py' extension'''       
+      import pytest
+      root_path = os.path.dirname(os.path.abspath(__file__))
+      with pytest.raises(GenerationError):
+         alg,psy=generate(os.path.join(root_path, "test_files", "dynamo0p3",
+                                       "1_single_invoke.f90"), 
+                          api="dynamo0.3", script_name=os.path.join(root_path, "test_files", "dynamo0p3", "xyz"))
+
+   def test_script_file_wrong_extension(self):
+      ''' checks that generator.py raises an appropriate error when a
+          script file does not have the '.py' extension'''       
+      import pytest
+      root_path = os.path.dirname(os.path.abspath(__file__))
+      with pytest.raises(GenerationError):
+         alg,psy=generate(os.path.join(root_path, "test_files", "dynamo0p3",
+                                       "1_single_invoke.f90"), 
+                          api="dynamo0.3", script_name=os.path.join(root_path, "test_files", "dynamo0p3", "1_single_invoke.f90"))
+
+   def test_script_invalid_content(self):
+      ''' checks that generator.py raises an appropriate error when a
+          script file does not contain valid python '''       
+      import pytest
+      root_path = os.path.dirname(os.path.abspath(__file__))
+      with pytest.raises(GenerationError):
+         alg,psy=generate(os.path.join(root_path, "test_files", "dynamo0p3",
+                                       "1_single_invoke.f90"), 
+                          api="dynamo0.3", script_name=os.path.join("test_files", "dynamo0p3", "error.py"))
+
+   def test_script_no_trans(self):
+      ''' checks that generator.py raises an appropriate error when a
+          script file does not contain a trans() function '''       
+      import pytest
+      root_path = os.path.dirname(os.path.abspath(__file__))
+      with pytest.raises(GenerationError):
+         alg,psy=generate(os.path.join(root_path, "test_files", "dynamo0p3",
+                                       "1_single_invoke.f90"), 
+                          api="dynamo0.3", script_name=os.path.join("test_files", "dynamo0p3", "no_trans.py"))
+
+   def test_script_null_trans(self):
+      ''' checks that generator.py works correctly when the trans()
+          function in a valid script file does no transformations (it
+          simply passes input to output) '''       
+      import pytest
+      root_path = os.path.dirname(os.path.abspath(__file__))
+      alg1,psy1=generate(os.path.join(root_path, "test_files", "dynamo0p3",
+                                    "1_single_invoke.f90"), 
+                       api="dynamo0.3")
+      alg2,psy2=generate(os.path.join(root_path, "test_files", "dynamo0p3",
+                                    "1_single_invoke.f90"), 
+                       api="dynamo0.3", script_name=os.path.join("test_files", "dynamo0p3", "null_trans.py"))
+      # remove module so we do not affect any following tests
+      delete_module("null_trans")
+      # we need to remove the first line before comparing output as
+      # this line is an instance specific header
+      assert '\n'.join(str(alg1).split('\n')[1:]) == \
+             '\n'.join(str(alg2).split('\n')[1:])
+      assert '\n'.join(str(psy1).split('\n')[1:]) == \
+             '\n'.join(str(psy2).split('\n')[1:])
+
+   def test_script_null_trans_relative(self):
+      ''' checks that generator.py works correctly when the trans()
+          function in a valid script file does no transformations (it
+          simply passes input to output) '''       
+      import pytest
+      root_path = os.path.dirname(os.path.abspath(__file__))
+      alg1,psy1=generate(os.path.join(root_path, "test_files", "dynamo0p3",
+                                    "1_single_invoke.f90"), 
+                       api="dynamo0.3")
+      # set up the python path so that null_trans.py can be found
+      os.sys.path.append(os.path.join(root_path, "test_files", "dynamo0p3"))
+      alg2,psy2=generate(os.path.join(root_path, "test_files", "dynamo0p3",
+                                    "1_single_invoke.f90"), 
+                       api="dynamo0.3", script_name="null_trans.py")
+      # remove imported module so we do not affect any following tests
+      delete_module("null_trans")
+      os.sys.path.pop()
+      # we need to remove the first line before comparing output as
+      # this line is an instance specific header
+      assert '\n'.join(str(alg1).split('\n')[1:]) == \
+             '\n'.join(str(alg2).split('\n')[1:])
+      assert '\n'.join(str(psy1).split('\n')[1:]) == \
+             '\n'.join(str(psy2).split('\n')[1:])
 
 class TestGenerateGOcean1p0:
 

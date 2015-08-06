@@ -14,7 +14,7 @@ from parse import parse,ParseError
 from psyGen import PSyFactory,GenerationError
 from algGen import AlgorithmError
 
-def generate(filename,api="",kernel_path=""):
+def generate(filename, api="", kernel_path="", script_name=None):
     '''
     Takes a GungHo algorithm specification as input and outputs the associated generated algorithm and psy codes suitable for compiling with the specified kernel(s) and GungHo infrastructure. Uses the :func:`parse.parse` function to parse the algorithm specification, the :class:`psyGen.PSy` class to generate the PSy code and the :class:`algGen.Alg` class to generate the modified algorithm code.
 
@@ -48,6 +48,43 @@ def generate(filename,api="",kernel_path=""):
         ast,invokeInfo=parse(filename,api=api,invoke_name="invoke",
                              kernel_path=kernel_path)
         psy=PSyFactory(api).create(invokeInfo)
+        if script_name is not None:
+            # a script has been provided
+            sys_path_appended = False
+            filepath, filename = os.path.split(script_name)
+            if filepath != '':
+                # a path to a file has been provided
+                # we need to check the file exists
+                if not os.path.isfile(script_name):
+                    raise IOError, "script file '{0}' not found in path '{1}'".\
+                        format(filename, filepath)
+                # it exists so we need to add the path to the python
+                # search path
+                sys_path_appended = True
+                sys.path.append(filepath)
+            filename, fileext = os.path.splitext(filename)
+            if fileext != '.py':
+                if sys_path_appended:
+                    os.sys.path.pop()
+                raise GenerationError("generator: expected the script file '{0}'to have the '.py' extension".format(fileext))
+            try:
+                transmod = __import__(filename)
+            except ImportError:
+                if sys_path_appended:
+                    os.sys.path.pop()
+                raise GenerationError("generator: attempted to import '{0}' but script file '{1}' has not been found".format(filename, script_name))
+            except SyntaxError:
+                if sys_path_appended:
+                    os.sys.path.pop()
+                raise GenerationError("generator: attempted to import '{0}' but script file '{1}' is not valid python".format(filename, script_name))
+            try:
+                psy = transmod.trans(psy)
+            except AttributeError:
+                if sys_path_appended:
+                    os.sys.path.pop()
+                raise GenerationError("generator: attempted to import '{0}' but script file '{1}' does not contain a 'trans()' function".format(filename, script_name))
+            if sys_path_appended:
+                os.sys.path.pop()
         alg=Alg(ast,psy)
     except Exception as msg:
         raise
@@ -61,13 +98,16 @@ if __name__=="__main__":
     parser.add_argument('-opsy', help='filename of generated PSy code')
     parser.add_argument('-api', default=DEFAULTAPI,help='choose a particular api from {0}, default {1}'.format(str(SUPPORTEDAPIS),DEFAULTAPI))
     parser.add_argument('filename', help='algorithm-layer source code')
-    parser.add_argument('-d', default="", help='path to root of directory structure containing kernel source code')
+    parser.add_argument('-s', '--script', help='filename of a PSyclone optimisation script')
+    parser.add_argument('-d','--directory', default="", help='path to root of directory structure containing kernel source code')
     args = parser.parse_args()
     if args.api not in SUPPORTEDAPIS:
         print "Unsupported API '{0}' specified. Supported API's are {1}.".format(args.api,SUPPORTEDAPIS)
         exit(1)
     try:
-        alg,psy=generate(args.filename,api=args.api,kernel_path=args.d)
+        alg,psy=generate(args.filename, api=args.api,
+                         kernel_path=args.directory,
+                         script_name=args.script)
     except AlgorithmError as e:
         print "Warning:",e
         exit(0)
