@@ -669,6 +669,31 @@ def test_kernel_specific2():
     assert str(generated_code).find(output3) != -1
 
 
+def test_bc_kernel():
+    '''tests that a kernel with a particular name is recognised as a
+    boundary condition kernel and that appopriate code is added to
+    support this. This code is required as the dynamo0.3 api does not
+    know about boundary conditions but this kernel requires them. This
+    "hack" is only supported to get PSyclone to generate correct code
+    for the current implementation of dynamo. Future API's will not
+    support any hacks. These implementation should replace the code
+    tested in test_kernel)specific2 and test_kernel_specific1 but I am
+    keeping this functionality for the moment in case people still
+    rely on it. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                           "12.2_enforce_bc_kernel.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = psy.gen
+    output1 = "INTEGER, pointer :: boundary_dofs(:,:) => null()"
+    assert str(generated_code).find(output1) != -1
+    output2 = "boundary_dofs => a_proxy%vspace%get_boundary_dofs()"
+    assert str(generated_code).find(output2) != -1
+    output3 = (
+        "CALL enforce_bc_code(nlayers, a_proxy%data, ndf_any_space_1, "
+        "undf_any_space_1, map_any_space_1, boundary_dofs)")
+    assert str(generated_code).find(output3) != -1
+
+
 def test_multikernel_invoke_1():
     ''' Test that correct code is produced when there are multiple
     kernels within an invoke. We test the parts of the code that
