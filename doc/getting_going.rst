@@ -98,18 +98,24 @@ the PSyclone test suite:
 If everything is working as expected then you should see output similar to:
 ::
 
-    ============================= test session starts =========================
-    platform linux2 -- Python 2.7.5 -- py-1.4.26 -- pytest-2.6.4
-    collected 35 items 
+    ============================= test session starts ==============================
+    platform linux2 -- Python 2.6.5 -- py-1.4.29 -- pytest-2.7.2
+    rootdir: /home/rupert/proj/GungHoSVN/PSyclone_r3373_scripts/src/tests, inifile: 
+    collected 175 items 
 
-    alggen_test.py xxxxx.x.x
-    f2pygen_test.py .x....
-    generator_test.py ..
-    parser_test.py .
-    psyGen_test.py .............
-    transformations_test.py xx.x
+    alggen_test.py .......xxxxxxxxxxx.
+    dynamo0p1_transformations_test.py .
+    dynamo0p3_test.py .....................................x
+    f2pygen_test.py ....x..........
+    generator_test.py ...................
+    ghproto_transformations_test.py x
+    gocean0p1_transformations_test.py .......
+    gocean1p0_test.py ....
+    gocean1p0_transformations_test.py ......................x........
+    parser_test.py ..........
+    psyGen_test.py ..............................
 
-    ================== 24 passed, 11 xfailed in 1.21 seconds ==================
+    =================== 160 passed, 15 xfailed in 13.59 seconds ====================
 
 Run
 ---
@@ -121,7 +127,9 @@ generator.py script:
 
     > cd <PSYCLONEHOME>/src
     > python ./generator.py 
-    usage: generator.py [-h] [-oalg OALG] [-opsy OPSY]  [-api API] filename
+    usage: generator.py [-h] [-oalg OALG] [-opsy OPSY] [-api API] [-s SCRIPT]
+                        [-d DIRECTORY]
+                        filename
     generator.py: error: too few arguments
 
 As indicated above, the generator.py script takes the name of the
@@ -141,7 +149,7 @@ one of the dynamo examples
 ::
 
     > cd <PSYCLONEHOME>/examples/dynamo/eg1
-    > python ../../../src/generator.py -oalg dynamo_alg.f90 -opsy dynamo_psy.f90 dynamo.F90
+    > python ../../../src/generator.py -api dynamo0.1 -oalg dynamo_alg.f90 -opsy dynamo_psy.f90 dynamo.F90
 
 You should see two new files created called dynamo_alg.f90 (containing
 the re-written algorithm layer) and dynamo_psy.f90 (containing the
