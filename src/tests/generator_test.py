@@ -168,7 +168,9 @@ class TestGenerate:
    def test_script_null_trans(self):
       ''' checks that generator.py works correctly when the trans()
           function in a valid script file does no transformations (it
-          simply passes input to output) '''       
+          simply passes input to output). In this case the valid
+          script file has an explicit path and must therefore exist at
+          this location. '''       
       import pytest
       root_path = os.path.dirname(os.path.abspath(__file__))
       alg1,psy1=generate(os.path.join(root_path, "test_files", "dynamo0p3",
@@ -176,7 +178,7 @@ class TestGenerate:
                        api="dynamo0.3")
       alg2,psy2=generate(os.path.join(root_path, "test_files", "dynamo0p3",
                                     "1_single_invoke.f90"), 
-                       api="dynamo0.3", script_name=os.path.join("test_files", "dynamo0p3", "null_trans.py"))
+                       api="dynamo0.3", script_name=os.path.join(root_path, "test_files", "dynamo0p3", "null_trans.py"))
       # remove module so we do not affect any following tests
       delete_module("null_trans")
       # we need to remove the first line before comparing output as
@@ -189,7 +191,9 @@ class TestGenerate:
    def test_script_null_trans_relative(self):
       ''' checks that generator.py works correctly when the trans()
           function in a valid script file does no transformations (it
-          simply passes input to output) '''       
+          simply passes input to output). In this case the valid
+          script file contains no path and must therefore be found via
+          the PYTHOPATH path list. '''
       import pytest
       root_path = os.path.dirname(os.path.abspath(__file__))
       alg1,psy1=generate(os.path.join(root_path, "test_files", "dynamo0p3",
@@ -207,8 +211,38 @@ class TestGenerate:
       # this line is an instance specific header
       assert '\n'.join(str(alg1).split('\n')[1:]) == \
              '\n'.join(str(alg2).split('\n')[1:])
-      assert '\n'.join(str(psy1).split('\n')[1:]) == \
-             '\n'.join(str(psy2).split('\n')[1:])
+      assert str(psy1)==str(psy2)
+
+   def test_script_trans(self):
+      ''' checks that generator.py works correctly when a
+          transformation is provided as a script, i.e. it applies the
+          transformations correctly. We use loop fusion as an
+          example.'''
+      from parse import parse, ParseError
+      from psyGen import PSyFactory, GenerationError
+      from transformations import LoopFuseTrans
+      root_path = os.path.dirname(os.path.abspath(__file__))
+      base_path = os.path.join(root_path, "test_files", "dynamo0p3")
+      # first loop fuse explicitly (without using generator.py)
+      parse_file = os.path.join(base_path, "4_multikernel_invokes.f90")
+      _, invoke_info = parse(parse_file, api="dynamo0.3")
+      psy = PSyFactory("dynamo0.3").create(invoke_info)
+      invoke = psy.invokes.get("invoke_0")
+      schedule = invoke.schedule
+      loop1 = schedule.children[0]
+      loop2 = schedule.children[1]
+      trans = LoopFuseTrans()
+      schedule, _ = trans.apply(loop1, loop2)
+      invoke.schedule = schedule
+      generated_code_1 = psy.gen
+      # second loop fuse using generator.py and a script
+      _, generated_code_2 = generate(parse_file, api="dynamo0.3",
+                                     script_name=os.path.join(base_path,
+                                         "loop_fuse_trans.py"))
+      # remove module so we do not affect any following tests
+      delete_module("loop_fuse_trans")
+      # third - check that the results are the same ...
+      assert str(generated_code_1) == str(generated_code_2)
 
 class TestGenerateGOcean1p0:
 
