@@ -124,7 +124,7 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         except TransformationError as err:
             raise err
         except Exception as err:
-            raise TransformationError("Unexpected exception: {0}".\
+            raise TransformationError("Unexpected exception: {0}".
                                       format(err))
 
         return LoopFuseTrans.apply(self, node1, node2)
@@ -178,7 +178,7 @@ class OMPLoopTrans(Transformation):
         self._omp_schedule = ""
         # Although we create the _omp_schedule attribute above (so that
         # pylint doesn't complain), we actually set its value using
-        # the setter method in order to make use of the latter's error 
+        # the setter method in order to make use of the latter's error
         # checking.
         self.omp_schedule = omp_schedule
         Transformation.__init__(self)
@@ -378,7 +378,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
 
 
 class ColourTrans(Transformation):
-    
+
     ''' Apply a colouring transformation to a loop (in order to permit a
         subsequent OpenMP parallelisation over colours)
     '''
@@ -407,9 +407,11 @@ class ColourTrans(Transformation):
                             "field space written to by the kernel is 'v3'. "
                             "Colouring is not required.")
         # Check this is a kernel loop
-        if node.loop_type is not None:
-            raise Exception("Error in "+self.name+" transformation. The "
-                            "loop is not the correct type for colouring.")
+        if node.loop_type not in [None, ""]:
+            raise Exception("Error in {0} transformation. The "
+                            "loop is not the correct type for colouring."
+                            " Expecting 'None' but found '{1}'".
+                            format(self.name, node.loop_type))
 
         schedule = node.root
 
