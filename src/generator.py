@@ -20,6 +20,7 @@ def generate(filename, api="", kernel_path="", script_name=None):
 
     :param str filename: The file containing the algorithm specification.
     :param str kernel_path: The directory from which to recursively search for the files containing the kernel source (if different from the location of the algorithm specification)
+    :param str script_name: A script file that can apply optimisations to the PSy layer (can be a path to a file or a filename that relies on the PYTHONPATH to find the module).
     :return: The algorithm code and the psy code.
     :rtype: ast
     :raises IOError: if the filename or search path do not exist
@@ -27,7 +28,9 @@ def generate(filename, api="", kernel_path="", script_name=None):
     For example:
 
     >>> from generator import generate
-    >>> psy,alg=generate("algspec.f90")
+    >>> psy, alg = generate("algspec.f90")
+    >>> psy, alg = generate("algspec.f90", kernel_path="src/kernels")
+    >>> psy, alg = generate("algspec.f90", script_name="optimise.py")
 
     '''
 
