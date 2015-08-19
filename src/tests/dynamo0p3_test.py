@@ -651,10 +651,7 @@ def test_bc_kernel():
     know about boundary conditions but this kernel requires them. This
     "hack" is only supported to get PSyclone to generate correct code
     for the current implementation of dynamo. Future API's will not
-    support any hacks. These implementation should replace the code
-    tested in test_kernel)specific2 and test_kernel_specific1 but I am
-    keeping this functionality for the moment in case people still
-    rely on it. '''
+    support any hacks. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                            "12.2_enforce_bc_kernel.f90"), api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
