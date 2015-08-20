@@ -12,8 +12,8 @@ parallel for example). Kernel code in the kernel layer is not allowed
 to include any parallelisation calls or directives and works on
 raw fortran arrays (to allow the compiler to optimise the code).
 
-Kernel API
-----------
+API
+---
 
 Kernels in the kernel layer are implemented as subroutines within
 fortran modules. One or more kernel modules are allowed, each of which
@@ -25,7 +25,7 @@ code that operates over a subset of the field (such as a column).
 Metadata describing the kernel subroutines is required by the PSyclone
 system to generate appropriate PSy layer code. The metadata is written
 by the kernel developer and is kept with the kernel code in the same
-module using a subtype of the ``kernel_type`` type. In the example
+module using a sub-type of the ``kernel_type`` type. In the example
 below the ``integrate_one_kernel`` type specifies the appropriate
 metadata information describing the kernel code for the
 ``gunghoproto`` api.

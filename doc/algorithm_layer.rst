@@ -8,8 +8,8 @@ fields. Algorithm code in the algorithm layer is not allowed to
 include any parallelisation calls or directives and passes datatypes
 specified by the particular API.
 
-Algorithm API
--------------
+API
+---
 
 The Algorithm layer is forbidden from calling the Kernel layer
 directly. In PSyclone, if the programmer would like to call a Kernel

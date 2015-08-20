@@ -7,8 +7,8 @@ optimise the PSy layer for a particular architecture, however
 transformations could be added for other reasons, such as to aid
 debugging or for performance monitoring.
 
-Finding Transformations
------------------------
+Finding
+-------
 
 Transformations can be imported directly, but the user needs to know
 what transformations are available. A helper class **TransInfo** is
@@ -17,8 +17,8 @@ provided to show the available transformations
 .. autoclass:: psyGen.TransInfo
     :members:
 
-Available Transformations
--------------------------
+Available
+---------
 
 Most transformations are generic as the schedule structure is
 independent of the API, however it often makes sense to specialise
@@ -46,8 +46,8 @@ API-specific sections).
 .. autoclass:: transformations.OMPParallelLoopTrans
     :members:
 
-Applying Transformations
-------------------------
+Applying
+--------
 
 Transformations can be applied either interactively or through a
 script.
