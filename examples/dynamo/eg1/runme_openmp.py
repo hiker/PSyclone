@@ -41,7 +41,7 @@ new_schedule.view()
 
 # Replace the original loop schedule of the selected invoke
 # with the new, transformed schedule 
-psy.invokes.get('invoke_0_v3_kernel_type')._schedule=new_schedule
+psy.invokes.get('invoke_0_v3_kernel_type').schedule=new_schedule
 # Generate the Fortran code for the new PSy layer
 print psy.gen
 
@@ -51,5 +51,5 @@ schedule.view()
 new_schedule,memento=ol.apply(schedule.children[0])
 new_schedule.view()
 
-psy.invokes.get('invoke_1_v3_solver_kernel_type')._schedule=new_schedule
+psy.invokes.get('invoke_1_v3_solver_kernel_type').schedule=new_schedule
 print psy.gen

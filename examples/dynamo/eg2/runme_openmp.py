@@ -32,7 +32,7 @@ fuse_schedule.view()
 omp_schedule,memento=ol.apply(fuse_schedule.children[0])
 omp_schedule.view()
 
-psy.invokes.get('invoke_0')._schedule=omp_schedule
+psy.invokes.get('invoke_0').schedule=omp_schedule
 
 schedule=psy.invokes.get('invoke_1_v2_kernel_type').schedule
 schedule.view()
@@ -42,7 +42,7 @@ lc_schedule.view()
 lc_omp_schedule,memento=ol.apply(lc_schedule.children[0].children[0])
 lc_omp_schedule.view()
 
-psy.invokes.get('invoke_1_v2_kernel_type')._schedule=lc_omp_schedule
+psy.invokes.get('invoke_1_v2_kernel_type').schedule=lc_omp_schedule
 
 schedule=psy.invokes.get('invoke_2_v1_kernel_type').schedule
 schedule.view()
@@ -52,6 +52,6 @@ lc_schedule.view()
 lc_omp_schedule,memento=ol.apply(lc_schedule.children[0].children[0])
 lc_omp_schedule.view()
 
-psy.invokes.get('invoke_2_v1_kernel_type')._schedule=lc_omp_schedule
+psy.invokes.get('invoke_2_v1_kernel_type').schedule=lc_omp_schedule
 
 print psy.gen
