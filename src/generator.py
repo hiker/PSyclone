@@ -6,6 +6,14 @@
 # -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
+'''
+    This module provides the main PSyclone command line script which
+    takes an algorithm file as input and produces modified algorithm
+    code and generated PSy code. A function is also provided which has
+    the same functionality as the command line script but can be
+    called from within another Python program.
+'''
+
 import argparse
 import sys
 import os
@@ -13,7 +21,7 @@ import traceback
 from parse import parse, ParseError
 from psyGen import PSyFactory, GenerationError
 from algGen import AlgorithmError
-
+from config import SUPPORTEDAPIS, DEFAULTAPI
 
 def generate(filename, api="", kernel_path="", script_name=None):
     '''Takes a GungHo algorithm specification as input and outputs the
@@ -44,10 +52,8 @@ def generate(filename, api="", kernel_path="", script_name=None):
     '''
 
     if api == "":
-        from config import DEFAULTAPI
         api = DEFAULTAPI
     else:
-        from config import SUPPORTEDAPIS
         if api not in SUPPORTEDAPIS:
             raise GenerationError(
                 "generate: Unsupported API '{0}' specified. Supported "
@@ -59,9 +65,9 @@ def generate(filename, api="", kernel_path="", script_name=None):
         raise IOError("kernel search path '{0}' not found".format(kernel_path))
     try:
         from algGen import Alg
-        ast, invokeInfo = parse(filename, api=api, invoke_name="invoke",
+        ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
                                 kernel_path=kernel_path)
-        psy = PSyFactory(api).create(invokeInfo)
+        psy = PSyFactory(api).create(invoke_info)
         if script_name is not None:
             # a script has been provided
             sys_path_appended = False
@@ -110,57 +116,57 @@ def generate(filename, api="", kernel_path="", script_name=None):
                 os.sys.path.pop()
         alg = Alg(ast, psy)
     except Exception as msg:
-        raise
+        raise msg
     return alg.gen, psy.gen
 
 if __name__ == "__main__":
 
-    from config import SUPPORTEDAPIS, DEFAULTAPI
-    parser = argparse.ArgumentParser(
+    PARSER = argparse.ArgumentParser(
         description='Run the PSyclone code generator on a particular file')
-    parser.add_argument('-oalg', help='filename of transformed algorithm code')
-    parser.add_argument(
+    PARSER.add_argument('-oalg', help='filename of transformed algorithm code')
+    PARSER.add_argument(
         '-opsy', help='filename of generated PSy code')
-    parser.add_argument(
+    PARSER.add_argument(
         '-api', default=DEFAULTAPI, help='choose a particular api from {0}, '
         'default {1}'.format(str(SUPPORTEDAPIS), DEFAULTAPI))
-    parser.add_argument('filename', help='algorithm-layer source code')
-    parser.add_argument('-s', '--script', help='filename of a PSyclone'
+    PARSER.add_argument('filename', help='algorithm-layer source code')
+    PARSER.add_argument('-s', '--script', help='filename of a PSyclone'
                         ' optimisation script')
-    parser.add_argument(
+    PARSER.add_argument(
         '-d', '--directory', default="", help='path to root of directory '
         'structure containing kernel source code')
-    args = parser.parse_args()
-    if args.api not in SUPPORTEDAPIS:
+    ARGS = PARSER.parse_args()
+    if ARGS.api not in SUPPORTEDAPIS:
         print "Unsupported API '{0}' specified. Supported API's are "
-        "{1}.".format(args.api, SUPPORTEDAPIS)
+        "{1}.".format(ARGS.api, SUPPORTEDAPIS)
         exit(1)
     try:
-        alg, psy = generate(args.filename, api=args.api,
-                            kernel_path=args.directory,
-                            script_name=args.script)
-    except AlgorithmError as e:
-        print "Warning:", e
+        ALG, PSY = generate(ARGS.filename, api=ARGS.api,
+                            kernel_path=ARGS.directory,
+                            script_name=ARGS.script)
+    except AlgorithmError as error:
+        print "Warning:", error
         exit(0)
-    except (OSError, IOError, ParseError, GenerationError, RuntimeError) as e:
-        print "Error:", e
+    except (OSError, IOError, ParseError, GenerationError,
+            RuntimeError) as error:
+        print "Error:", error
         exit(1)
-    except Exception as e:
+    except Exception as error:
         print "Error, unexpected exception:\n"
-        exc_type, exc_value, exc_traceback = sys.exc_info()
-        print exc_type
-        print exc_value
-        traceback.print_tb(exc_traceback)
+        EXC_TYPE, EXC_VALUE, EXC_TRACEBACK = sys.exc_info()
+        print EXC_TYPE
+        print EXC_VALUE
+        traceback.print_tb(EXC_TRACEBACK)
         exit(1)
-    if args.oalg is not None:
-        file = open(args.oalg, "w")
-        file.write(str(alg))
-        file.close()
+    if ARGS.oalg is not None:
+        MY_FILE = open(ARGS.oalg, "w")
+        MY_FILE.write(str(ALG))
+        MY_FILE.close()
     else:
-        print "Transformed algorithm code:\n", alg
-    if args.opsy is not None:
-        file = open(args.opsy, "w")
-        file.write(str(psy))
-        file.close()
+        print "Transformed algorithm code:\n", ALG
+    if ARGS.opsy is not None:
+        MY_FILE = open(ARGS.opsy, "w")
+        MY_FILE.write(str(PSY))
+        MY_FILE.close()
     else:
-        print "Generated psy layer code:\n", psy
+        print "Generated psy layer code:\n", PSY
