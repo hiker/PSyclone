@@ -128,7 +128,20 @@ def test_non_existant_script_filename():
 
 def test_script_file_not_found():
     ''' checks that generator.py raises an appropriate error when a
-        script file is supplied that can't be found in the Python path.'''
+        script file is supplied that can't be found in the Python path.
+        In this case the script path is supplied'''
+    root_path = os.path.dirname(os.path.abspath(__file__))
+    with pytest.raises(IOError):
+        _, _ = generate(os.path.join(root_path, "test_files", "dynamo0p3",
+                                     "1_single_invoke.f90"),
+                        api="dynamo0.3", script_name="./non_existant.py")
+
+
+def test_script_file_not_found_relative():
+    ''' checks that generator.py raises an appropriate error when a script
+        file is supplied that can't be found in the Python path. In
+        this case the script path is not supplied so must be found via the
+        PYTHONPATH variable'''
     root_path = os.path.dirname(os.path.abspath(__file__))
     with pytest.raises(GenerationError):
         _, _ = generate(os.path.join(root_path, "test_files", "dynamo0p3",

@@ -93,8 +93,6 @@ def generate(filename, api="", kernel_path="", script_name=None):
             try:
                 transmod = __import__(filename)
             except ImportError:
-                if sys_path_appended:
-                    os.sys.path.pop()
                 raise GenerationError(
                     "generator: attempted to import '{0}' but script file "
                     "'{1}' has not been found".format(filename, script_name))
