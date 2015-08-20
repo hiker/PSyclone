@@ -1,5 +1,7 @@
 # performs loop fusion on the first two loops of an invoke called
 # 'invoke_0'. Does not perform any error checking.
+
+
 def trans(psy):
     from transformations import LoopFuseTrans
     invoke = psy.invokes.get("invoke_0")
@@ -10,4 +12,3 @@ def trans(psy):
     schedule, _ = trans.apply(loop1, loop2)
     invoke.schedule = schedule
     return psy
-
