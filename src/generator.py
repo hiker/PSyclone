@@ -23,6 +23,7 @@ from psyGen import PSyFactory, GenerationError
 from algGen import AlgorithmError
 from config import SUPPORTEDAPIS, DEFAULTAPI
 
+
 def generate(filename, api="", kernel_path="", script_name=None):
     '''Takes a GungHo algorithm specification as input and outputs the
     associated generated algorithm and psy codes suitable for
@@ -66,7 +67,7 @@ def generate(filename, api="", kernel_path="", script_name=None):
     try:
         from algGen import Alg
         ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
-                                kernel_path=kernel_path)
+                                 kernel_path=kernel_path)
         psy = PSyFactory(api).create(invoke_info)
         if script_name is not None:
             # a script has been provided

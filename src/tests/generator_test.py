@@ -30,11 +30,13 @@ def delete_module(modname):
 
 # a set of unit tests for the generate function
 
+
 def test_non_existant_filename():
     ''' checks that algGen raises appropriate error when a
     non-existant filename is supplied '''
     with pytest.raises(IOError):
         generate("non_existant_file.f90")
+
 
 def test_invalid_api():
     ''' checks that algGen raises appropriate error when an invalid
@@ -43,6 +45,7 @@ def test_invalid_api():
         generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               "test_files", "dynamo0p1", "algorithm",
                               "1_single_function.f90"), api="invalid")
+
 
 def test_invalid_kernel_path():
     ''' checks that algGen raises appropriate error when an invalid
@@ -53,6 +56,7 @@ def test_invalid_kernel_path():
                               "1_single_function.f90"),
                  api="dynamo0.1",
                  kernel_path="does_not_exist")
+
 
 def test_wrong_kernel_path():
     ''' checks that algGen raises appropriate error when the kernel
@@ -66,17 +70,18 @@ def test_wrong_kernel_path():
                  kernel_path=os.path.join(root_path,
                                           "test_files", "gocean0p1"))
 
+
 def test_correct_kernel_path():
     ''' checks that algGen succeeds when the location of the kernel
         source code is *not* the same as that of the algorithm code '''
     root_path = os.path.dirname(os.path.abspath(__file__))
     _, _ = generate(os.path.join(root_path,
-                                     "test_files", "dynamo0p1",
-                                     "algorithm",
-                                     "1_single_function.f90"),
-                        api="dynamo0.1",
-                        kernel_path=os.path.join(root_path, "test_files",
-                                                 "dynamo0p1", "kernels"))
+                                 "test_files", "dynamo0p1", "algorithm",
+                                 "1_single_function.f90"),
+                    api="dynamo0.1",
+                    kernel_path=os.path.join(root_path, "test_files",
+                                             "dynamo0p1", "kernels"))
+
 
 def test_same_kernel_path():
     ''' checks that the generator succeeds when the search directory
@@ -85,106 +90,100 @@ def test_same_kernel_path():
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         "test_files", "dynamo0p1", "algorithm")
     _, _ = generate(os.path.join(path, "1_single_function.f90"),
-                        api="dynamo0.1",
-                        kernel_path=path)
+                    api="dynamo0.1", kernel_path=path)
+
 
 def test_similar_kernel_name():
     ''' checks that the generator does not match incorrect files '''
     root_path = os.path.dirname(os.path.abspath(__file__))
-    _, _ = generate(os.path.join(root_path,
-                                     "test_files", "dynamo0p1",
-                                     "algorithm",
-                                     "1_single_function.f90"),
-                        api="dynamo0.1",
-                        kernel_path=os.path.join(root_path,
-                                                 "test_files", "dynamo0p1",
-                                                 "kernels2"))
+    _, _ = generate(os.path.join(root_path, "test_files", "dynamo0p1",
+                                 "algorithm", "1_single_function.f90"),
+                    api="dynamo0.1",
+                    kernel_path=os.path.join(root_path, "test_files",
+                                             "dynamo0p1", "kernels2"))
+
 
 def test_recurse_correct_kernel_path():
     '''checks that the generator succeeds when the location of the kernel
        source code is *not* the same as that of the algorithm code and
        recursion through subdirectories is required'''
     root_path = os.path.dirname(os.path.abspath(__file__))
-    _, _ = generate(os.path.join(root_path,
-                                     "test_files", "dynamo0p1",
-                                     "algorithm",
-                                     "1_single_function.f90"),
-                        api="dynamo0.1",
-                        kernel_path=os.path.join(root_path,
-                                                 "test_files", "dynamo0p1",
-                                                 "kernels3"))
+    _, _ = generate(os.path.join(root_path, "test_files", "dynamo0p1",
+                                 "algorithm", "1_single_function.f90"),
+                    api="dynamo0.1",
+                    kernel_path=os.path.join(root_path, "test_files",
+                                             "dynamo0p1", "kernels3"))
+
 
 def test_non_existant_script_filename():
     ''' checks that generator.py raises an appropriate error when a
         non-existant script file + path name is supplied'''
     root_path = os.path.dirname(os.path.abspath(__file__))
     with pytest.raises(IOError):
-        _, _ = generate(os.path.join(root_path, "test_files",
-                                         "dynamo0p3",
-                                         "1_single_invoke.f90"),
-                            api="dynamo0.3",
-                            script_name="./non_existant.py")
+        _, _ = generate(os.path.join(root_path, "test_files", "dynamo0p3",
+                                     "1_single_invoke.f90"),
+                        api="dynamo0.3",
+                        script_name="./non_existant.py")
+
 
 def test_script_file_not_found():
     ''' checks that generator.py raises an appropriate error when a
         script file is supplied that can't be found in the Python path.'''
     root_path = os.path.dirname(os.path.abspath(__file__))
     with pytest.raises(GenerationError):
-        _, _ = generate(os.path.join(root_path, "test_files",
-                                         "dynamo0p3",
-                                         "1_single_invoke.f90"),
-                            api="dynamo0.3", script_name="non_existant.py")
+        _, _ = generate(os.path.join(root_path, "test_files", "dynamo0p3",
+                                     "1_single_invoke.f90"),
+                        api="dynamo0.3", script_name="non_existant.py")
+
 
 def test_script_file_too_short():
     ''' checks that generator.py raises an appropriate error when a
         script file name is too short to contain the '.py' extension'''
     root_path = os.path.dirname(os.path.abspath(__file__))
     with pytest.raises(GenerationError):
-        _, _ = generate(os.path.join(root_path, "test_files",
-                                         "dynamo0p3",
-                                         "1_single_invoke.f90"),
-                            api="dynamo0.3",
-                            script_name=os.path.join(root_path,
-                                                     "test_files",
-                                                     "dynamo0p3", "xyz"))
+        _, _ = generate(os.path.join(root_path, "test_files", "dynamo0p3",
+                                     "1_single_invoke.f90"),
+                        api="dynamo0.3",
+                        script_name=os.path.join(root_path, "test_files",
+                                                 "dynamo0p3", "xyz"))
+
 
 def test_script_file_wrong_extension():
     ''' checks that generator.py raises an appropriate error when a
         script file does not have the '.py' extension'''
     root_path = os.path.dirname(os.path.abspath(__file__))
     with pytest.raises(GenerationError):
-        _, _ = generate(os.path.join(root_path, "test_files",
-                                         "dynamo0p3",
-                                         "1_single_invoke.f90"),
-                            api="dynamo0.3",
-                            script_name=os.path.join(
-                                root_path, "test_files", "dynamo0p3",
-                                "1_single_invoke.f90"))
+        _, _ = generate(os.path.join(root_path, "test_files", "dynamo0p3",
+                                     "1_single_invoke.f90"),
+                        api="dynamo0.3",
+                        script_name=os.path.join(root_path, "test_files",
+                                                 "dynamo0p3",
+                                                 "1_single_invoke.f90"))
+
 
 def test_script_invalid_content():
     ''' checks that generator.py raises an appropriate error when a
         script file does not contain valid python '''
     root_path = os.path.dirname(os.path.abspath(__file__))
     with pytest.raises(GenerationError):
-        _, _ = generate(os.path.join(root_path, "test_files",
-                                         "dynamo0p3",
-                                         "1_single_invoke.f90"),
-                            api="dynamo0.3",
-                            script_name=os.path.join(
-                                "test_files", "dynamo0p3", "error.py"))
+        _, _ = generate(os.path.join(root_path, "test_files", "dynamo0p3",
+                                     "1_single_invoke.f90"),
+                        api="dynamo0.3",
+                        script_name=os.path.join(
+                            "test_files", "dynamo0p3", "error.py"))
+
 
 def test_script_no_trans():
     ''' checks that generator.py raises an appropriate error when a
         script file does not contain a trans() function '''
     root_path = os.path.dirname(os.path.abspath(__file__))
     with pytest.raises(GenerationError):
-        _, _ = generate(os.path.join(root_path, "test_files",
-                                         "dynamo0p3",
-                                         "1_single_invoke.f90"),
-                            api="dynamo0.3",
-                            script_name=os.path.join("test_files",
-                                                     "dynamo0p3",
-                                                     "no_trans.py"))
+        _, _ = generate(os.path.join(root_path, "test_files", "dynamo0p3",
+                                     "1_single_invoke.f90"),
+                        api="dynamo0.3",
+                        script_name=os.path.join("test_files", "dynamo0p3",
+                                                 "no_trans.py"))
+
 
 def test_script_null_trans():
     ''' checks that generator.py works correctly when the trans()
@@ -193,12 +192,10 @@ def test_script_null_trans():
         script file has an explicit path and must therefore exist at
         this location. '''
     root_path = os.path.dirname(os.path.abspath(__file__))
-    alg1, psy1 = generate(os.path.join(root_path, "test_files",
-                                       "dynamo0p3",
+    alg1, psy1 = generate(os.path.join(root_path, "test_files", "dynamo0p3",
                                        "1_single_invoke.f90"),
                           api="dynamo0.3")
-    alg2, psy2 = generate(os.path.join(root_path, "test_files",
-                                       "dynamo0p3",
+    alg2, psy2 = generate(os.path.join(root_path, "test_files", "dynamo0p3",
                                        "1_single_invoke.f90"),
                           api="dynamo0.3",
                           script_name=os.path.join(root_path, "test_files",
@@ -213,6 +210,7 @@ def test_script_null_trans():
     assert '\n'.join(str(psy1).split('\n')[1:]) == \
         '\n'.join(str(psy2).split('\n')[1:])
 
+
 def test_script_null_trans_relative():
     ''' checks that generator.py works correctly when the trans()
         function in a valid script file does no transformations (it
@@ -220,14 +218,12 @@ def test_script_null_trans_relative():
         script file contains no path and must therefore be found via
         the PYTHOPATH path list. '''
     root_path = os.path.dirname(os.path.abspath(__file__))
-    alg1, psy1 = generate(os.path.join(root_path, "test_files",
-                                       "dynamo0p3",
+    alg1, psy1 = generate(os.path.join(root_path, "test_files", "dynamo0p3",
                                        "1_single_invoke.f90"),
                           api="dynamo0.3")
     # set up the python path so that null_trans.py can be found
     os.sys.path.append(os.path.join(root_path, "test_files", "dynamo0p3"))
-    alg2, psy2 = generate(os.path.join(root_path, "test_files",
-                                       "dynamo0p3",
+    alg2, psy2 = generate(os.path.join(root_path, "test_files", "dynamo0p3",
                                        "1_single_invoke.f90"),
                           api="dynamo0.3", script_name="null_trans.py")
     # remove imported module so we do not affect any following tests
@@ -238,6 +234,7 @@ def test_script_null_trans_relative():
     assert '\n'.join(str(alg1).split('\n')[1:]) == \
         '\n'.join(str(alg2).split('\n')[1:])
     assert str(psy1) == str(psy2)
+
 
 def test_script_trans():
     ''' checks that generator.py works correctly when a
@@ -272,6 +269,7 @@ def test_script_trans():
 
 # gocean1.0 API-specific tests
 
+
 def test01_kernels_different_grid_offsets_one_invoke():
     ''' Check that the parser raises an error if two kernels in a
         single invoke specify different index offsets '''
@@ -280,6 +278,7 @@ def test01_kernels_different_grid_offsets_one_invoke():
             os.path.abspath(__file__)), "test_files", "gocean1p0",
             "test01_different_grid_offsets_one_invoke.f90"),
             api="gocean1.0")
+
 
 def test02_kernels_different_grid_offsets_two_invokes():
     ''' Check that the parser raises an error if the two kernels
