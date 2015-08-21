@@ -622,7 +622,7 @@ def test_kernel_specific():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = psy.gen
-    output0 = "USE enforce_bc_mod, ONLY: enforce_bc_code"
+    output0 = "USE enforce_bc_kernel_mod, ONLY: enforce_bc_code"
     assert str(generated_code).find(output0) != -1
     output1 = "USE function_space_mod, ONLY: w2"
     assert str(generated_code).find(output1) != -1
