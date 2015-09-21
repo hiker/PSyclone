@@ -584,6 +584,15 @@ class DynInvoke(Invoke):
                 return True
         return False
 
+    def space_is_coloured(self, space):
+        ''' Returns true if there is a coloured loop over the specified space
+        in the schedule of this invoke '''
+        for loop in self.schedule.loops():
+            if loop.loop_type == "colours" and \
+               loop.field_space == space:
+                return True
+        return False
+
     def ndf_name(self, func_space):
         ''' A convenience method that returns an ndf name for a
         particular function space. These names are specified in
@@ -733,13 +742,27 @@ class DynInvoke(Invoke):
         operator_declarations = []
         var_list = []
         var_dim_list = []
+        cmap_list = []
         # loop over all function spaces used by the kernels in this invoke
         for function_space in self.unique_fss():
+
+            # Is there a coloured loop associated with this function space?
+            is_coloured = self.space_is_coloured(function_space)
+
             # Initialise information associated with this function space
             invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(CommentGen(invoke_sub, " Initialise sizes and "
-                           "allocate any basis arrays for "+function_space))
+            if is_coloured:
+                invoke_sub.add(CommentGen(invoke_sub,
+                                          " Initialise sizes, look-up colour map and "
+                                          "allocate any basis arrays for "+\
+                                          function_space))
+            else:
+                invoke_sub.add(CommentGen(invoke_sub,
+                                          " Initialise sizes and "
+                                          "allocate any basis arrays for "+\
+                                          function_space))
             invoke_sub.add(CommentGen(invoke_sub, ""))
+
             # Find an argument on this space to use to dereference
             arg = self.arg_for_funcspace(function_space)
             name = arg.proxy_name_indexed
@@ -757,6 +780,20 @@ class DynInvoke(Invoke):
                 var_list.append(undf_name)
                 invoke_sub.add(AssignGen(invoke_sub, lhs=undf_name,
                                rhs=name+"%"+arg.ref_name+"%get_undf()"))
+
+            if is_coloured:
+                # Add declarations of the colour map and array holding the
+                # no. of cells of each colour
+                cmap_list.append(function_space)
+
+                name = arg.proxy_name_indexed+\
+                       "%mesh%get_colours_"+function_space
+                invoke_sub.add(CallGen(invoke_sub,
+                                       name=name,
+                                       args=["ncolours_"+function_space,
+                                             "ncp_colour_"+function_space,
+                                             "cmap_"+function_space]))
+
             if self.basis_required(function_space):
                 # initialise 'dim' variable for this function space
                 # and add name to list to declare later
@@ -802,14 +839,17 @@ class DynInvoke(Invoke):
                                    allocatable=True,
                                    kind="r_def",
                                    entity_decls=operator_declarations))
-
-        if self.is_coloured():
-            # Add declarations of the colour map and array holding the
-            # no. of cells of each colour
-            invoke_sub.add(DeclGen(parent, datatype = "integer",
-                                   pointer=True,
-                                   entity_decls = ["cmap(:,:)",
-                                                   "ncp_colour(:)"]))
+        if not cmap_list == []:
+            # Declare the various colour maps
+            ncol_list = []
+            for space in cmap_list:
+                ncol_list.append("ncolours_"+space)
+                invoke_sub.add(DeclGen(parent, datatype = "integer",
+                                       pointer=True,
+                                       entity_decls = ["cmap_"+space+"(:,:)",
+                                                       "ncp_colour_"+space+"(:)"]))
+            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
+                                   entity_decls=ncol_list))
 
         if self.qr_required:
             # add calls to compute the values of any basis arrays
@@ -850,6 +890,7 @@ class DynInvoke(Invoke):
                     invoke_sub.add(CallGen(invoke_sub, name=name + "%" +
                                    arg.ref_name +
                                    "%compute_diff_basis_function", args=args))
+
         invoke_sub.add(CommentGen(invoke_sub, ""))
         invoke_sub.add(CommentGen(invoke_sub, " Call our kernels"))
         invoke_sub.add(CommentGen(invoke_sub, ""))
@@ -931,9 +972,9 @@ class DynLoop(Loop):
         # Set-up loop bounds
         self._start = "1"
         if self._loop_type == "colours":
-            self._stop = "ncolour"
+            self._stop = "ncolours_"+self.field_space
         elif self._loop_type == "colour":
-            self._stop = "ncp_colour(colour)"
+            self._stop = "ncp_colour_"+self.field_space+"(colour)"
         else:
             self._stop = self.field.proxy_name_indexed + "%" + \
                 self.field.ref_name + "%get_ncell()"
@@ -1092,57 +1133,38 @@ class DynKern(Kern):
                            entity_decls=["cell"]))
 
         # If this kernel is being called from within a coloured
-        # loop then we have to look-up the colour map 
+        # loop then we have to look-up the colour map for the appropriate
+        # function space. We do this by looking for the field that has INC
+        # access (it is mandated that there must be one or zero of these). If
+        # none is found we use the first field that has WRITE access. 
+        # TODO Can a kernel write to multiple fields on different spaces?
         if self.is_coloured():
 
             # Find which argument object has INC access in order to look-up
             # the colour map
             try:
-                arg = self.incremented_field
+                updated_arg = self.incremented_field
             except FieldNotFoundError:
                 # TODO Warn that we're colouring a kernel that has
                 # no field object with INC access
-                arg = self.written_field
-
-            new_parent, position = parent.start_parent_loop()
-            # Add the look-up of the colouring map for this kernel
-            # call
-            new_parent.add(CommentGen(new_parent, ""),
-                       position=["before", position])
-            new_parent.add(CommentGen(new_parent, " Look-up colour map"),
-                       position=["before", position])
-            new_parent.add(CommentGen(new_parent, ""),
-                       position=["before", position])
-            name = arg.proxy_name_indexed+\
-                   "%"+arg.ref_name+"%get_colours"
-            new_parent.add(CallGen(new_parent,
-                                   name=name,
-                                   args=["ncolour", "ncp_colour", "cmap"]),
-                           position=["before", position])
-            new_parent.add(CommentGen(new_parent, ""),
-                           position=["before", position])
-
-            # We must pass the colour map to the dofmap/orientation
-            # lookup rather than just the cell
-            dofmap_args = "cmap(colour, cell)"
+                updated_arg = self.written_field
         else:
-            # This kernel call has not been coloured
-            #  - is it OpenMP parallel, i.e. are we a child of
-            # an OpenMP directive?
+            # This kernel call has not been coloured but we do some
+            # error checking - is it OpenMP parallel, i.e. are we a
+            # child of an OpenMP directive?
             if self.is_openmp_parallel():
                 try:
                     # It is OpenMP parallel - does it have an argument
                     # with INC access?
-                    arg = self.incremented_field
+                    updated_arg = self.incremented_field
                 except FieldNotFoundError:
-                    arg = None
+                    updated_arg = None
                 if arg:
                     raise GenerationError("Kernel {0} has an argument with "
                                           "INC access and therefore must "
                                           "be coloured in order to be "
                                           "parallelised with OpenMP".\
                                           format(self._name))
-            dofmap_args = "cell"
 
         # create a maps_required logical which we can use to add in
         # spacer comments if necessary
@@ -1159,10 +1181,19 @@ class DynKern(Kern):
                 # A map is required as there is a field on this space
                 map_name = self._fs_descriptors.map_name(unique_fs)
                 field = self._arguments.get_field(unique_fs)
-                parent.add(AssignGen(parent, pointer=True, lhs=map_name,
-                                     rhs=field.proxy_name_indexed +
-                                     "%" + field.ref_name +
-                                     "%get_cell_dofmap("+dofmap_args+")"))
+                if self.is_coloured():
+                    print type(updated_arg)
+                    print dir(updated_arg)
+                    # We must pass the colour map to the dofmap/orientation
+                    # lookup rather than just the cell
+                    dofmap_args = "cmap_"+updated_arg.function_space+"(colour, cell)"
+                else:
+                    dofmap_args = "cell"
+            parent.add(AssignGen(parent, pointer=True, lhs=map_name,
+                                 rhs=field.proxy_name_indexed +
+                                 "%" + field.ref_name +
+                                 "%get_cell_dofmap("+dofmap_args+")"))
+
         if maps_required:
             parent.add(CommentGen(parent, ""))
         decl_map_names = []
