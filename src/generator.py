@@ -70,47 +70,48 @@ def generate(filename, api="", kernel_path="", script_name=None):
                                  kernel_path=kernel_path)
         psy = PSyFactory(api).create(invoke_info)
         if script_name is not None:
-            # a script has been provided
             sys_path_appended = False
-            filepath, filename = os.path.split(script_name)
-            if filepath != '':
-                # a path to a file has been provided
-                # we need to check the file exists
-                if not os.path.isfile(script_name):
-                    raise IOError("script file '{0}' not found in path '{1}'".
-                                  format(filename, filepath))
-                # it exists so we need to add the path to the python
-                # search path
-                sys_path_appended = True
-                sys.path.append(filepath)
-            filename, fileext = os.path.splitext(filename)
-            if fileext != '.py':
-                if sys_path_appended:
-                    os.sys.path.pop()
-                raise GenerationError(
-                    "generator: expected the script file '{0}' to have the "
-                    "'.py' extension".format(fileext))
             try:
-                transmod = __import__(filename)
-            except ImportError:
-                raise GenerationError(
-                    "generator: attempted to import '{0}' but script file "
-                    "'{1}' has not been found".format(filename, script_name))
-            except SyntaxError:
+                # a script has been provided
+                filepath, filename = os.path.split(script_name)
+                if filepath:
+                    # a path to a file has been provided
+                    # we need to check the file exists
+                    if not os.path.isfile(script_name):
+                        raise IOError("script file '{0}' not found".
+                                      format(script_name))
+                    # it exists so we need to add the path to the python
+                    # search path
+                    sys_path_appended = True
+                    sys.path.append(filepath)
+                filename, fileext = os.path.splitext(filename)
+                if fileext != '.py':
+                    raise GenerationError(
+                        "generator: expected the script file '{0}' to have "
+                        "the '.py' extension".format(filename))
+                try:
+                    transmod = __import__(filename)
+                except ImportError:
+                    raise GenerationError(
+                        "generator: attempted to import '{0}' but script file "
+                        "'{1}' has not been found".
+                        format(filename, script_name))
+                except SyntaxError:
+                    raise GenerationError(
+                        "generator: attempted to import '{0}' but script file "
+                        "'{1}' is not valid python".
+                        format(filename, script_name))
+                try:
+                    psy = transmod.trans(psy)
+                except AttributeError:
+                    raise GenerationError(
+                        "generator: attempted to import '{0}' but script file "
+                        "'{1}' does not contain a 'trans()' function".
+                        format(filename, script_name))
+            except Exception as msg:
                 if sys_path_appended:
                     os.sys.path.pop()
-                raise GenerationError(
-                    "generator: attempted to import '{0}' but script file "
-                    "'{1}' is not valid python".format(filename, script_name))
-            try:
-                psy = transmod.trans(psy)
-            except AttributeError:
-                if sys_path_appended:
-                    os.sys.path.pop()
-                raise GenerationError(
-                    "generator: attempted to import '{0}' but script file "
-                    "'{1}' does not contain a 'trans()' function".
-                    format(filename, script_name))
+                raise msg
             if sys_path_appended:
                 os.sys.path.pop()
         alg = Alg(ast, psy)
