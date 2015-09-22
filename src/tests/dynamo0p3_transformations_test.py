@@ -46,20 +46,20 @@ def test_colour_trans():
     gen = str(psy.gen)
 
     # Check that we're calling the API to get the no. of colours
-    assert "f1_proxy%vspace%get_colours(" in gen
+    assert "XXX%get_colours(" in gen
 
     col_loop_idx = -1
     cell_loop_idx = -1
     for idx, line in enumerate(gen.split('\n')):
-        if "DO colour=1,ncolour" in line:
+        if "DO colour=1,ncolours_w1" in line:
             col_loop_idx = idx
-        if "DO cell=1,ncp_colour(colour)" in line:
+        if "DO cell=1,ncp_colour_w1(colour)" in line:
             cell_loop_idx = idx
 
     assert cell_loop_idx - col_loop_idx == 1
 
     # Check that we're using the colour map when getting the cell dof maps
-    assert "get_cell_dofmap(cmap(colour, cell))" in gen
+    assert "get_cell_dofmap(cmap_w1(colour, cell))" in gen
 
 
 def test_colouring_not_a_loop():
@@ -203,9 +203,9 @@ def test_omp_colour_trans():
     omp_idx = -1
     cell_loop_idx = -1
     for idx, line in enumerate(code.split('\n')):
-        if "DO colour=1,ncolour" in line:
+        if "DO colour=1,ncolours_w1" in line:
             col_loop_idx = idx
-        if "DO cell=1,ncp_colour(colour)" in line:
+        if "DO cell=1,ncp_colour_w1(colour)" in line:
             cell_loop_idx = idx
         if "!$omp parallel do" in line:
             omp_idx = idx
@@ -240,8 +240,9 @@ def test_omp_colour_orient_trans():
     invoke.schedule = schedule
     code = str(psy.gen)
 
-    # Check that we're using the colour map when getting the orientation
-    assert "get_cell_orientation(cmap(colour, cell))" in code
+    # Check that we're using the (correct) colour map when getting the
+    # orientation
+    assert "get_cell_orientation(cmap_w3(colour, cell))" in code
 
     # Check that the list of private variables is correct
     assert "private(cell,map_w3,map_w2,map_w0,orientation_w2)" in code
@@ -393,6 +394,36 @@ def test_colouring_multi_kernel():
     assert "a_proxy%vspace%get_colours(" in gen
     assert "f_proxy%vspace%get_colours(" in gen
     assert "private(cell,map_w2,map_w3,map_w0)" in gen
+
+
+def test_colouring_kernels_different_spaces():
+    ''' Test that we correctly generate all the map-lookups etc.
+    when an invoke contains more than one kernel and those kernels
+    update fields on different function spaces '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "4.7_multikernel_invokes.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.get('invoke_0')
+    schedule = invoke.schedule
+
+    ctrans = Dynamo0p3ColourTrans()
+    otrans = DynamoOMPParallelLoopTrans()
+
+    for child in schedule.children:
+        newsched, _ = ctrans.apply(child)
+
+    # Apply OpenMP to each of the colour loops
+    schedule = newsched
+    for child in schedule.children:
+        newsched, _ = otrans.apply(child.children[0])
+
+    invoke.schedule = newsched
+    gen = str(psy.gen)
+
+    print gen
+    assert 1 == 0
 
 
 def test_omp_region_omp_do():
@@ -667,12 +698,12 @@ def test_fuse_colour_loops():
                 end_loop_idx2 = idx
             else:
                 end_loop_idx3 = idx
-        if "DO cell=1,ncp_colour(colour)" in line:
+        if "DO cell=1,ncp_colour_w2(colour)" in line:
             if cell_loop_idx1 == -1:
                 cell_loop_idx1 = idx
             else:
                 cell_loop_idx2 = idx
-        if "DO colour=1,ncolour" in line:
+        if "DO colour=1,ncolours_w2" in line:
             col_loop_idx = idx
         if "CALL ru_code(nlayers," in line:
             if call_idx1 == -1:
