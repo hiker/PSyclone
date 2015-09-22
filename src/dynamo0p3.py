@@ -1159,7 +1159,7 @@ class DynKern(Kern):
                     updated_arg = self.incremented_field
                 except FieldNotFoundError:
                     updated_arg = None
-                if arg:
+                if updated_arg:
                     raise GenerationError("Kernel {0} has an argument with "
                                           "INC access and therefore must "
                                           "be coloured in order to be "
@@ -1173,6 +1173,13 @@ class DynKern(Kern):
             if self.field_on_space(unique_fs):
                 maps_required = True
 
+        if self.is_coloured():
+            # We must pass the colour map to the dofmap/orientation
+            # lookup rather than just the cell
+            dofmap_args = "cmap_"+updated_arg.function_space+"(colour, cell)"
+        else:
+            dofmap_args = "cell"
+
         # function-space maps initialisation and their declarations
         if maps_required:
             parent.add(CommentGen(parent, ""))
@@ -1181,18 +1188,10 @@ class DynKern(Kern):
                 # A map is required as there is a field on this space
                 map_name = self._fs_descriptors.map_name(unique_fs)
                 field = self._arguments.get_field(unique_fs)
-                if self.is_coloured():
-                    print type(updated_arg)
-                    print dir(updated_arg)
-                    # We must pass the colour map to the dofmap/orientation
-                    # lookup rather than just the cell
-                    dofmap_args = "cmap_"+updated_arg.function_space+"(colour, cell)"
-                else:
-                    dofmap_args = "cell"
-            parent.add(AssignGen(parent, pointer=True, lhs=map_name,
-                                 rhs=field.proxy_name_indexed +
-                                 "%" + field.ref_name +
-                                 "%get_cell_dofmap("+dofmap_args+")"))
+                parent.add(AssignGen(parent, pointer=True, lhs=map_name,
+                                     rhs=field.proxy_name_indexed +
+                                     "%" + field.ref_name +
+                                     "%get_cell_dofmap("+dofmap_args+")"))
 
         if maps_required:
             parent.add(CommentGen(parent, ""))
