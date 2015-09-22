@@ -64,7 +64,7 @@ class PSy(object):
     '''
         Base class to help manage and generate PSy code for a single
         algorithm file. Takes the invocation information output from the
-        function :func:`parse.parse` as it's input and stores this is a
+        function :func:`parse.parse` as it's input and stores this in a
         way suitable for optimisation and code generation.
 
         :param FileInfo invoke_info: An object containing the required invocation

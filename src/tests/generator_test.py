@@ -115,17 +115,6 @@ def test_recurse_correct_kernel_path():
                                              "dynamo0p1", "kernels3"))
 
 
-def test_non_existant_script_filename():
-    ''' checks that generator.py raises an appropriate error when a
-        non-existant script file + path name is supplied'''
-    root_path = os.path.dirname(os.path.abspath(__file__))
-    with pytest.raises(IOError):
-        _, _ = generate(os.path.join(root_path, "test_files", "dynamo0p3",
-                                     "1_single_invoke.f90"),
-                        api="dynamo0.3",
-                        script_name="./non_existant.py")
-
-
 def test_script_file_not_found():
     ''' checks that generator.py raises an appropriate error when a
         script file is supplied that can't be found in the Python path.
@@ -159,6 +148,19 @@ def test_script_file_too_short():
                         api="dynamo0.3",
                         script_name=os.path.join(root_path, "test_files",
                                                  "dynamo0p3", "xyz"))
+
+
+def test_script_file_no_extension():
+    ''' checks that generator.py raises an appropriate error when a
+        script file does not have an extension'''
+    root_path = os.path.dirname(os.path.abspath(__file__))
+    with pytest.raises(GenerationError):
+        _, _ = generate(os.path.join(root_path, "test_files", "dynamo0p3",
+                                     "1_single_invoke.f90"),
+                        api="dynamo0.3",
+                        script_name=os.path.join(root_path, "test_files",
+                                                 "dynamo0p3",
+                                                 "invalid_script_name"))
 
 
 def test_script_file_wrong_extension():
