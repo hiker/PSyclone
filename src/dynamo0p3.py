@@ -786,10 +786,9 @@ class DynInvoke(Invoke):
                 # no. of cells of each colour
                 cmap_list.append(function_space)
 
-                name = arg.proxy_name_indexed+\
-                       "%mesh%get_colours_"+function_space
+                cname = name+"%mesh%get_colours_"+function_space
                 invoke_sub.add(CallGen(invoke_sub,
-                                       name=name,
+                                       name=cname,
                                        args=["ncolours_"+function_space,
                                              "ncp_colour_"+function_space,
                                              "cmap_"+function_space]))
