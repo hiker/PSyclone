@@ -176,4 +176,4 @@ below does the same thing as the example in the
 
 Of course the script may apply as many transformations as is required
 for a particular schedule and may apply transformations to all the
-schedules contained within the PSy layer.
+schedules (i.e. invokes) contained within the PSy layer.

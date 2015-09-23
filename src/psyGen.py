@@ -64,7 +64,7 @@ class PSy(object):
     '''
         Base class to help manage and generate PSy code for a single
         algorithm file. Takes the invocation information output from the
-        function :func:`parse.parse` as it's input and stores this in a
+        function :func:`parse.parse` as its input and stores this in a
         way suitable for optimisation and code generation.
 
         :param FileInfo invoke_info: An object containing the required invocation
@@ -565,7 +565,7 @@ class Schedule(Node):
         >>> invokes.names
         >>> invoke = invokes.get("name")
         >>> schedule = invoke.schedule
-        >>> print schedule
+        >>> print schedule.view()
 
     '''
 
@@ -1261,8 +1261,10 @@ class TransInfo(object):
     >>> print t.list
     There is 1 transformation available:
       1: SwapTrans, A test transformation
-    >>> t.get_trans_num(1)
-    >>> t.get_trans_name("SwapTrans")
+    >>> # accessing a transformation by index
+    >>> trans = t.get_trans_num(1)
+    >>> # accessing a transformation by name
+    >>> trans = t.get_trans_name("SwapTrans")
 
     '''
 

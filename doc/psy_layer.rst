@@ -14,7 +14,7 @@ space and
 3) include any required distributed memory operations such as halo
 swaps and reductions.
 
-It's other role is to allow the optimisation expert to optimise any
+Its other role is to allow the optimisation expert to optimise any
 required distributed memory operations, include and optimise any
 shared memory parallelism and optimise for single node (e.g. cache and
 vectorisation) performance.
@@ -22,7 +22,7 @@ vectorisation) performance.
 Code Generation
 ---------------
 
-The PSy layer can be written manually but is error prone and
+The PSy layer can be written manually but this is error prone and
 potentially complex to optimise. The PSyclone code generation system
 generates the PSy layer so there is no need to write the code
 manually.
@@ -30,11 +30,11 @@ manually.
 To generate correct PSy layer code, PSyclone needs to understand the
 arguments and datatypes passed by the algorithm layer and the
 arguments and datatypes expected by the Kernel layer; it needs to know
-the names of the algorithm call and the name of the Kernel
-subroutine(s); it needs to know the iteration space that the Kernel(s)
-is/are written to iterate over; it also needs to know the ordering of
-Kernels as specified in the algorithm layer. Finally, it needs to
-where to place any distributed memory operations.
+the name of the Kernel subroutine(s); it needs to know the iteration
+space that the Kernel(s) is/are written to iterate over; it also needs
+to know the ordering of Kernels as specified in the algorithm
+layer. Finally, it needs to know where to place any distributed memory
+operations.
 
 PSyclone determines the above information by being told the API in
 question (by the user), by reading the appropriate Kernel metadata and
@@ -78,6 +78,13 @@ At the top level is the **PSy** class. The PSy class has an
 **Invokes** class. The **Invokes** class can contain one or more
 **Invoke** classes (one for each invoke in the algorithm layer). Each
 **Invoke** class has a **Schedule** class.
+
+The class diagram for the above base classes is shown below using the
+dynamo0.3 API as an illustration. This class diagram was generated
+from the source code with pyreverse and edited with inkscape.
+
+.. image:: dynamo0p3_topclasses.png
+	   :width: 1000
 
 API
 ---

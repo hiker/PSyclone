@@ -64,7 +64,7 @@ Metadata
 --------
 
 Kernel metadata is not required if the PSy layer is going to be
-written manually, it's sole purpose is to let PSyclone know how to
+written manually, its sole purpose is to let PSyclone know how to
 generate the PSy layer. The content of Kernel metadata differs
 depending on the particular API and this information can be found in
 the API-specific sections of this document.
