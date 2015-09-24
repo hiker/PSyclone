@@ -558,6 +558,62 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
 
         return OMPLoopTrans.apply(self, node)
 
+class ColourTrans(Transformation):
+
+    ''' Apply a colouring transformation to a loop (in order to permit a
+        subsequent OpenMP parallelisation over colours).
+    '''
+
+    def __str__(self):
+        return "Split a loop into colours"
+
+    @property
+    def name(self):
+        return "LoopColourTrans"
+
+    def apply(self, node, DynLoop):
+        '''Converts the Loop represented by :py:obj:`node` into a nested loop
+        where the outer loop is over colours and the inner loop is
+        over points of that colour. DynLoop is the API-specific dynamo loop
+
+        '''
+        schedule = node.root
+
+        # create a memento of the schedule and the proposed transformation
+        from undoredo import Memento
+        keep = Memento(schedule, self, [node])
+
+        node_parent = node.parent
+        node_position = node.position
+
+        # create a colours loop. This loops over colours and must be run
+        # sequentially
+        colours_loop = DynLoop(parent=node_parent, loop_type="colours")
+        colours_loop.field_space = node.field_space
+        colours_loop.iteration_space = node.iteration_space
+        # Add this loop as a child of the original node's parent
+        node_parent.addchild(colours_loop, index=node_position)
+
+        # create a colour loop. This loops over a particular colour and
+        # can be run in parallel
+        colour_loop = DynLoop(parent=colours_loop, loop_type="colour")
+        colour_loop.field_space = node.field_space
+        colour_loop.iteration_space = node.iteration_space
+        # Add this loop as a child of our loop over colours
+        colours_loop.addchild(colour_loop)
+
+        # add contents of node to colour loop
+        colour_loop.children.extend(node.children)
+
+        # change the parent of the node's contents to the colour loop
+        for child in node.children:
+            child.parent = colour_loop
+
+        # remove original loop
+        node_parent.children.remove(node)
+
+        return schedule, keep
+
 
 class Dynamo0p1ColourTrans(Transformation):
 
@@ -573,6 +629,12 @@ class Dynamo0p1ColourTrans(Transformation):
         return "Dynamo0p1LoopColourTrans"
 
     def apply(self, node):
+        '''Performs Dynamo0.1-specific error checking and then uses the parent
+        class to convert the Loop represented by :py:obj:`node` into a
+        nested loop where the outer loop is over colours and the inner
+        loop is over points of that colour.
+
+        '''
 
         # check node is a loop
         from psyGen import Loop
@@ -595,50 +657,13 @@ class Dynamo0p1ColourTrans(Transformation):
                             " Expecting 'None' but found '{1}'".
                             format(self.name, node.loop_type))
 
-        schedule = node.root
-
-        # create a memento of the schedule and the proposed transformation
-        from undoredo import Memento
-        keep = Memento(schedule, self, [node])
-
-        # TODO CAN WE CREATE A GENERIC LOOP OR DO WE NEED SPECIFIC GH or
-        # GO LOOPS?
-        node_parent = node.parent
-        node_position = node.position
-
         from dynamo0p1 import DynLoop
-
-        # create a colours loop. This loops over colours and must be run
-        # sequentially
-        colours_loop = DynLoop(parent=node_parent)
-        colours_loop.loop_type = "colours"
-        colours_loop.field_space = node.field_space
-        colours_loop.iteration_space = node.iteration_space
-        node_parent.addchild(colours_loop,
-                             index=node_position)
-
-        # create a colour loop. This loops over a particular colour and
-        # can be run in parallel
-        colour_loop = DynLoop(parent=colours_loop)
-        colour_loop.loop_type = "colour"
-        colour_loop.field_space = node.field_space
-        colour_loop.iteration_space = node.iteration_space
-        colours_loop.addchild(colour_loop)
-
-        # add contents of node to colour loop
-        colour_loop.children.extend(node.children)
-
-        # change the parent of the node's contents to the colour loop
-        for child in node.children:
-            child.parent = colour_loop
-
-        # remove original loop
-        node_parent.children.remove(node)
+        schedule, keep = ColourTrans.apply(self, node, DynLoop)
 
         return schedule, keep
 
 
-class Dynamo0p3ColourTrans(Transformation):
+class Dynamo0p3ColourTrans(ColourTrans):
 
     ''' Split a Dynamo 0.3 loop into colours so that it can be
     parallelised. For example:
@@ -694,10 +719,10 @@ class Dynamo0p3ColourTrans(Transformation):
         return "Dynamo0p3LoopColourTrans"
 
     def apply(self, node):
-        '''Performs Dynamo-specific error checking and then converts the Loop
-        represented by :py:obj:`node` into a nested loop where the
-        outer loop is over colours and the inner loop is over points
-        of that colour.
+        '''Performs Dynamo0.3-specific error checking and then uses the parent
+        class to convert the Loop represented by :py:obj:`node` into a
+        nested loop where the outer loop is over colours and the inner
+        loop is over points of that colour.
 
         '''
         # check node is a loop
@@ -724,45 +749,9 @@ class Dynamo0p3ColourTrans(Transformation):
         if node.ancestor(OMPDirective):
             raise TransformationError("Cannot have a loop over colours "
                                       "within an OpenMP parallel region.")
-        schedule = node.root
-
-        # create a memento of the schedule and the proposed transformation
-        from undoredo import Memento
-        keep = Memento(schedule, self, [node])
-
-        node_parent = node.parent
-        node_position = node.position
 
         from dynamo0p3 import DynLoop
-
-        # create a colours loop. This loops over colours and must be run
-        # sequentially
-        colours_loop = DynLoop(parent=node_parent,
-                               loop_type="colours")
-        colours_loop.field_space = node.field_space
-        colours_loop.iteration_space = node.iteration_space
-        # Add this loop as a child of the original node's parent
-        node_parent.addchild(colours_loop,
-                             index=node_position)
-
-        # create a colour loop. This loops over the cells of a
-        # particular colour and can be run in parallel
-        colour_loop = DynLoop(parent=colours_loop,
-                              loop_type="colour")
-        colour_loop.field_space = node.field_space
-        colour_loop.iteration_space = node.iteration_space
-        # Add this loop as a child of our loop over colours
-        colours_loop.addchild(colour_loop)
-
-        # add contents of node to colour loop
-        colour_loop.children.extend(node.children)
-
-        # change the parent of the node's contents to the colour loop
-        for child in node.children:
-            child.parent = colour_loop
-
-        # remove original loop
-        node_parent.children.remove(node)
+        schedule, keep = ColourTrans.apply(self, node, DynLoop)
 
         return schedule, keep
 

@@ -36,6 +36,7 @@ API-specific sections).
 
 .. autoclass:: transformations.ColourTrans
     :members:
+    :noindex:
 
 .. autoclass:: transformations.OMPLoopTrans
     :members:
@@ -80,6 +81,7 @@ code. This allows us to generate a "vanilla" PSy layer. For example ...
 We then extract the particular schedule we are interested
 in. For example ...
 ::
+
     # List the various invokes that the PSy layer contains
     print psy.invokes.names
 
@@ -128,6 +130,7 @@ the command line to generate PSy layer code and to modify algorithm
 layer code appropriately. By default this script will generate
 "vanilla" (unoptimised) PSy layer code. For example:
 ::
+
     > python generator.py algspec.f90
     > python generator.py -oalg alg.f90 -opsy psy.f90 -api dynamo0.3 algspec.f90
 
@@ -136,6 +139,7 @@ user to specify a script file to modify the PSy layer as
 required. Script files may be specified without a path. For
 example:
 ::
+
     > python generator.py -s opt.py algspec.f90
 
 In this case the Python search path **PYTHONPATH** will be used to try
@@ -145,6 +149,7 @@ Alternatively, script files may be specified with a path. In this case
 the file is expected to be found in the specified location. For
 example ...
 ::
+
     > python generator.py -s ./opt.py algspec.f90
     > python generator.py -s ../scripts/opt.py algspec.f90
     > python generator.py -s /home/me/PSyclone/scripts/opt.py algspec.f90
@@ -157,6 +162,7 @@ what the **generator.py** script calls internally)
 A valid script file must contain a **trans** function which accepts a **PSy**
 object as an argument and returns a **PSy** object, i.e.:
 ::
+
     def trans(psy)
         ...
         return psy
@@ -165,6 +171,7 @@ It is up to the script what it does with the PSy object. The example
 below does the same thing as the example in the
 :ref:`sec_transformations_interactive` section.
 ::
+
     def trans(psy):
 	from transformations import OMPParallelLoopTrans
         invoke = psy.invokes.get('invoke_0_v3_kernel_type')
