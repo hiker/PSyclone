@@ -55,6 +55,7 @@ class LoopFuseTrans(Transformation):
 
     @property
     def name(self):
+        ''' Returns the name of this transformation as a string '''
         return "LoopFuse"
 
     def apply(self, node1, node2):
@@ -112,6 +113,7 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
 
     @property
     def name(self):
+        ''' Returns the name of this transformation as a string '''
         return "GOceanLoopFuse"
 
     def apply(self, node1, node2):
@@ -147,6 +149,7 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
 
     @property
     def name(self):
+        ''' Returns the name of this transformation as a string '''
         return "DynamoLoopFuse"
 
     def apply(self, node1, node2):
@@ -336,6 +339,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
     @property
     def name(self):
+        ''' Returns the name of this transformation as a string '''
         return "OMPParallelLoopTrans"
 
     def __str__(self):
@@ -406,6 +410,7 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
 
     @property
     def name(self):
+        ''' Returns the name of this transformation as a string '''
         return "DynamoOMPParallelLoopTrans"
 
     def __str__(self):
@@ -452,6 +457,7 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
 
     @property
     def name(self):
+        ''' Returns the name of this transformation as a string '''
         return "GOceanOMPParallelLoopTrans"
 
     def __str__(self):
@@ -492,6 +498,7 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
 
     @property
     def name(self):
+        ''' Returns the name of this transformation as a string '''
         return "Dynamo0p3OMPLoopTrans"
 
     def __str__(self):
@@ -532,6 +539,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
 
     @property
     def name(self):
+        ''' Returns the name of this transformation as a string '''
         return "GOceanOMPLoopTrans"
 
     def __str__(self):
@@ -561,7 +569,35 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
 class ColourTrans(Transformation):
 
     ''' Apply a colouring transformation to a loop (in order to permit a
-        subsequent OpenMP parallelisation over colours).
+        subsequent OpenMP parallelisation over colours). For example:
+
+    >>> from parse import parse
+    >>> from psyGen import PSyFactory
+    >>> import transformations
+    >>> import os
+    >>> import pytest
+    >>>
+    >>> api = "dynamo0.3"
+    >>> _,info=parse("example.f90", api=api)
+    >>> psy = PSyFactory(api).create(info)
+    >>> invoke = psy.invokes.get('invoke_0')
+    >>> schedule = invoke.schedule
+    >>>
+    >>> ctrans = ColourTrans()
+    >>> otrans = OMPParallelLoopTrans()
+    >>>
+    >>> from dynamo0p3 import DynLoop
+    >>> # Colour all of the loops
+    >>> for child in schedule.children:
+    >>>     cschedule, _ = ctrans.apply(child, DynLoop)
+    >>>
+    >>> # Then apply OpenMP to each of the colour loops
+    >>> schedule = cschedule
+    >>> for child in schedule.children:
+    >>>     newsched, _ = otrans.apply(child.children[0])
+    >>>
+    >>> newsched.view()
+
     '''
 
     def __str__(self):
@@ -569,12 +605,14 @@ class ColourTrans(Transformation):
 
     @property
     def name(self):
+        ''' Returns the name of this transformation as a string '''
         return "LoopColourTrans"
 
     def apply(self, node, DynLoop):
-        '''Converts the Loop represented by :py:obj:`node` into a nested loop
-        where the outer loop is over colours and the inner loop is
-        over points of that colour. DynLoop is the API-specific dynamo loop
+        '''Converts the Loop represented by :py:obj:`node` into a
+        nested loop where the outer loop is over colours and the inner
+        loop is over points of that colour. DynLoop is the
+        API-specific dynamo-loop class.
 
         '''
         schedule = node.root
@@ -626,6 +664,7 @@ class Dynamo0p1ColourTrans(Transformation):
 
     @property
     def name(self):
+        ''' Returns the name of this transformation as a string '''
         return "Dynamo0p1LoopColourTrans"
 
     def apply(self, node):
@@ -716,6 +755,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
 
     @property
     def name(self):
+        ''' Returns the name of this transformation as a string '''
         return "Dynamo0p3LoopColourTrans"
 
     def apply(self, node):
@@ -795,6 +835,7 @@ class OMPParallelTrans(Transformation):
 
     @property
     def name(self):
+        ''' Returns the name of this transformation as a string '''
         return "OMPParallelTrans"
 
     def apply(self, nodes):

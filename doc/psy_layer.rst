@@ -2,17 +2,13 @@ PSy layer
 =========
 
 In the PSyKAl separation of concerns, the PSy layer is responsible for
-linking together the Algorithm layer and and Kernel layer. Its
+linking together the Algorithm layer and Kernel layer. Its
 functional responsibilities are to
 
 
-1) map the arguments supplied by an Algorithm ``invoke`` call to the
-arguments required by a Kernel call (as these will not have a
-one-to-one correspondance).
-2) call the Kernel routine so that it covers the required iteration
-space and
-3) include any required distributed memory operations such as halo
-swaps and reductions.
+1. map the arguments supplied by an Algorithm ``invoke`` call to the arguments required by a Kernel call (as these will not have a one-to-one correspondance).
+2. call the Kernel routine so that it covers the required iteration space and
+3. include any required distributed memory operations such as halo swaps and reductions.
 
 Its other role is to allow the optimisation expert to optimise any
 required distributed memory operations, include and optimise any
@@ -112,10 +108,10 @@ Kernels. These objects can currently be a **Loop**, a **Kernel** or a
 **Directive** (of various types). The order of the tree (depth first)
 indicates the order of the associated Fortran code.
 
-PSyclone will initially create a '''vanilla''' (functionally correct
+PSyclone will initially create a "vanilla" (functionally correct
 but not optimised) schedule.
 
-This '''vanilla''' schedule can be modified by changing the objects
+This "vanilla" schedule can be modified by changing the objects
 within it. For example, the order that two Kernel calls appear in the
 generated code can be changed by changing their order in the tree. The
 ability to modify this high level view of a schedule allows the PSy

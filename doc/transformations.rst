@@ -36,7 +36,6 @@ API-specific sections).
 
 .. autoclass:: transformations.ColourTrans
     :members:
-    :noindex:
 
 .. autoclass:: transformations.OMPLoopTrans
     :members:

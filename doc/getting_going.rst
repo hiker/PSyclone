@@ -4,7 +4,12 @@ Getting Going
 Download
 --------
 
-PSyclone is available for download from the GungHo repository.
+PSyclone is available for download from the GungHo repository. The
+latest release is 1.0.2.
+
+``svn co https://puma.nerc.ac.uk/svn/GungHo_svn/PSyclone/tags/vn1.0.2 PSyclone``
+
+The latest stable version is maintained on the trunk.
 
 ``svn co https://puma.nerc.ac.uk/svn/GungHo_svn/PSyclone/trunk PSyclone``
 
@@ -43,9 +48,9 @@ built in Python. PSyclone uses pyparsing to parse fortran regular
 expressions as f2py does not fully parse these, (see
 http://pyparsing.wikispaces.com for more information).
 
-PSyclone has been tested with pyparsing version 1.5.2 which is a relatively
-old version but is currently the version available in the Ubuntu
-software center.
+PSyclone has been tested with pyparsing version 1.5.2 which is a
+relatively old version but is currently the version available in the
+Ubuntu software center.
 
 You can test if pyparsing is already installed on your machine by
 typing ``import pyparsing`` from the python command line. If pyparsing
@@ -63,12 +68,14 @@ http://pyparsing.wikispaces.com/Download+and+Installation.
 py.test
 ^^^^^^^
 
-The PSyclone test suite uses py.test. You can test whether it is already
-installed by simply typing ``py.test`` at a shell prompt. If it is 
-present you will get output that begins with
+The PSyclone test suite uses py.test. This is not needed to use
+PSyclone but is useful to check whether PSyclone is working correctly
+on your system. You can test whether it is already installed by simply
+typing ``py.test`` at a shell prompt. If it is present you will get
+output that begins with
 ::
 
-======================== test session starts ==================
+    ======================== test session starts ==================
 
 If you do not have it then py.test can be installed from here
 http://pytest.org/latest/ (or specifically here
@@ -77,19 +84,21 @@ http://pytest.org/latest/getting-started.html).
 Environment
 -----------
 
-In order to use PSyclone (including running the test suite) you will need
-to tell Python where to find the PSyclone source:
+In order to use PSyclone (including running the test suite and
+building documentation) you will need to tell Python where to find the
+PSyclone source and the f2py source (if you have not already done the
+latter):
 ::
 
-    > export PYTHONPATH=<PSYCLONEHOME>/src:${PYTHONPATH}
-
+    > export PYTHONPATH=<PSYCLONEHOME>/src:<PSYCLONEHOME>/f2py_93:${PYTHONPATH}
 
 Test
 ----
 
 Once you have the necessary dependencies installed and your
-environment configured, you can test that things are working by using
-the PSyclone test suite: 
+environment configured, you can check that things are working by using
+the PSyclone test suite. These tests is not required and can be
+skipped if preferred:
 ::
 
     > cd <PSYCLONEHOME>/src/tests
@@ -120,9 +129,8 @@ If everything is working as expected then you should see output similar to:
 Run
 ---
 
-Having checked things with the test suite you are ready to try running
-PSyclone on the examples. One way of doing this is to use the
-generator.py script:
+You are now ready to try running PSyclone on the examples. One way of
+doing this is to use the generator.py script:
 ::
 
     > cd <PSYCLONEHOME>/src
@@ -149,7 +157,8 @@ one of the dynamo examples
 ::
 
     > cd <PSYCLONEHOME>/examples/dynamo/eg1
-    > python ../../../src/generator.py -api dynamo0.1 -oalg dynamo_alg.f90 -opsy dynamo_psy.f90 dynamo.F90
+    > python ../../../src/generator.py -api dynamo0.1 \
+    > -oalg dynamo_alg.f90 -opsy dynamo_psy.f90 dynamo.F90
 
 You should see two new files created called dynamo_alg.f90 (containing
 the re-written algorithm layer) and dynamo_psy.f90 (containing the
@@ -181,10 +190,10 @@ API in action. This script contains:
     
     # Examine the 'schedule' (e.g. loop structure) that each
     # invoke has
-    schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
+    schedule=psy.invokes.get('invoke_0_v3_kernel_type').schedule
     schedule.view()
     
-    schedule=psy.invokes.get('invoke_v3_solver_kernel_type').schedule
+    schedule=psy.invokes.get('invoke_1_v3_solver_kernel_type').schedule
     schedule.view()
 
 It can be run non-interactively as follows:
@@ -221,7 +230,7 @@ of runme.py (above) and is therefore omitted here:
     print t.list
 
     # Create an OpenMPLoop-transformation object
-    ol=t.get_trans_name('OpenMPLoop')
+    ol=t.get_trans_name('OMPLoopTrans')
 
     # Apply it to the loop schedule of the selected invoke
     new_schedule,memento=ol.apply(schedule.children[0])

@@ -21,13 +21,16 @@ In an ``invoke`` call, the algorithm layer developer adds ``call invoke()``
 to their code and within the content of the ``invoke`` call they add a
 reference to the required Kernel and the data to pass to it. For example,
 ::
-  ...
-  call invoke(integrate_one_kernel(arg1,arg2))
-  ...
 
-PSyclone works on each algorithm code separately and the algorithm
-developer is free to use as many ``call invoke()`` calls as they
-require in the algorithm code.
+    ...
+    call invoke(integrate_one_kernel(arg1,arg2))
+    ...
+
+The algorithm layer can consist of an arbitrary number of files
+containing fortran code, any of which may contain as many ``invoke()``
+calls as is required. PSyclone is applied to an individual algorithm
+layer file and must therefore be run multiple times if multiple files
+containing ``invoke()`` calls exist in the algorithm layer.
 
 The algorithm developer is also able to reference more than one Kernel
 within an invoke. In fact this feature is encouraged for performance
@@ -46,6 +49,7 @@ linkable to the PSy layer and adding in the appropriate ``use``
 statement. For example, the above ``integrate_one_kernel`` invoke is
 translated into something like the following:
 ::
+
   ...
   use psy, only : invoke_0_integrate_one_kernel
   ...
@@ -60,6 +64,7 @@ design.
 For example, in the invoke call below, ``integrate_one_kernel`` is
 used.
 ::
+
   ...
   call invoke(integrate_one_kernel(arg1,arg2))
   ...
@@ -67,6 +72,7 @@ used.
 ``integrate_one_kernel`` is the name of the metadata type in the module, not
 the name of the subroutine in the Kernel ...
 ::
+
   module integrate_one_module
     ...
     type, extends(kernel_type) :: integrate_one_kernel
