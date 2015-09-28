@@ -571,32 +571,16 @@ class ColourTrans(Transformation):
     ''' Apply a colouring transformation to a loop (in order to permit a
         subsequent OpenMP parallelisation over colours). For example:
 
-    >>> from parse import parse
-    >>> from psyGen import PSyFactory
-    >>> import transformations
-    >>> import os
-    >>> import pytest
-    >>>
-    >>> api = "dynamo0.3"
-    >>> _,info=parse("example.f90", api=api)
-    >>> psy = PSyFactory(api).create(info)
-    >>> invoke = psy.invokes.get('invoke_0')
+    >>> invoke = ...
     >>> schedule = invoke.schedule
     >>>
     >>> ctrans = ColourTrans()
-    >>> otrans = OMPParallelLoopTrans()
     >>>
-    >>> from dynamo0p3 import DynLoop
     >>> # Colour all of the loops
     >>> for child in schedule.children:
-    >>>     cschedule, _ = ctrans.apply(child, DynLoop)
+    >>>     cschedule, _ = ctrans.apply(child)
     >>>
-    >>> # Then apply OpenMP to each of the colour loops
-    >>> schedule = cschedule
-    >>> for child in schedule.children:
-    >>>     newsched, _ = otrans.apply(child.children[0])
-    >>>
-    >>> newsched.view()
+    >>> csched.view()
 
     '''
 
@@ -608,12 +592,10 @@ class ColourTrans(Transformation):
         ''' Returns the name of this transformation as a string '''
         return "LoopColourTrans"
 
-    def apply(self, node, loop_class):
+    def apply(self, node):
         '''Converts the Loop represented by :py:obj:`node` into a
         nested loop where the outer loop is over colours and the inner
-        loop is over points of that colour. loop_class is passed in so
-        that it is able to be an api-specific subclass of the psyGen
-        Loop class.
+        loop is over points of that colour.
         '''
         schedule = node.root
 
@@ -626,7 +608,7 @@ class ColourTrans(Transformation):
 
         # create a colours loop. This loops over colours and must be run
         # sequentially
-        colours_loop = loop_class(parent=node_parent, loop_type="colours")
+        colours_loop = node.__class__(parent=node_parent, loop_type="colours")
         colours_loop.field_space = node.field_space
         colours_loop.iteration_space = node.iteration_space
         # Add this loop as a child of the original node's parent
@@ -634,7 +616,7 @@ class ColourTrans(Transformation):
 
         # create a colour loop. This loops over a particular colour and
         # can be run in parallel
-        colour_loop = loop_class(parent=colours_loop, loop_type="colour")
+        colour_loop = node.__class__(parent=colours_loop, loop_type="colour")
         colour_loop.field_space = node.field_space
         colour_loop.iteration_space = node.iteration_space
         # Add this loop as a child of our loop over colours
@@ -696,8 +678,7 @@ class Dynamo0p1ColourTrans(Transformation):
                             " Expecting 'None' but found '{1}'".
                             format(self.name, node.loop_type))
 
-        from dynamo0p1 import DynLoop
-        schedule, keep = ColourTrans.apply(self, node, DynLoop)
+        schedule, keep = ColourTrans.apply(self, node)
 
         return schedule, keep
 
@@ -790,8 +771,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
             raise TransformationError("Cannot have a loop over colours "
                                       "within an OpenMP parallel region.")
 
-        from dynamo0p3 import DynLoop
-        schedule, keep = ColourTrans.apply(self, node, DynLoop)
+        schedule, keep = ColourTrans.apply(self, node)
 
         return schedule, keep
 
