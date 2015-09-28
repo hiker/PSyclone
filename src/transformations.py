@@ -608,12 +608,12 @@ class ColourTrans(Transformation):
         ''' Returns the name of this transformation as a string '''
         return "LoopColourTrans"
 
-    def apply(self, node, DynLoop):
+    def apply(self, node, loop_class):
         '''Converts the Loop represented by :py:obj:`node` into a
         nested loop where the outer loop is over colours and the inner
-        loop is over points of that colour. DynLoop is the
-        API-specific dynamo-loop class.
-
+        loop is over points of that colour. loop_class is passed in so
+        that it is able to be an api-specific subclass of the psyGen
+        Loop class.
         '''
         schedule = node.root
 
@@ -626,7 +626,7 @@ class ColourTrans(Transformation):
 
         # create a colours loop. This loops over colours and must be run
         # sequentially
-        colours_loop = DynLoop(parent=node_parent, loop_type="colours")
+        colours_loop = loop_class(parent=node_parent, loop_type="colours")
         colours_loop.field_space = node.field_space
         colours_loop.iteration_space = node.iteration_space
         # Add this loop as a child of the original node's parent
@@ -634,7 +634,7 @@ class ColourTrans(Transformation):
 
         # create a colour loop. This loops over a particular colour and
         # can be run in parallel
-        colour_loop = DynLoop(parent=colours_loop, loop_type="colour")
+        colour_loop = loop_class(parent=colours_loop, loop_type="colour")
         colour_loop.field_space = node.field_space
         colour_loop.iteration_space = node.iteration_space
         # Add this loop as a child of our loop over colours
