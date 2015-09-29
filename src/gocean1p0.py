@@ -325,7 +325,7 @@ class GOKern(Kern):
             self._arguments = GOKernelArguments(None, None) # for pyreverse
 
     def load(self, call, parent=None):
-        Kern.__init__(self, GOKernelArguments, call.ktype, call.module_name, call.args, parent, check=False)
+        Kern.__init__(self, GOKernelArguments, call, parent, check=False)
 
         # Pull out the grid index-offset that this kernel expects and
         # store it here. This is used to check that all of the kernels
@@ -408,21 +408,21 @@ class GOKernelArguments(Arguments):
         argument-access types.
 
     '''
-    def __init__(self, ktype, args, parent_call):
+    def __init__(self, call, parent_call):
         if False:
             self._0_to_n = GOKernelArgument(None, None, None) # for pyreverse
         Arguments.__init__(self, parent_call)
 
         self._args = []
         # Loop over the kernel arguments obtained from the meta data
-        for (idx, arg) in enumerate(ktype.arg_descriptors):
+        for (idx, arg) in enumerate(call.ktype.arg_descriptors):
             # arg is a GO1p0Descriptor object
             if arg.type == "grid_property":
                 # This is an argument supplied by the psy layer
                 self._args.append(GOKernelGridArgument(arg))
             elif arg.type == "scalar" or arg.type == "field":
                 # This is a kernel argument supplied by the Algorithm layer
-                self._args.append(GOKernelArgument(arg, args[idx],
+                self._args.append(GOKernelArgument(arg, call.args[idx],
                                                    parent_call))
             else:
                 raise ParseError("Invalid kernel argument type. Found '{0}' "

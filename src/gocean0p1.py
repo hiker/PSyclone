@@ -232,7 +232,7 @@ class GOKern(Kern):
             self._arguments = GOKernelArguments(None, None) # for pyreverse
 
     def load(self, call, parent = None):
-        Kern.__init__(self, GOKernelArguments, call.ktype, call.module_name, call.args, parent)
+        Kern.__init__(self, GOKernelArguments, call, parent)
 
     def local_vars(self):
         return []
@@ -255,13 +255,13 @@ class GOKernelArguments(Arguments):
     ''' Provides information about GOcean kernel call arguments collectively,
         as specified by the kernel argument metadata. This class ensures that
         initialisation is performed correctly. It also adds three '''
-    def __init__(self, ktype, args, parent_call):
+    def __init__(self, call, parent_call):
         if False:
             self._0_to_n = GOKernelArgument(None, None, None) # for pyreverse
         Arguments.__init__(self, parent_call)
         self._args = []
-        for (idx, arg) in enumerate (ktype.arg_descriptors):
-            self._args.append(GOKernelArgument(arg, args[idx],
+        for (idx, arg) in enumerate (call.ktype.arg_descriptors):
+            self._args.append(GOKernelArgument(arg, call.args[idx],
                                                parent_call))
         self._dofs = []
     @property
