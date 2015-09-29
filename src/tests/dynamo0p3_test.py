@@ -1407,63 +1407,31 @@ def test_orientation():
     assert str(generated_code).find(output) != -1
 
 
-def test_ru_kernel_stub_gen():
-    ''' Test that the ru_kernel boundary layer argument modification
+def test_enforce_bc_kernel_stub_gen():
+    ''' Test that the enforce_bc_kernel boundary layer argument modification
     is handled correctly for kernel stubs'''
-    ast = fpapi.parse(os.path.join(BASE_PATH, "ru_kernel_mod.f90"),
+    ast = fpapi.parse(os.path.join(BASE_PATH, "enforce_bc_kernel_mod.f90"),
                       ignore_comments=False)
     metadata = DynKernelType03(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
     output = (
-        "  MODULE ru_code_mod\n"
+        "  MODULE enforce_bc_code_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE ru_code_code(nlayers, field_1_w2, field_2_w3, "
-        "field_3_w0, field_4_w0_v1, field_4_w0_v2, field_4_w0_v3, ndf_w2, "
-        "undf_w2, map_w2, basis_w2, diff_basis_w2, boundary_dofs_w2, "
-        "ndf_w3, undf_w3, map_w3, basis_w3, ndf_w0, undf_w0, map_w0, "
-        "basis_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)\n"
+        "    SUBROUTINE enforce_bc_code_code(nlayers, field_1_any_space_1, "
+        "ndf_any_space_1, undf_any_space_1, map_any_space_1, boundary_dofs)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      INTEGER, intent(in) :: nlayers\n"
-        "      INTEGER, intent(in) :: undf_w2\n"
-        "      INTEGER, intent(in) :: undf_w3\n"
-        "      INTEGER, intent(in) :: undf_w0\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2) :: "
-        "field_1_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w3) :: "
-        "field_2_w3\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w0) :: "
-        "field_3_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w0) :: "
-        "field_4_w0_v1\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w0) :: "
-        "field_4_w0_v2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w0) :: "
-        "field_4_w0_v3\n"
-        "      INTEGER, intent(in) :: ndf_w2\n"
-        "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2,nqp_h,nqp_v) "
-        ":: basis_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,nqp_h,nqp_v) "
-        ":: diff_basis_w2\n"
-        "      INTEGER, intent(in), dimension(ndf_w2,2) :: boundary_dofs_w2\n"
-        "      INTEGER, intent(in) :: ndf_w3\n"
-        "      INTEGER, intent(in), dimension(ndf_w3) :: map_w3\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) "
-        ":: basis_w3\n"
-        "      INTEGER, intent(in) :: ndf_w0\n"
-        "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,nqp_h,nqp_v) "
-        ":: basis_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,nqp_h,nqp_v) "
-        ":: diff_basis_w0\n"
-        "      INTEGER, intent(in) :: nqp_h, nqp_v\n"
-        "      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh\n"
-        "      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv\n"
-        "    END SUBROUTINE ru_code_code\n"
-        "  END MODULE ru_code_mod")
+        "      INTEGER, intent(in) :: undf_any_space_1\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_any_space_1)"
+        " :: field_1_any_space_1\n"
+        "      INTEGER, intent(in) :: ndf_any_space_1\n"
+        "      INTEGER, intent(in), dimension(ndf_any_space_1) :: map_any_space_1\n"
+        "      INTEGER, intent(in), dimension(ndf_any_space_1,2) :: boundary_dofs\n"
+        "    END SUBROUTINE enforce_bc_code_code\n"
+        "  END MODULE enforce_bc_code_mod")
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1

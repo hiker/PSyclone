@@ -1293,22 +1293,24 @@ class DynKern(Kern):
                         parent.add(DeclGen(parent, datatype="integer",
                                            intent="in", dimension=ndf_name,
                                            entity_decls=[orientation_name]))
-            # 3.3 Fix for boundary_dofs array in ru_kernel
-            if self.name == "ru_code" and unique_fs == "w2":
-                arglist.append("boundary_dofs_w2")
+            # 3.3 Fix for boundary_dofs array to the boundary
+            # condition kernel (enforce_bc_kernel) arguments
+            if self.name.lower() == "enforce_bc_code" and \
+               unique_fs.lower() == "any_space_1":
+                arglist.append("boundary_dofs")
                 if my_type == "subroutine":
-                    ndf_name = self._fs_descriptors.ndf_name("w2")
+                    ndf_name = self._fs_descriptors.ndf_name("any_space_1")
                     parent.add(DeclGen(parent, datatype="integer", intent="in",
                                        dimension=ndf_name+",2",
-                                       entity_decls=["boundary_dofs_w2"]))
+                                       entity_decls=["boundary_dofs"]))
                 if my_type == "call":
                     parent.add(DeclGen(parent, datatype="integer",
                                        pointer=True, entity_decls=[
-                                           "boundary_dofs_w2(:,:) => null()"]))
-                    proxy_name = self._arguments.get_field("w2").proxy_name
+                                           "boundary_dofs(:,:) => null()"]))
+                    proxy_name = self._arguments.get_field("any_space_1").proxy_name
                     new_parent, position = parent.start_parent_loop()
                     new_parent.add(AssignGen(new_parent, pointer=True,
-                                             lhs="boundary_dofs_w2",
+                                             lhs="boundary_dofs",
                                              rhs=proxy_name +
                                              "%vspace%get_boundary_dofs()"),
                                    position=["before", position])
