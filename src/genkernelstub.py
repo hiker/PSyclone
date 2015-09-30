@@ -9,7 +9,7 @@
 import argparse
 import fparser
 from fparser import api as fpapi
-from dynamo0p3 import DynKern, DynKernelType03
+from dynamo0p3 import DynKern, DynKernMetadata
 from psyGen import GenerationError
 from parse import ParseError
 from config import SUPPORTEDSTUBAPIS
@@ -41,7 +41,7 @@ def generate(filename, api=""):
     except AttributeError:
         raise ParseError("Code appears to be invalid Fortran")
 
-    metadata = DynKernelType03(ast)
+    metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
     return kernel.gen_stub

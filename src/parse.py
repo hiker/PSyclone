@@ -247,8 +247,8 @@ class KernelTypeFactory(object):
         elif self._type=="dynamo0.1":
             return DynKernelType(ast, name=name)
         elif self._type=="dynamo0.3":
-            from dynamo0p3 import DynKernelType03
-            return DynKernelType03(ast, name=name)
+            from dynamo0p3 import DynKernMetadata
+            return DynKernMetadata(ast, name=name)
         elif self._type=="gocean0.1":
             return GOKernelType(ast, name=name)
         elif self._type=="gocean1.0":

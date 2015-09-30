@@ -314,7 +314,7 @@ class DynArgDescriptor03(Descriptor):
         return "DynArgDescriptor03({0})".format(self._arg_type)
 
 
-class DynKernelType03(KernelType):
+class DynKernMetadata(KernelType):
     ''' Captures the Kernel subroutine code and metadata describing
     the subroutine for the Dynamo 0.3 API. '''
 
