@@ -15,7 +15,7 @@ from psyGen import PSyFactory, GenerationError
 import os
 import fparser
 from fparser import api as fpapi
-from dynamo0p3 import DynKernelType03, DynKern
+from dynamo0p3 import DynKernMetadata, DynKern
 from transformations import LoopFuseTrans
 
 # constants
@@ -57,7 +57,7 @@ def test_arg_descriptor_wrong_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(ast, name=name)
+        _ = DynKernMetadata(ast, name=name)
 
 
 def test_ad_field_type_too_few_args():
@@ -69,7 +69,7 @@ def test_ad_field_type_too_few_args():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(ast, name=name)
+        _ = DynKernMetadata(ast, name=name)
 
 
 def test_ad_fld_type_too_many_args():
@@ -81,7 +81,7 @@ def test_ad_fld_type_too_many_args():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(ast, name=name)
+        _ = DynKernMetadata(ast, name=name)
 
 
 def test_ad_op_type_too_few_args():
@@ -93,7 +93,7 @@ def test_ad_op_type_too_few_args():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(ast, name=name)
+        _ = DynKernMetadata(ast, name=name)
 
 
 def test_ad_op_type_too_many_args():
@@ -105,7 +105,7 @@ def test_ad_op_type_too_many_args():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(ast, name=name)
+        _ = DynKernMetadata(ast, name=name)
 
 
 def test_ad_invalid_type():
@@ -116,7 +116,7 @@ def test_ad_invalid_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(ast, name=name)
+        _ = DynKernMetadata(ast, name=name)
 
 
 def test_ad_invalid_access_type():
@@ -127,7 +127,7 @@ def test_ad_invalid_access_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(ast, name=name)
+        _ = DynKernMetadata(ast, name=name)
 
 
 def test_arg_descriptor_invalid_fs1():
@@ -138,7 +138,7 @@ def test_arg_descriptor_invalid_fs1():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(ast, name=name)
+        _ = DynKernMetadata(ast, name=name)
 
 
 def test_arg_descriptor_invalid_fs2():
@@ -149,7 +149,7 @@ def test_arg_descriptor_invalid_fs2():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(ast, name=name)
+        _ = DynKernMetadata(ast, name=name)
 
 
 def test_invalid_vector_operator():
@@ -160,7 +160,7 @@ def test_invalid_vector_operator():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(ast, name=name)
+        _ = DynKernMetadata(ast, name=name)
 
 
 def test_invalid_vector_value_type():
@@ -171,7 +171,7 @@ def test_invalid_vector_value_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(ast, name=name)
+        _ = DynKernMetadata(ast, name=name)
 
 
 def test_invalid_vector_value_range():
@@ -182,7 +182,7 @@ def test_invalid_vector_value_range():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(ast, name=name)
+        _ = DynKernMetadata(ast, name=name)
 
 # Testing that an error is raised when a vector value is not provided is
 # not required here as it causes a parse error in the generic code.
@@ -196,7 +196,7 @@ def test_fs_descriptor_wrong_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(ast, name=name)
+        _ = DynKernMetadata(ast, name=name)
 
 
 def test_fs_descriptor_too_few_args():
@@ -207,7 +207,7 @@ def test_fs_descriptor_too_few_args():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(ast, name=name)
+        _ = DynKernMetadata(ast, name=name)
 
 
 def test_fs_desc_invalid_fs_type():
@@ -218,7 +218,7 @@ def test_fs_desc_invalid_fs_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(ast, name=name)
+        _ = DynKernMetadata(ast, name=name)
 
 
 def test_fs_desc_replicated_fs_type():
@@ -229,7 +229,7 @@ def test_fs_desc_replicated_fs_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(ast, name=name)
+        _ = DynKernMetadata(ast, name=name)
 
 
 def test_fs_desc_invalid_op_type():
@@ -240,7 +240,7 @@ def test_fs_desc_invalid_op_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(ast, name=name)
+        _ = DynKernMetadata(ast, name=name)
 
 
 def test_fs_desc_replicated_op_type():
@@ -252,7 +252,7 @@ def test_fs_desc_replicated_op_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(ast, name=name)
+        _ = DynKernMetadata(ast, name=name)
 
 
 def test_fsdesc_fs_not_in_argdesc():
@@ -263,7 +263,7 @@ def test_fsdesc_fs_not_in_argdesc():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
-        _ = DynKernelType03(ast, name=name)
+        _ = DynKernMetadata(ast, name=name)
 
 
 def test_field():
@@ -877,7 +877,7 @@ end module dummy_mod
 def test_intent():
     ''' test that field intent is generated correctly for kernel stubs '''
     ast = fpapi.parse(INTENT, ignore_comments=False)
-    metadata = DynKernelType03(ast)
+    metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
@@ -928,7 +928,7 @@ end module dummy_mod
 def test_spaces():
     ''' test that field spaces are handled correctly for kernel stubs '''
     ast = fpapi.parse(SPACES, ignore_comments=False)
-    metadata = DynKernelType03(ast)
+    metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
@@ -988,7 +988,7 @@ end module dummy_mod
 def test_vectors():
     ''' test that field vectors are handled correctly for kernel stubs '''
     ast = fpapi.parse(VECTORS, ignore_comments=False)
-    metadata = DynKernelType03(ast)
+    metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
@@ -1040,7 +1040,7 @@ end module dummy_mod
 def test_operators():
     ''' test that operators are handled correctly for kernel stubs '''
     ast = fpapi.parse(OPERATORS, ignore_comments=False)
-    metadata = DynKernelType03(ast)
+    metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
@@ -1103,7 +1103,7 @@ def test_operator_different_spaces():
     different spaces as this is not yet supported in the stub
     generator. '''
     ast = fpapi.parse(OPERATOR_DIFFERENT_SPACES, ignore_comments=False)
-    metadata = DynKernelType03(ast)
+    metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError):
@@ -1139,7 +1139,7 @@ end module dummy_mod
 def test_basis():
     ''' Test that basis functions are handled correctly for kernel stubs '''
     ast = fpapi.parse(BASIS, ignore_comments=False)
-    metadata = DynKernelType03(ast)
+    metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
@@ -1213,7 +1213,7 @@ def test_basis_unsupported_space():
     ''' test that an error is raised when a basis function is on an
     unsupported space (currently any_space_*) '''
     ast = fpapi.parse(BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
-    metadata = DynKernelType03(ast)
+    metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError):
@@ -1250,7 +1250,7 @@ def test_diff_basis():
     ''' Test that differential basis functions are handled correctly
     for kernel stubs '''
     ast = fpapi.parse(DIFF_BASIS, ignore_comments=False)
-    metadata = DynKernelType03(ast)
+    metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
@@ -1325,7 +1325,7 @@ def test_diff_basis_unsupported_space():
     ''' test that an error is raised when a differential basis
     function is on an unsupported space (currently any_space_*)'''
     ast = fpapi.parse(DIFF_BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
-    metadata = DynKernelType03(ast)
+    metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError):
@@ -1362,7 +1362,7 @@ def test_orientation():
     ''' Test that orientation is handled correctly for kernel
     stubs '''
     ast = fpapi.parse(ORIENTATION, ignore_comments=False)
-    metadata = DynKernelType03(ast)
+    metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
@@ -1412,7 +1412,7 @@ def test_enforce_bc_kernel_stub_gen():
     is handled correctly for kernel stubs'''
     ast = fpapi.parse(os.path.join(BASE_PATH, "enforce_bc_kernel_mod.f90"),
                       ignore_comments=False)
-    metadata = DynKernelType03(ast)
+    metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
