@@ -351,9 +351,6 @@ def test_omp_region_commutes_with_loop_trans():
     independent of the order in which they are applied. '''
     psy, invoke = get_invoke("single_invoke_two_kernels.f90", 0)
     schedule = invoke.schedule
-    # Keep a copy of the original schedule
-    import copy
-    orig_schedule = copy.deepcopy(schedule)
 
     # Put an OpenMP do directive around each loop contained
     # in the schedule
@@ -377,7 +374,9 @@ def test_omp_region_commutes_with_loop_trans():
 
     # Put all of the loops in the schedule within a single
     # OpenMP region
-    schedule = orig_schedule
+    psy, invoke = get_invoke("single_invoke_two_kernels.f90", 0)
+    schedule = invoke.schedule
+
     ompr = OMPParallelTrans()
     omp_schedule, _ = ompr.apply(schedule.children)
 
