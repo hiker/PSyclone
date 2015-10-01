@@ -1,3 +1,11 @@
+#-------------------------------------------------------------------------------
+# (c) The copyright relating to this work is owned jointly by the Crown,
+# Met Office and NERC 2014.
+# However, it has been created with the help of the GungHo Consortium,
+# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+#-------------------------------------------------------------------------------
+# Author R. Ford STFC Daresbury Lab
+
 from parse import parse
 from psyGen import PSyFactory
 api="dynamo0.1"
@@ -20,5 +28,5 @@ schedule.view()
 new_schedule,memento=lf.apply(schedule.children[0],schedule.children[1])
 new_schedule.view()
 
-psy.invokes.get('invoke_0')._schedule=new_schedule
+psy.invokes.get('invoke_0').schedule=new_schedule
 print psy.gen

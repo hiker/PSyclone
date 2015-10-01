@@ -1,3 +1,11 @@
+#-------------------------------------------------------------------------------
+# (c) The copyright relating to this work is owned jointly by the Crown,
+# Met Office and NERC 2014.
+# However, it has been created with the help of the GungHo Consortium,
+# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+#-------------------------------------------------------------------------------
+# Author R. Ford STFC Daresbury Lab
+
 ''' This module implements the PSyclone Dynamo 0.1 API by specialising the
     required base classes (PSy, Invokes, Invoke, Schedule, Loop, Kern,
     Inf, Arguments and Argument). '''
@@ -60,12 +68,12 @@ class DynInvoke(Invoke):
         from f2pygen import SubroutineGen, TypeDeclGen
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name = self.name,
-                                   args = self.unique_args)
+                                   args = self.psy_unique_var_names)
         self.schedule.gen_code(invoke_sub)
         parent.add(invoke_sub)
         # add the subroutine argument declarations
         my_typedecl = TypeDeclGen(invoke_sub, datatype = "field_type",
-                                  entity_decls = self.unique_args,
+                                  entity_decls = self.psy_unique_var_names,
                                   intent = "inout")
         invoke_sub.add(my_typedecl)
 
@@ -81,22 +89,28 @@ class DynLoop(Loop):
         loop information to the base class so it creates the one we require.
         Creates Dynamo specific loop bounds when the code is being generated.
     '''
-    def __init__(self, call = None, parent = None):
-        Loop.__init__(self, DynInf, DynKern, call = call, parent = parent,
-                      valid_loop_types = ["colours", "colour"])
-    def gen_code(self,parent):
-        ''' Work out the appropriate loop bounds and variable name depending
-            on the loop type and then call the base class to generate the
-            code '''
-        self._start = "1"
+    def __init__(self, call=None, parent=None, loop_type=""):
+        Loop.__init__(self, DynInf, DynKern, call=call, parent=parent,
+                      valid_loop_types=["", "colours", "colour"])
+        self.loop_type = loop_type
+
+        # Work out the variable name from  the loop type
         if self._loop_type == "colours":
             self._variable_name = "colour"
-            self._stop = "ncolour"
         elif self._loop_type == "colour":
             self._variable_name = "cell"
-            self._stop = "ncp_ncolour(colour)"
         else:
             self._variable_name = "cell"
+
+    def gen_code(self,parent):
+        ''' Work out the appropriate loop bounds and then call the base
+            class to generate the code '''
+        self._start = "1"
+        if self._loop_type == "colours":
+            self._stop = "ncolour"
+        elif self._loop_type == "colour":
+            self._stop = "ncp_ncolour(colour)"
+        else:
             self._stop = self.field_name+"%get_ncell()"
         Loop.gen_code(self,parent)
 
@@ -152,7 +166,7 @@ class DynKern(Kern):
             if arg.requires_basis:
                 basis_name = arg.function_space+"_basis_"+arg.name
                 arglist.append(basis_name)
-                new_parent, position = parent.start_parent_loop()
+                new_parent, position = parent.start_parent_loop() 
                 new_parent.add(CallGen(new_parent,
                                        field_name+"%vspace%get_basis",
                                        [basis_name]),
@@ -187,7 +201,7 @@ class DynKern(Kern):
         # of degrees of freedom. Needs to be generalised.
         parent.add(DeclGen(parent, datatype = "integer",
                            entity_decls = ["nlayers", "ndf"]))
-        new_parent, position = parent.start_parent_loop()
+        new_parent, position = parent.start_parent_loop() 
         new_parent.add(AssignGen(new_parent, lhs = "nlayers",
                                     rhs = field_name+"%get_nlayers()"),
                           position = ["before", position])

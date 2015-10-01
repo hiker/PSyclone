@@ -1,0 +1,22 @@
+#-------------------------------------------------------------------------------
+# (c) The copyright relating to this work is owned jointly by the Crown,
+# Met Office and NERC 2015.
+# However, it has been created with the help of the GungHo Consortium,
+# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+#-------------------------------------------------------------------------------
+# Author A. R. Porter, STFC Daresbury Lab
+
+The dynamo examples in the directories below the one containing this
+README use the Dynamo 0.1 API. They are primarily provided to
+illustrate the use of the PSyclone code-generation system. 
+
+In order to use PSyclone you must first add it to your PYTHONPATH:
+::
+    export PYTHONPATH=/path/to/PSyclone/src:${PYTHONPATH}
+
+PSyclone can be run for each of the examples by entering the directory and 
+executing, e.g.
+::
+    python ./runme.py
+
+Examine the runme*.py scripts themselves for further details.

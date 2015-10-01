@@ -1,5 +1,21 @@
-# Copyright 2013 STFC, all rights reserved
+#-------------------------------------------------------------------------------
+# (c) The copyright relating to this work is owned jointly by the Crown,
+# Met Office and NERC 2014.
+# However, it has been created with the help of the GungHo Consortium,
+# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+#-------------------------------------------------------------------------------
+# Author R. Ford STFC Daresbury Lab
+
 import fparser
+
+class AlgorithmError(Exception):
+    ''' Provides a PSyclone-specific error class for errors found during 
+        Algorithm code generation. '''
+    def __init__(self, value):
+        Exception.__init__(self, value)
+        self.value = "Algorithm Error: "+value
+    def __str__(self):
+        return repr(self.value)
 
 class Alg(object):
   '''
@@ -43,9 +59,13 @@ class Alg(object):
           from psyGen import Invoke
           invokeInfo=self._psy.invokes.invoke_list[idx]
           stmt.designator=invokeInfo.name
-          stmt.items=invokeInfo.orig_unique_args
+          stmt.items=invokeInfo.alg_unique_args
           adduse(psyName,stmt.parent,only=True,funcnames=[invokeInfo.name])
           idx+=1
+
+    if idx==0:
+      raise AlgorithmError, "Algorithm file contains no invoke() calls: refusing to generate empty PSy code"
+
     return self._ast
 
 

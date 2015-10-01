@@ -1,5 +1,13 @@
-# Copyright 2013 Imperial College London, all rights reserved
-# Copyright 2013 STFC, all rights reserved
+#-------------------------------------------------------------------------------
+# (c) The copyright relating to this work is owned jointly by the Crown,
+# Met Office and NERC 2014.
+# However, it has been created with the help of the GungHo Consortium,
+# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+#-------------------------------------------------------------------------------
+# Author L. Mitchell Imperial College
+# Modified by R. Ford STFC Daresbury Lab
+#     "       A. Porter STFC Daresbury Lab
+
 import fparser
 from fparser import parsefortran
 from fparser import api as fpapi
@@ -220,7 +228,6 @@ class KernelProcedure(object):
     def __str__(self):
         return self._ast.__str__()
 
-
 class KernelTypeFactory(object):
     def __init__(self,api=""):
         if api=="":
@@ -230,17 +237,27 @@ class KernelTypeFactory(object):
             from config import SUPPORTEDAPIS as supportedTypes
             self._type=api
             if self._type not in supportedTypes:
-                raise ParseError("KernelTypeFactory: Unsupported API '{0}' specified. Supported types are {1}.".format(self._type, supportedTypes))
+                raise ParseError("KernelTypeFactory: Unsupported API '{0}' "
+                                 "specified. Supported types are {1}.".\
+                                 format(self._type, supportedTypes))
 
     def create(self,name,ast):
         if self._type=="gunghoproto":
             return GHProtoKernelType(name,ast)
         elif self._type=="dynamo0.1":
             return DynKernelType(name,ast)
-        elif self._type=="gocean":
+        elif self._type=="dynamo0.3":
+            from dynamo0p3 import DynKernelType03
+            return DynKernelType03(name,ast)
+        elif self._type=="gocean0.1":
             return GOKernelType(name,ast)
+        elif self._type=="gocean1.0":
+            from gocean1p0 import GOKernelType1p0
+            return GOKernelType1p0(name,ast)
         else:
-            raise ParseError("KernelTypeFactory: Internal Error: Unsupported kernel type '{0}' found. Should not be possible.".format(self._myType))
+            raise ParseError("KernelTypeFactory: Internal Error: Unsupported "
+                             "kernel type '{0}' found. Should not be possible.".\
+                             format(self._myType))
 
 class KernelType(object):
     """ Kernel Metadata baseclass
@@ -253,31 +270,28 @@ class KernelType(object):
         self._ast = ast
         self.checkMetadataPublic(name,ast)
         self._ktype=self.getKernelMetadata(name,ast)
-        #print self._ktype
         self._iterates_over = self._ktype.get_variable('iterates_over').init
-        #print  self._ktype.get_variable('iterates_over')
-        #print self._iterates_over
         self._procedure = KernelProcedure(self._ktype, name, ast)
         self._inits=self.getkerneldescriptors(self._ktype)
         self._arg_descriptors=None # this is set up by the subclasses
         
-    def getkerneldescriptors(self,ast):
-        descs = ast.get_variable('meta_args')
+    def getkerneldescriptors(self,ast, var_name='meta_args'):
+        descs = ast.get_variable(var_name)
         if descs is None:
-            raise ParseError("kernel call does not contain a meta_args type")
+            raise ParseError("kernel call does not contain a {0} type".format(var_name))
         try:
             nargs=int(descs.shape[0])
         except AttributeError as e:
-            raise ParseError("kernel metadata {0}: meta_args variable must be an array".format(self._name))
+            raise ParseError("kernel metadata {0}: {1} variable must be an array".format(self._name, var_name))
         if len(descs.shape) is not 1:
-            raise ParseError("kernel metadata {0}: meta_args variable must be a 1 dimensional array".format(self._name))
+            raise ParseError("kernel metadata {0}: {1} variable must be a 1 dimensional array".format(self._name, var_name))
         if descs.init.find("[") is not -1 and descs.init.find("]") is not -1:
             # there is a bug in f2py
-            raise ParseError("Parser does not currently support [...] initialisation for meta_args, please use (/.../) instead")
+            raise ParseError("Parser does not currently support [...] initialisation for {0}, please use (/.../) instead".format(var_name))
         inits = expr.expression.parseString(descs.init)[0]
         nargs=int(descs.shape[0])
         if len(inits) != nargs:
-            raise ParseError("Error, in meta_args specification, the number of args %s and number of dimensions %s do not match" % (nargs,len(inits)))
+            raise ParseError("Error, in {0} specification, the number of args {1} and number of dimensions {2} do not match".format(var_name, nargs, len(inits)))
         return inits
 
     @property
@@ -331,7 +345,7 @@ class KernelType(object):
                and statement.name == name:
                 ktype = statement
         if ktype is None:
-            raise RuntimeError("Kernel type %s not implemented" % name)
+            raise RuntimeError("Kernel type %s does not exist" % name)
         return ktype
 
 class DynKernelType(KernelType):
@@ -362,7 +376,8 @@ class GOKernelType(KernelType):
             if len(init.args) != 3:
                 raise ParseError("'arg' type expects 3 arguments but found '{}' in '{}'".format(str(len(init.args)), init.args))
             self._arg_descriptors.append(GODescriptor(access,funcspace,stencil))
-        
+
+
 class GHProtoKernelType(KernelType):
 
     def __init__(self, name, ast):
@@ -413,8 +428,12 @@ class KernelCall(object):
         self._module_name = module_name
         self._ktype = ktype
         self._args = args
-        if self._ktype.nargs != len(self._args):
-            raise ParseError("Kernel %s called with incorrect number of arguments (%d not %d)" % (self._ktype, len(self._args), self._ktype.nargs))
+        if len(self._args) < self._ktype.nargs:
+            # we cannot test for equality here as API's may have extra arguments
+            # passed in from the algorithm layer (e.g. 'QR' in dynamo0.3), but
+            # we do expect there to be at least the same number of real
+            # arguments as arguments specified in the metadata.
+            raise ParseError("Kernel '{0}' called from the algorithm layer with an insufficient number of arguments as specified by the metadata. Expected at least '{1}' but found '{2}'.".format(self._ktype.name, self._ktype.nargs, len(self._args)))
 
     @property
     def ktype(self):
@@ -437,18 +456,24 @@ class KernelCall(object):
         
 class Arg(object):
     ''' Descriptions of an argument '''
-    def __init__(self,form,value):
-        formOptions=["literal","variable"]
+    def __init__(self,form,text,varName=None):
+        formOptions=["literal","variable","indexed_variable"]
         self._form=form
-        self._value=value
+        self._text=text
+        self._varName=varName
         if form not in formOptions:
             raise ParseError("Unknown arg type provided. Expected one of {0} but found {1}".format(str(formOptions),form))
+    def __str__(self):
+        return "Arg(form='{0}',text='{1}',varName='{2}'".format(self._form, self._text, str(self._varName))
     @property
     def form(self):
         return self._form
     @property
-    def value(self):
-        return self._value
+    def text(self):
+        return self._text
+    @property
+    def varName(self):
+        return self._varName
     def is_literal(self):
         if self._form=="literal":
             return True
@@ -480,15 +505,17 @@ class FileInfo(object):
     def calls(self):
         return self._calls
 
-def parse(filename, api="", invoke_name="invoke", inf_name="inf"):
+def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf", 
+          kernel_path=""):
     '''
     Takes a GungHo algorithm specification as input and outputs an AST of this specification and an object containing information about the invocation calls in the algorithm specification and any associated kernel implementations.
 
-    :param str filename: The file containing the algorithm specification.
+    :param str alg_filename: The file containing the algorithm specification.
     :param str invoke_name: The expected name of the invocation calls in the algorithm specification
     :param str inf_name: The expected module name of any required infrastructure routines.
+    :param str kernel_path: The path to search for kernel source files (if different from the location of the algorithm source).
     :rtype: ast,invoke_info
-    :raises IOError: if the filename does not exist
+    :raises IOError: if the filename or search path does not exist
     :raises ParseError: if there is an error in the parsing
     :raises RuntimeError: if there is an error in the parsing
 
@@ -506,14 +533,15 @@ def parse(filename, api="", invoke_name="invoke", inf_name="inf"):
         if api not in SUPPORTEDAPIS:
             raise ParseError("parse: Unsupported API '{0}' specified. Supported types are {1}.".format(api, SUPPORTEDAPIS))
 
+    from pyparsing import ParseException
 
     # drop cache
     fparser.parsefortran.FortranParser.cache.clear()
     fparser.logging.disable('CRITICAL')
-    if not os.path.isfile(filename):
-        raise IOError("File %s not found" % filename)
+    if not os.path.isfile(alg_filename):
+        raise IOError("File %s not found" % alg_filename)
     try:
-        ast = fpapi.parse(filename, ignore_comments = False, analyze = False)
+        ast = fpapi.parse(alg_filename, ignore_comments = False, analyze = False)
     except:
         import traceback
         traceback.print_exc()
@@ -551,14 +579,27 @@ def parse(filename, api="", invoke_name="invoke", inf_name="inf"):
            and statement.designator == invoke_name:
             statement_kcalls = []
             for arg in statement.items:
-                parsed = expr.expression.parseString(arg)[0]
+                try:
+                    parsed = expr.expression.parseString(arg)[0]
+                except ParseException:
+                    raise ParseError("Failed to parse string: {0}".format(arg))
+
                 argname = parsed.name
                 argargs=[]
                 for a in parsed.args:
                     if type(a) is str: # a literal is being passed by argument
                         argargs.append(Arg('literal',a))
                     else: # assume argument parsed as a FunctionVar
-                        argargs.append(Arg('variable',a.name))
+                        variableName = a.name
+                        if a.args is not None:
+                            # argument is an indexed array so extract the full text
+                            fullText = ""
+                            for tok in a.walk_skipping_name():
+                                fullText+=str(tok)
+                            argargs.append(Arg('indexed_variable',fullText,variableName))
+                        else:
+                            # argument is a standard variable
+                            argargs.append(Arg('variable',variableName,variableName))
                 if argname in ['set']: # this is an infrastructure call
                     statement_kcalls.append(InfCall(inf_name,argname,argargs))
                 else:
@@ -566,16 +607,65 @@ def parse(filename, api="", invoke_name="invoke", inf_name="inf"):
                         modulename = name_to_module[argname]
                     except KeyError:
                         raise ParseError("kernel call '%s' must be named in a use statement" % argname)
-                    root_dir = os.path.abspath(os.path.dirname(filename))
-                    if not os.path.isfile(os.path.join(root_dir,'%s.F90' % modulename)):
-                        if not os.path.isfile(os.path.join(root_dir,'%s.f90' % modulename)):
-                            raise IOError("Kernel file '%s.[fF]90' not found" % modulename)
-                        else:
-                            #modast = fpapi.parse('%s.f90' % modulename, ignore_comments = False, analyze = False )
-                            modast = fpapi.parse(os.path.join(root_dir,'%s.f90' % modulename))
+
+                    # Search for the file containing the kernel source
+                    import fnmatch
+
+                    # We only consider files with the suffixes .f90 and .F90
+                    # when searching for the kernel source.
+                    search_string = "{0}.[fF]90".format(modulename)
+
+                    # Our list of matching files (should have length == 1)
+                    matches = []
+
+                    # If a search path has been specified then we look there.
+                    # Otherwise we look in the directory containing the 
+                    # algorithm definition file
+                    if len(kernel_path) > 0:
+                        cdir = os.path.abspath(kernel_path)
+
+                        if not os.access(cdir, os.R_OK):
+                            raise IOError("Supplied kernel search path does not "
+                                          "exist or cannot be read: {0}".\
+                                          format(cdir))
+
+                        # We recursively search down through the directory
+                        # tree starting at the specified path
+                        if os.path.exists(cdir):
+                            for root, dirnames, filenames in os.walk(cdir):
+                                for filename in fnmatch.filter(filenames, 
+                                                               search_string):
+                                    matches.append(os.path.join(root, filename))
+
                     else:
-                        #modast = fpapi.parse('%s.F90' % modulename, ignore_comments = False, analyze = False )
-                        modast = fpapi.parse(os.path.join(root_dir,'%s.F90' % modulename))
-                    statement_kcalls.append(KernelCall(modulename, KernelTypeFactory(api=api).create(argname, modast),argargs))
+                        # We look *only* in the directory that contained the 
+                        # algorithm file
+                        cdir = os.path.abspath(os.path.dirname(alg_filename))
+                        filenames = os.listdir(cdir)
+                        for filename in fnmatch.filter(filenames, 
+                                                       search_string):
+                                    matches.append(os.path.join(cdir, filename))
+
+                    # Check that we only found one match
+                    if len(matches) != 1:
+                        if len(matches) == 0:
+                            raise IOError("Kernel file '{0}.[fF]90' not found in {1}".\
+                                          format(modulename, cdir))
+                        else:
+                            raise IOError("More than one match for kernel file "
+                                          "'{0}.[fF]90' found!".
+                                          format(modulename))
+                    else:
+                        try:
+                            modast = fpapi.parse(matches[0])
+                        except:
+                            raise ParseError("Failed to parse kernel code "
+                                             "'{0}'. Is the Fortran correct?".
+                                             format(matches[0]))
+
+                    statement_kcalls.append(KernelCall(modulename, 
+                                                       KernelTypeFactory(api=api).\
+                                                       create(argname, modast),
+                                                       argargs))
             invokecalls[statement] = InvokeCall(statement_kcalls)
     return ast, FileInfo(container_name,invokecalls)

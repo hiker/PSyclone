@@ -1,8 +1,14 @@
+#-------------------------------------------------------------------------------
+# (c) The copyright relating to this work is owned jointly by the Crown,
+# Met Office and NERC 2014.
+# However, it has been created with the help of the GungHo Consortium,
+# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+#-------------------------------------------------------------------------------
+# Author R. Ford STFC Daresbury Lab
+
 ''' This module provides generic support for PSyclone's PSy code optimisation
     and generation. The classes in this method need to be specialised for a
     particular API and implementation. '''
-
-# Copyright 2013 STFC, all rights reserved
 
 import abc
 
@@ -12,8 +18,21 @@ class GenerationError(Exception):
     def __init__(self, value):
         Exception.__init__(self, value)
         self.value = "Generation Error: "+value
+
     def __str__(self):
         return repr(self.value)
+
+
+class FieldNotFoundError(Exception):
+    ''' Provides a PSyclone-specific error class when a field with the
+    requested property/ies is not found '''
+    def __init__(self, value):
+        Exception.__init__(self, value)
+        self.value = "Field not found error: "+value
+
+    def __str__(self):
+        return repr(self.value)
+
 
 class PSyFactory(object):
     ''' Creates a specific version of the PSy. If a particular api is not
@@ -40,8 +59,14 @@ class PSyFactory(object):
         elif self._type == "dynamo0.1":
             from dynamo0p1 import DynamoPSy
             return DynamoPSy(invoke_info)
-        elif self._type == "gocean":
+        elif self._type == "dynamo0.3":
+            from dynamo0p3 import DynamoPSy
+            return DynamoPSy(invoke_info)
+        elif self._type == "gocean0.1":
             from gocean0p1 import GOPSy
+            return GOPSy(invoke_info)
+        elif self._type == "gocean1.0":
+            from gocean1p0 import GOPSy
             return GOPSy(invoke_info)
         else:
             raise GenerationError("PSyFactory: Internal Error: Unsupported "
@@ -50,23 +75,24 @@ class PSyFactory(object):
 
 class PSy(object):
     '''
-    Manage and generate PSy code for a single algorithm file. Takes the
-    invocation information output from the function :func:`parse.parse` as
-    it's input and stores this is a way suitable for optimisation and code
-    generation.
+        Base class to help manage and generate PSy code for a single
+        algorithm file. Takes the invocation information output from the
+        function :func:`parse.parse` as its input and stores this in a
+        way suitable for optimisation and code generation.
 
-    :param FileInfo invoke_info: An object containing the required invocation
-                                 information for code optimisation and
-                                 generation. Produced by the function
-                                 :func:`parse.parse`.
+        :param FileInfo invoke_info: An object containing the required invocation
+                                     information for code optimisation and
+                                     generation. Produced by the function
+                                     :func:`parse.parse`.
 
-    For example:
+        For example:
 
-    >>> from parse import parse
-    >>> ast, info = parse("argspec.F90")
-    >>> from psyGen import PSy
-    >>> psy = PSy(info)
-    >>> print(psy.gen)
+        >>> from parse import parse
+        >>> ast, info = parse("argspec.F90")
+        >>> from psyGen import PSyFactory
+        >>> api = "..."
+        >>> psy = PSyFactory(api).create(info)
+        >>> print(psy.gen)
 
     '''
     def __init__(self, invoke_info):
@@ -87,12 +113,16 @@ class PSy(object):
         raise NotImplementedError("Error: PSy.gen() must be implemented "
                                   "by subclass")
     def inline(self, module):
-        ''' inline all kernel subroutines into the module that are marked for inlining '''
+        ''' inline all kernel subroutines into the module that are marked for
+            inlining. Avoid inlining the same kernel more than once. '''
+        inlined_kernel_names = []
         for invoke in self.invokes.invoke_list:
             schedule = invoke.schedule
             for kernel in schedule.walk(schedule.children, Kern):
                 if kernel.module_inline:
-                    module.add_raw_subroutine(kernel._kernel_code)
+                    if kernel.name.lower() not in inlined_kernel_names:
+                        inlined_kernel_names.append(kernel.name.lower())
+                        module.add_raw_subroutine(kernel._kernel_code)
 
 class Invokes(object):
     ''' Manage the invoke calls '''
@@ -110,7 +140,13 @@ class Invokes(object):
         return self.invoke_map.keys()
     def get(self, invoke_name):
         # add a try here for keyerror
-        return self.invoke_map[invoke_name]
+        try:
+            return self.invoke_map[invoke_name]
+        except KeyError:
+            raise RuntimeError("Cannot find an invoke named '{0}' in {1}".
+                               format(invoke_name,
+                                      str(self.names)))
+
     def gen_code(self, parent):
         for invoke in self.invoke_list:
             invoke.gen_code(parent)
@@ -155,37 +191,86 @@ class NameSpaceFactory(object):
         return NameSpaceFactory._instance
 
 class NameSpace(object):
-    ''' keeps a record of reserved names and currently used names to check
-        for clashes and provides a new name if there is a clash. Reserved
-        names are ones already allocated to the infrastructure. '''
-    def __init__(self):
+    ''' keeps a record of reserved names and used names for clashes and provides a
+        new name if there is a clash. '''
+
+    def __init__(self, case_sensitive=False):
         self._reserved_names = []
-        self._arg_names = {}
-    def add_reserved(self, names):
-        if len(self._arg_names) > 0:
-            raise Exception("Error: NameSpace class: not coded for adding "
-                            "reserved names after used names")
-        for name in names:
-            if not name in self._reserved_names:
-                # silently ignore if this is already a reserved name
-                # fortran is not case sensitive
-                self._reserved_names.append(name.lower())
-    def add_arg(self, name):
-        if name in self._arg_names.keys():
-            return self._arg_names[name]
-        elif name in self._reserved_names:
-            count = 1
-            proposed_name = name+"_"+str(count)
-            while proposed_name in self._arg_names.values() or \
-                  proposed_name in self._reserved_names:
-                count+=1
-                proposed_name = name+"_"+str(count)
-            self._arg_names[name] = proposed_name
+        self._added_names = []
+        self._context = {}
+        self._case_sensitive = case_sensitive
+
+    def create_name(self, root_name=None, context=None, label=None):
+        '''Returns a unique name. If root_name is supplied, the name returned
+            is based on this name, otherwise one is made up.  If
+            context and label are supplied and a previous create_name
+            has been called with the same context and label then the
+            name provided by the previous create_name is returned.
+        '''
+        # make up a base name if one has not been supplied
+        if root_name is None:
+            root_name = "anon"
+        # if not case sensitive then make the name lower case
+        if not self._case_sensitive:
+            lname = root_name.lower()
         else:
-            self._arg_names[name] = name
-        return self._arg_names[name]
+            lname = root_name
+        # check context and label validity
+        if context is None and label is not None or context is not None and label is None:
+            raise RuntimeError("NameSpace:create_name() requires both context and label to be set")
+
+        # if the same context and label have already been supplied then return the previous name
+        if context is not None and label is not None:
+            # labels may have spurious white space
+            label = label.strip()
+            if not self._case_sensitive:
+                label = label.lower()
+                context = context.lower()
+            if context in self._context:
+                if label in self._context[context]:
+                    # context and label have already been supplied
+                    return self._context[context][label]
+            else:
+                # initialise the context so we can add the label value later
+                self._context[context]={}
+
+        # create our name
+        if not lname in self._reserved_names and not lname in self._added_names:
+            proposed_name = lname
+        else:
+            count = 1
+            proposed_name = lname+"_"+str(count)
+            while proposed_name in self._reserved_names or \
+                  proposed_name in self._added_names:
+                count+=1
+                proposed_name = lname+"_"+str(count)
+
+        # store our name
+        self._added_names.append(proposed_name)
+        if context is not None and label is not None:
+            self._context[context][label] = proposed_name
+
+        return proposed_name
+        
+    def add_reserved_name(self, name):
+        ''' adds a reserved name. create_name() will not return this name '''
+        if not self._case_sensitive:
+            lname = name.lower()
+        else:
+            lname = name
+        # silently ignore if this is already a reserved name
+        if not lname in self._reserved_names:
+            if lname in self._added_names:
+                raise RuntimeError("attempted to add a reserved name to a namespace that has already used that name")
+            self._reserved_names.append(lname)
+
+    def add_reserved_names(self, names):
+        ''' adds a list of reserved names '''
+        for name in names:
+            self.add_reserved_name(name)
 
 class Invoke(object):
+    ''' Manage an individual invoke call '''
 
     def __str__(self):
         return self._name+"("+str(self.unique_args)+")"
@@ -196,7 +281,7 @@ class Invoke(object):
         # create our namespace manager - must be done before creating the
         # schedule
         self._name_space_manager = NameSpaceFactory(reset = True).create()
-        self._name_space_manager.add_reserved(reserved_names)
+        self._name_space_manager.add_reserved_names(reserved_names)
 
         # create the schedule
         self._schedule = Schedule(alg_invocation.kcalls)
@@ -214,26 +299,31 @@ class Invoke(object):
             self._name = alg_invocation.name
         elif len(alg_invocation.kcalls) == 1 and \
                  alg_invocation.kcalls[0].type == "kernelCall":
-            # use the name of the kernel call
-            self._name = "invoke_"+alg_invocation.kcalls[0].ktype.name
+            # use the name of the kernel call with the position appended.
+            # Appended position is needed in case we have two separate invokes
+            # in the same algorithm code containing the same (single) kernel
+            self._name = "invoke_"+str(idx)+"_"+alg_invocation.kcalls[0].ktype.name
         else:
             # use the position of the invoke
             self._name = "invoke_"+str(idx)
 
-        # work out the argument list. It needs to be unique and should
-        # not contain any literals.
-        self._unique_args = []
-        self._orig_unique_args = []
-        self._unique_args_dict = {}
-        for call in alg_invocation.kcalls:
-            for arg in call.args:
-                if not arg.is_literal(): # skip literals
-                    if arg.value not in self._orig_unique_args:
-                        self._orig_unique_args.append(arg.value)
-                        value=self._name_space_manager.add_arg(arg.value)
-                        self._unique_args.append(value)
-                        self._unique_args_dict[arg] = value
-                            
+        # extract the argument list for the algorithm call and psy
+        # layer subroutine.
+        self._alg_unique_args = []
+        self._psy_unique_vars = []
+        tmp_arg_names = []
+        for call in self.schedule.calls():
+            for arg in call.arguments.args:
+                if arg.text is not None:
+                    if not arg.text in self._alg_unique_args:
+                        self._alg_unique_args.append(arg.text)
+                    if not arg.name in tmp_arg_names:
+                        tmp_arg_names.append(arg.name)
+                        self._psy_unique_vars.append(arg)
+                else:
+                    # literals have no name
+                    pass
+
         # work out the unique dofs required in this subroutine
         self._dofs = {}
         for kern_call in self._schedule.kern_calls():
@@ -248,15 +338,23 @@ class Invoke(object):
     def name(self):
         return self._name
     @property
-    def unique_args(self):
-        return self._unique_args
+    def alg_unique_args(self):
+        return self._alg_unique_args
     @property
-    def orig_unique_args(self):
-        return self._orig_unique_args
+    def psy_unique_vars(self):
+        return self._psy_unique_vars
+    @property
+    def psy_unique_var_names(self):
+        names=[]
+        for var in self._psy_unique_vars:
+            names.append(var.name)
+        return names
     @property
     def schedule(self):
         return self._schedule
-
+    @schedule.setter
+    def schedule(self, obj):
+        self._schedule = obj
     def gen(self):
         from f2pygen import ModuleGen
         module = ModuleGen("container")
@@ -268,10 +366,10 @@ class Invoke(object):
                             SelectionGen, AssignGen
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name = self.name,
-                                   args = self.unique_args)
+                                   args = self.psy_unique_vars)
         # add the subroutine argument declarations
         my_typedecl = TypeDeclGen(invoke_sub, datatype = "field_type",
-                                  entity_decls = self.unique_args,
+                                  entity_decls = self.psy_unique_vars,
                                   intent = "inout")
         invoke_sub.add(my_typedecl)
         # declare field-type, column topology and function-space types
@@ -443,6 +541,17 @@ class Node(object):
             local_list += self.walk(child.children, my_type)
         return local_list
 
+    def ancestor(self, my_type):
+        ''' Search back up tree and check whether we have an
+        ancestor of the supplied type. If we do then we return
+        it otherwise we return None '''
+        myparent = self.parent
+        while myparent is not None:
+            if isinstance(myparent, my_type):
+                return myparent
+            myparent = myparent.parent
+        return None
+
     def calls(self):
         ''' return all calls in this schedule '''
         return self.walk(self.root.children, Call)
@@ -474,6 +583,15 @@ class Node(object):
         ''' return all loops currently in this schedule '''
         return self.walk(self._children, Loop)
 
+    def is_openmp_parallel(self):
+        '''Returns true if this Node is within an OpenMP parallel region
+
+        '''
+        omp_dir = self.ancestor(OMPParallelDirective)
+        if omp_dir:
+            return True
+        return False
+
     def gen_code(self):
         raise NotImplementedError("Please implement me")
 
@@ -484,13 +602,14 @@ class Schedule(Node):
         
         >>> from parse import parse
         >>> ast, info = parse("algorithm.f90")
-        >>> from psyGen import PSy
-        >>> psy = PSy(info)
+        >>> from psyGen import PSyFactory
+        >>> api = "..."
+        >>> psy = PSyFactory(api).create(info)
         >>> invokes = psy.invokes
         >>> invokes.names
         >>> invoke = invokes.get("name")
         >>> schedule = invoke.schedule
-        >>> print schedule
+        >>> print schedule.view()
 
     '''
 
@@ -544,45 +663,192 @@ class Schedule(Node):
         for entity in self._children:
             entity.gen_code(parent)
 
-class LoopDirective(Node):
+class Directive(Node):
 
     def view(self,indent = 0):
-        print self.indent(indent)+"LoopDirective"
+        print self.indent(indent)+"Directive"
         for entity in self._children:
             entity.view(indent = indent + 1)
 
-class OMPLoopDirective(LoopDirective):
+class OMPDirective(Directive):
 
-    def gen_code(self,parent):
+    def view(self,indent = 0):
+        print self.indent(indent)+"Directive[OMP]"
+        for entity in self._children:
+            entity.view(indent = indent + 1)
+
+class OMPParallelDirective(OMPDirective):
+
+    def view(self,indent = 0):
+        print self.indent(indent)+"Directive[OMP Parallel]"
+        for entity in self._children:
+            entity.view(indent = indent + 1)
+
+    def gen_code(self, parent):
         from f2pygen import DirectiveGen
-        for child in self.children:
-            child.gen_code(parent)
-        # directive must be added after children are generated so get private list picks up the 
-        private_str = self.list_to_string(self._get_private_list())
-        position = parent.start_sibling_loop()
-        parent.add(DirectiveGen(parent, "omp", "begin", "parallel do", "default(shared), private({0})".format(private_str)), position = ["before", position])
-        parent.add(DirectiveGen(parent, "omp", "end", "parallel do", ""))
 
+        private_str = self.list_to_string(self._get_private_list())
+
+        # We're not doing nested parallelism so make sure that this
+        # omp parallel region is not already within some parallel region
+        self._not_within_omp_parallel_region()
+
+        # Check that this OpenMP PARALLEL directive encloses other
+        # OpenMP directives. Although it is valid OpenMP if it doesn't,
+        # this almost certainly indicates a user error.
+        self._encloses_omp_directive()
+
+        parent.add(DirectiveGen(parent, "omp", "begin", "parallel",
+                                "default(shared), private({0})".\
+                                format(private_str)))
+
+        first_type = type(self.children[0])
+        for child in self.children:
+            if first_type != type(child):
+                raise NotImplementedError("Cannot correctly generate code"
+                                          " for an OpenMP parallel region"
+                                          " containing children of "
+                                          "different types")
+            child.gen_code(parent)
+
+        parent.add(DirectiveGen(parent, "omp", "end", "parallel", ""))
+        
     def _get_private_list(self):
-        # returns the variable name used for any loops within a directive and
-        # any variables that have been declared private by a Call within the directive.
+        '''Returns the variable names used for any loops within a directive
+        and any variables that have been declared private by a Call
+        within the directive.
+
+        '''
         result=[]
         # get variable names from all loops that are a child of this node
         for loop in self.loops():
+            if loop._variable_name == "":
+                raise GenerationError("Internal error: name of loop "
+                                      "variable not set.")
             if loop._variable_name.lower() not in result:
                 result.append(loop._variable_name.lower())
         # get variable names from all calls that are a child of this node
         for call in self.calls():
             for variable_name in call.local_vars():
+                if variable_name == "":
+                    raise GenerationError("Internal error: call has a "
+                                          "local variable but its name "
+                                          "is not set.")
                 if variable_name.lower() not in result:
                     result.append(variable_name.lower())
         return result
+
+    def _not_within_omp_parallel_region(self):
+        ''' Check that this Directive is not within any other
+            parallel region '''
+        if self.ancestor(OMPParallelDirective) is not None:
+            raise GenerationError("Cannot nest OpenMP parallel regions.")
+
+    def _encloses_omp_directive(self):
+        ''' Check that this Parallel region contains other OpenMP
+            directives. While it doesn't have to (in order to be valid
+            OpenMP), it is likely that an absence of directives
+            is an error on the part of the user. '''
+        # We need to recurse down through all our children and check
+        # whether any of them are an OMPDirective.
+        node_list = self.walk(self.children, OMPDirective)
+        if len(node_list) == 0:
+            # TODO raise a warning here so that the user can decide
+            # whether or not this is OK.
+            pass
+            #raise GenerationError("OpenMP parallel region does not enclose "
+            #                      "any OpenMP directives. This is probably "
+            #                      "not what you want.")
+
+class OMPDoDirective(OMPDirective):
+
+    def __init__(self, children=[], parent=None, omp_schedule="static"):
+        self._omp_schedule = omp_schedule
+        # Call the init method of the base class once we've stored
+        # the OpenMP schedule
+        OMPDirective.__init__(self,
+                              children=children,
+                              parent=parent)
+
+    def view(self,indent = 0):
+        print self.indent(indent)+"Directive[OMP do]"
+        for entity in self._children:
+            entity.view(indent = indent + 1)
+
+    def gen_code(self,parent):
+        from f2pygen import DirectiveGen
+
+        # It is only at the point of code generation that
+        # we can check for correctness (given that we don't
+        # mandate the order that a user can apply transformations
+        # to the code). As an orphaned loop directive, we must
+        # have an OMPRegionDirective as a parent somewhere
+        # back up the tree.
+        self._within_omp_region()
+
+        # As we're an orphaned loop we don't specify the scope
+        # of any variables so we don't have to generate the
+        # list of private variables
+        parent.add(DirectiveGen(parent, 
+                                "omp", "begin", "do",
+                                "schedule({0})".\
+                                format(self._omp_schedule)))
+
+        for child in self.children:
+            child.gen_code(parent)
+
+        parent.add(DirectiveGen(parent, "omp", "end", "do", ""))
+
+    def _within_omp_region(self):
+        ''' Check that this orphaned OMP Loop Directive is actually
+            within an OpenMP Parallel Region '''
+        myparent = self.parent
+        while myparent is not None:
+            if isinstance(myparent, OMPParallelDirective) and\
+               not isinstance(myparent, OMPParallelDoDirective):
+                return
+            myparent = myparent.parent
+        raise GenerationError("OMPOrphanLoopDirective must have an "
+                              "OMPRegionDirective as ancestor")
+
+class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
+    ''' Class for the !$OMP PARALLEL DO directive. This inherits from
+        both OMPParallelDirective (because it creates a new OpenMP
+        thread-parallel region) and OMPDoDirective (because it
+        causes a loop to be parallelised). '''
+
+    def __init__(self, children=[], parent=None, omp_schedule="static"):
+        OMPDoDirective.__init__(self,
+                                children=children,
+                                parent=parent,
+                                omp_schedule=omp_schedule)
+
+    def view(self,indent = 0):
+        print self.indent(indent)+"Directive[OMP parallel do]"
+        for entity in self._children:
+            entity.view(indent = indent + 1)
+
+    def gen_code(self,parent):
+        from f2pygen import DirectiveGen
+
+        # We're not doing nested parallelism so make sure that this
+        # omp parallel do is not already within some parallel region
+        self._not_within_omp_parallel_region()
+
+        private_str = self.list_to_string(self._get_private_list())
+        parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
+                                "default(shared), private({0}), "
+                                "schedule({1})".\
+                                format(private_str, self._omp_schedule)))
+        for child in self.children:
+            child.gen_code(parent)
+
+        parent.add(DirectiveGen(parent, "omp", "end", "parallel do", ""))
 
 class Loop(Node):
 
     @property
     def loop_type(self):
-        #assert self._loop_type is not None, "Error, loop_type has not yet been set"
         return self._loop_type
 
     @loop_type.setter
@@ -591,7 +857,8 @@ class Loop(Node):
         self._loop_type=value
 
     def __init__(self, Inf, Kern, call = None, parent = None,
-                 variable_name = "unset", topology_name = "topology", valid_loop_types=[]):
+                 variable_name = "", topology_name = "topology", 
+                 valid_loop_types=[]):
 
         children = []
         # we need to determine whether this is an infrastructure or kernel
@@ -599,7 +866,7 @@ class Loop(Node):
 
         self._valid_loop_types = valid_loop_types
         self._loop_type = None       # inner, outer, colour, colours, ...
-        # TODO Perhaps store a field, so we can get field.name as well as field.space?????
+        self._field = None
         self._field_name = None      # name of the field
         self._field_space = None     # v0, v1, ...,     cu, cv, ...
         self._iteration_space = None # cells, ...,      cu, cv, ...
@@ -618,7 +885,8 @@ class Loop(Node):
                 self._iterates_over = my_call.iterates_over
                 self._iteration_space = my_call.iterates_over
                 self._field_space = my_call.arguments.iteration_space_arg().function_space
-                self._field_name = my_call.arguments.iteration_space_arg().name
+                self._field = my_call.arguments.iteration_space_arg()
+                self._field_name = self._field.name
             else:
                 raise Exception
             children.append(my_call)
@@ -701,6 +969,10 @@ class Loop(Node):
     def field_name(self):
         return self._field_name
 
+    @property
+    def field(self):
+        return self._field
+
     @field_name.setter
     def field_name(self,my_field_name):
         self._field_name = my_field_name
@@ -721,6 +993,17 @@ class Loop(Node):
         result += "EndLoop"
         return result
 
+    def has_inc_arg(self, mapping={}):
+        ''' Returns True if any of the Kernels called within this
+        loop have an argument with INC access. Returns False otherwise '''
+        assert mapping != {}, "psyGen:Loop:has_inc_arg: Error - a mapping "\
+                          "must be provided"
+        for kern_call in self.kern_calls():
+            for arg in kern_call.arguments.args:
+                if arg.access.lower() == mapping["inc"]:
+                    return True
+        return False
+
     def gen_code(self, parent):
         if self._start == "1" and self._stop == "1": # no need for a loop
             for child in self.children:
@@ -736,6 +1019,7 @@ class Loop(Node):
             my_decl = DeclGen(parent, datatype = "integer",
                             entity_decls = [self._variable_name])
             parent.add(my_decl)
+
 
 class Call(Node):
 
@@ -855,13 +1139,23 @@ class SetInfCall(Call):
         return
 
 class Kern(Call):
-    def __init__(self, KernelArguments, call, parent = None):
+    def __init__(self, KernelArguments, call, parent = None, check = True):
         Call.__init__(self, parent, call, call.ktype.procedure.name,
                       KernelArguments(call, self))
         self._iterates_over = call.ktype.iterates_over
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
         self._module_inline = False
+        if check and len(call.ktype.arg_descriptors) != len(call.args):
+            raise GenerationError(
+                "error: In kernel '{0}' the number of arguments specified "
+                "in the kernel metadata '{1}', must equal the number of "
+                "arguments in the algorithm layer. However, I found '{2}'".\
+                format(call.ktype.procedure.name,
+                       len(call.ktype.arg_descriptors),
+                       len(call.args)))
+        self._arg_descriptors = call.ktype.arg_descriptors
+
     def __str__(self):
         return "kern call: "+self._name
     @property
@@ -879,11 +1173,46 @@ class Kern(Call):
               "[module_inline="+str(self._module_inline)+"]"
         for entity in self._children:
             entity.view(indent = indent + 1)
+
+    @property
+    def arg_descriptors(self):
+        return self._arg_descriptors
+
     def gen_code(self, parent):
         from f2pygen import CallGen, UseGen
         parent.add(CallGen(parent, self._name, self._arguments.arglist))
         parent.add(UseGen(parent, name = self._module_name, only = True,
                           funcnames = [self._name]))
+
+    def incremented_field(self, mapping={}):
+        ''' Returns the argument corresponding to a field that has
+        INC access. Raises a GenerationError if none is found. '''
+        assert mapping != {}, "psyGen:Kern:incremented_field: Error - a "\
+                          "mapping must be provided"
+        for arg in self.arguments.args:
+            if arg.access.lower() == mapping["inc"]:
+                return arg
+        raise FieldNotFoundError("Kernel {0} does not have an argument with "
+                                 "{1} access".\
+                                 format(self.name, mapping["inc"]))
+
+    def written_field(self, mapping={}):
+        ''' Returns the argument corresponding to a field that has
+        WRITE access '''
+        assert mapping != {}, "psyGen:Kern:written_field: Error - a "\
+                          "mapping must be provided"
+        for arg in self.arguments.args:
+            if arg.access.lower() == mapping["write"]:
+                return arg
+        raise FieldNotFoundError("Kernel {0} does not have an argument with "
+                                 "{1} access".\
+                                 format(self.name, mapping["write"]))
+
+    def is_coloured(self):
+        ''' Returns true if this kernel is being called from within a
+        coloured loop '''
+        return self.parent.loop_type == "colour"
+
 
 class Arguments(object):
     ''' arguments abstract base class '''
@@ -946,18 +1275,32 @@ class Argument(object):
     def __init__(self, call, arg_info, access):
         self._dependencies = Dependencies(self)
         self._call = call
-        self._orig_name = arg_info.value
+        self._text = arg_info.text
+        self._orig_name = arg_info.varName
         self._form = arg_info.form
         self._is_literal = arg_info.is_literal()
         self._access = access
-        self._name_space_manager = NameSpaceFactory().create()
-        self._name = self._name_space_manager.add_arg(self._orig_name)
+        if self._orig_name is None:
+            # this is an infrastructure call literal argument. Therefore
+            # we do not want an argument (_text=None) but we do want to
+            # keep the value (_name)
+            self._name = arg_info.text
+            self._text = None
+        else:
+            self._name_space_manager = NameSpaceFactory().create()
+            # use our namespace manager to create a unique name unless
+            # the context and label match and in this case return the
+            # previous name
+            self._name = self._name_space_manager.create_name(root_name=self._orig_name, context="AlgArgs",label=self._text)
 
     def __str__(self):
         return self._name
     @property
     def name(self):
         return self._name
+    @property
+    def text(self):
+        return self._text
     @property
     def form(self):
         return self._form
@@ -1028,8 +1371,10 @@ class TransInfo(object):
     >>> print t.list
     There is 1 transformation available:
       1: SwapTrans, A test transformation
-    >>> t.get_trans_num(1)
-    >>> t.get_trans_name("SwapTrans")
+    >>> # accessing a transformation by index
+    >>> trans = t.get_trans_num(1)
+    >>> # accessing a transformation by name
+    >>> trans = t.get_trans_name("SwapTrans")
 
     '''
 
