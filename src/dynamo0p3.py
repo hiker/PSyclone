@@ -13,13 +13,16 @@
     required base classes in psyGen.py (PSy, Invokes, Invoke, Schedule,
     Loop, Kern, Inf, Arguments and Argument). '''
 
-# first section : Parser specialisations and classes
-
 # imports
 from parse import Descriptor, KernelType, ParseError
 import expression as expr
 import fparser
 import os
+from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
+    Argument, Inf, NameSpaceFactory, GenerationError, FieldNotFoundError
+
+
+# first section : Parser specialisations and classes
 
 # constants
 VALID_ANY_SPACE_NAMES = ["any_space_1", "any_space_2", "any_space_3",
@@ -376,10 +379,6 @@ class DynKernMetadata(KernelType):
         return self._func_descriptors
 
 # Second section : PSy specialisations
-
-# imports
-from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
-    Argument, Inf, NameSpaceFactory, GenerationError, FieldNotFoundError
 
 # classes
 
@@ -806,10 +805,10 @@ class DynInvoke(Invoke):
         if self.is_coloured():
             # Add declarations of the colour map and array holding the
             # no. of cells of each colour
-            invoke_sub.add(DeclGen(parent, datatype = "integer",
+            invoke_sub.add(DeclGen(parent, datatype="integer",
                                    pointer=True,
-                                   entity_decls = ["cmap(:,:)",
-                                                   "ncp_colour(:)"]))
+                                   entity_decls=["cmap(:,:)",
+                                                 "ncp_colour(:)"]))
 
         if self.qr_required:
             # add calls to compute the values of any basis arrays
@@ -1046,7 +1045,7 @@ class DynKern(Kern):
         self._qr_text = ""
         self._qr_name = ""
         if self._qr_required:
-            qr_arg = args[len(args)-1]
+            qr_arg = args[-1]
             self._qr_text = qr_arg.text
             self._name_space_manager = NameSpaceFactory().create()
             # use our namespace manager to create a unique name unless
@@ -1238,14 +1237,20 @@ class DynKern(Kern):
                     parent.add(DeclGen(parent, datatype="integer", intent="in",
                                        dimension=ndf_name,
                                        entity_decls=[map_name]))
-            # 3.2 Provide optional arguments
+            # 3.2 Provide any optional arguments. These arguments are
+            # associated with the keyword arguments (basis function,
+            # differential basis function and orientation) for a
+            # function space.
             if self._fs_descriptors.exists(unique_fs):
                 descriptor = self._fs_descriptors.get_descriptor(unique_fs)
                 if descriptor.requires_basis:
                     basis_name = descriptor.basis_name
                     arglist.append(basis_name)
                     if my_type == "subroutine":
-                        # basis w0=1,w1=3,w2=3,w3=1
+                        # the size of the first dimension for a
+                        # basis array depends on the
+                        # function space. The values are
+                        # w0=1, w1=3, w2=3, w3=1
                         first_dim = None
                         if unique_fs.lower() in ["w0", "w3"]:
                             first_dim = "1"
@@ -1267,7 +1272,10 @@ class DynKern(Kern):
                     diff_basis_name = descriptor.diff_basis_name
                     arglist.append(diff_basis_name)
                     if my_type == "subroutine":
-                        # diff_basis w0=3,w1=3,w2=1,w3=1
+                        # the size of the first dimension for a
+                        # differential basis array depends on the
+                        # function space. The values are
+                        # w0=3,w1=3,w2=1,w3=1
                         first_dim = None
                         if unique_fs.lower() in ["w2", "w3"]:
                             first_dim = "1"
@@ -1286,7 +1294,6 @@ class DynKern(Kern):
                                            self._qr_args["nv"],
                                            entity_decls=[diff_basis_name]))
                 if descriptor.requires_orientation:
-                    # orientation w2=ndf
                     orientation_name = descriptor.orientation_name
                     arglist.append(orientation_name)
                     if my_type == "subroutine":
@@ -1307,7 +1314,8 @@ class DynKern(Kern):
                     parent.add(DeclGen(parent, datatype="integer",
                                        pointer=True, entity_decls=[
                                            "boundary_dofs(:,:) => null()"]))
-                    proxy_name = self._arguments.get_field("any_space_1").proxy_name
+                    proxy_name = self._arguments.get_field("any_space_1").\
+                        proxy_name
                     new_parent, position = parent.start_parent_loop()
                     new_parent.add(AssignGen(new_parent, pointer=True,
                                              lhs="boundary_dofs",
@@ -1376,7 +1384,7 @@ class DynKern(Kern):
                            entity_decls=["cell"]))
 
         # If this kernel is being called from within a coloured
-        # loop then we have to look-up the colour map 
+        # loop then we have to look-up the colour map
         if self.is_coloured():
 
             # Find which argument object has INC access in order to look-up
@@ -1392,13 +1400,13 @@ class DynKern(Kern):
             # Add the look-up of the colouring map for this kernel
             # call
             new_parent.add(CommentGen(new_parent, ""),
-                       position=["before", position])
+                           position=["before", position])
             new_parent.add(CommentGen(new_parent, " Look-up colour map"),
-                       position=["before", position])
+                           position=["before", position])
             new_parent.add(CommentGen(new_parent, ""),
-                       position=["before", position])
-            name = arg.proxy_name_indexed+\
-                   "%"+arg.ref_name+"%get_colours"
+                           position=["before", position])
+            name = arg.proxy_name_indexed + \
+                "%" + arg.ref_name + "%get_colours"
             new_parent.add(CallGen(new_parent,
                                    name=name,
                                    args=["ncolour", "ncp_colour", "cmap"]),
@@ -1424,7 +1432,7 @@ class DynKern(Kern):
                     raise GenerationError("Kernel {0} has an argument with "
                                           "INC access and therefore must "
                                           "be coloured in order to be "
-                                          "parallelised with OpenMP".\
+                                          "parallelised with OpenMP".
                                           format(self._name))
             dofmap_args = "cell"
 
@@ -1468,8 +1476,8 @@ class DynKern(Kern):
                                lhs=fs_descriptor.orientation_name,
                                rhs=field.proxy_name_indexed + "%" +
                                          field.ref_name +
-                                         "%get_cell_orientation("+
-                                         dofmap_args+")"))
+                                         "%get_cell_orientation(" +
+                                         dofmap_args + ")"))
         if self._fs_descriptors.orientation:
             orientation_decl_names = []
             for orientation_name in self._fs_descriptors.orientation_names:

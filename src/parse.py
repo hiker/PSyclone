@@ -389,7 +389,7 @@ class DynKernelType(KernelType):
 
 class GOKernelType(KernelType):
     def __init__(self, ast, name=None):
-        KernelType.__init__(self,ast, name=name)
+        KernelType.__init__(self, ast, name=name)
         self._arg_descriptors=[]
         for init in self._inits:
             if init.name != 'arg':

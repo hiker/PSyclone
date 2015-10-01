@@ -141,7 +141,7 @@ class GOSchedule(Schedule):
                                     loop_type="inner")
                 outer_loop.addchild(inner_loop)
                 gocall = GOKern()
-                gocall.load(call, parent = inner_loop)
+                gocall.load(call, parent=inner_loop)
                 inner_loop.addchild(gocall)
                 # determine inner and outer loops space information from the
                 # child kernel call. This is only picked up automatically (by
@@ -231,7 +231,7 @@ class GOKern(Kern):
         if False:
             self._arguments = GOKernelArguments(None, None) # for pyreverse
 
-    def load(self, call, parent = None):
+    def load(self, call, parent=None):
         Kern.__init__(self, GOKernelArguments, call, parent)
 
     def local_vars(self):

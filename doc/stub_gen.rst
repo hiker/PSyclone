@@ -84,7 +84,7 @@ You can get information about the ``genkernelstub.py`` arguments using
                           dynamo0.3
 
 As is indicated when using the ``-h`` option, the ``-api`` option only
-accepts ``dynamo0.3`` at the moment and is redundant if this option is
+accepts ``dynamo0.3`` at the moment and is redundant as this option is
 also the default. However the number of supported API's is expected to
 expand in the future.
 

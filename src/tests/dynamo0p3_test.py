@@ -17,6 +17,7 @@ import fparser
 from fparser import api as fpapi
 from dynamo0p3 import DynKernMetadata, DynKern
 from transformations import LoopFuseTrans
+from genkernelstub import generate
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -800,9 +801,6 @@ def test_loopfuse():
 
 # tests for dynamo0.3 stub generator
 
-from genkernelstub import generate
-import pytest
-
 
 def test_non_existant_filename():
     ''' fail if the file does not exist '''
@@ -1428,8 +1426,10 @@ def test_enforce_bc_kernel_stub_gen():
         "      REAL(KIND=r_def), intent(inout), dimension(undf_any_space_1)"
         " :: field_1_any_space_1\n"
         "      INTEGER, intent(in) :: ndf_any_space_1\n"
-        "      INTEGER, intent(in), dimension(ndf_any_space_1) :: map_any_space_1\n"
-        "      INTEGER, intent(in), dimension(ndf_any_space_1,2) :: boundary_dofs\n"
+        "      INTEGER, intent(in), dimension(ndf_any_space_1) :: "
+        "map_any_space_1\n"
+        "      INTEGER, intent(in), dimension(ndf_any_space_1,2) :: "
+        "boundary_dofs\n"
         "    END SUBROUTINE enforce_bc_code_code\n"
         "  END MODULE enforce_bc_code_mod")
     print output
