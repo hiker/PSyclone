@@ -8,6 +8,7 @@
 #        A. Porter STFC Daresbury Lab
 
 ''' .. py:module:: transformations
+
     This module provides the various transformations that can
     be applied to the schedule associated with an invoke(). There
     are both general and API-specific transformation classes in

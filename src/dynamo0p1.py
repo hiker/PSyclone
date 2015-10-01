@@ -130,7 +130,7 @@ class DynKern(Kern):
         if False:
             self._arguments = DynKernelArguments(None, None) # for pyreverse
 
-    def load(self, call, parent = None):
+    def load(self, call, parent=None):
         Kern.__init__(self, DynKernelArguments, call, parent)
 
     def local_vars(self):

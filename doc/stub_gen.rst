@@ -60,6 +60,7 @@ The easiest way to use the stub generator is to use the supplied
 script called ``genkernelstub.py``, which is located in the ``src``
 directory:
 ::
+
     > cd <PSYCLONEHOME>/src
     > python ./genkernelstub.py 
     usage: genkernelstub.py [-h] [-o OUTFILE] [-api API] filename
@@ -68,6 +69,7 @@ directory:
 You can get information about the ``genkernelstub.py`` arguments using
 ``-h`` or ``--help``:
 ::
+
   >  python genkernelstub.py -h
   usage: genkernelstub.py [-h] [-o OUTFILE] [-api API] filename
 
@@ -106,6 +108,7 @@ directory. In the latter directory the majority start with
 and ``matrix_vector_mm_mod.F90``. The following test kernels can be used
 to generate kernel stub code:
 ::
+
     tests/test_files/dynamo0p3/testkern_chi_2.F90
     tests/test_files/dynamo0p3/testkern_chi.F90
     tests/test_files/dynamo0p3/testkern_operator_mod.f90
@@ -125,6 +128,7 @@ A simple single field example of a kernel that can be used as input for the
 stub generator is found in ``tests/test_files/dynamo0p3/simple.f90`` and
 is shown below:
 ::
+
     module simple_mod
     type, extends(kernel_type) :: simple_type
         type(arg_type), dimension(1) :: meta_args =  &
@@ -146,10 +150,12 @@ is shown below:
 
 If we run the kernel stub generator on the ``simple.f90`` example:
 ::
+
   > python genkernelstub.py tests/test_files/dynamo0p3/simple.f90
 
 we get the following kernel stub output:
 ::
+
   MODULE simple_code_mod
     IMPLICIT NONE
     CONTAINS
@@ -185,6 +191,7 @@ require a basis function and the w0 and w2 function spaces
 additionally require a differential basis function. The content of the
 Kernel is given below.
 ::
+
   module ru_kernel_mod
   type, public, extends(kernel_type) :: ru_kernel_type
     private
@@ -210,10 +217,12 @@ Kernel is given below.
 
 If we run the kernel stub generator on this example:
 ::
+
   > python genkernelstub.py tests/test_files/dynamo0p3/ru_kernel_mod.f90
 
 we obtain the following output:
 ::
+
   MODULE ru_code_mod
     IMPLICIT NONE
     CONTAINS
@@ -271,6 +280,7 @@ The following tests do not produce stub kernel code either because
 they are invalid or because they contain functionality that is not
 supported in the stub generator.
 ::
+
     tests/test_files/dynamo0p3/matrix_vector_mm_mod.f90
     tests/test_files/dynamo0p3/testkern_any_space_1_mod.f90
     tests/test_files/dynamo0p3/testkern_any_space_2_mod.f90
@@ -284,6 +294,7 @@ supported in the stub generator.
 ``matrix_vector_mm_mod.f90`` are designed to be invalid for PSyclone
 testing purposes and should produce appropriate errors. For example:
 ::
+
     > python genkernelstub.py tests/test_files/dynamo0p3/testkern_invalid_fortran.F90 
     Error: 'Parse Error: Code appears to be invalid Fortran'
 
@@ -291,6 +302,7 @@ testing purposes and should produce appropriate errors. For example:
 ``testkern_any_space_1_mod.f90`` and ``testkern_any_space_2_mod.f90``
 should fail with appropriate warnings because of that. For example:
 ::
+
     > python genkernelstub.py tests/test_files/dynamo0p3/testkern_any_space_1_mod.f90
     Error: "Generation Error: Unknown space, expecting one of 'W0,W1,W2,W3' but found 'any_space_1'"
 

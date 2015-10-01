@@ -1151,11 +1151,12 @@ class DynKern(Kern):
                                 first_arg = False
                                 first_arg_decl = decl
                         else:
-                            text = arg.proxy_name+"("+str(idx)+")"+dataref
+                            text = arg.proxy_name + "(" + str(idx) + ")" + \
+                                   dataref
                         arglist.append(text)
                 else:
                     if my_type == "subroutine":
-                        text = arg.name+"_"+arg.function_space
+                        text = arg.name + "_" + arg.function_space
                         intent = arg.intent
                         decl = DeclGen(parent, datatype="real",
                                        kind="r_def", dimension=undf_name,
