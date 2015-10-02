@@ -390,8 +390,9 @@ class GOKern(Kern):
                                       format(self._name, arg.name, arg.type))
 
         parent.add(CallGen(parent, self._name, arguments))
-        parent.add(UseGen(parent, name=self._module_name, only=True,
-                          funcnames=[self._name]))
+        if not self.module_inline:
+            parent.add(UseGen(parent, name=self._module_name, only=True,
+                              funcnames=[self._name]))
 
     @property
     def index_offset(self):
