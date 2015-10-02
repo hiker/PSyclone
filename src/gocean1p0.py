@@ -89,6 +89,8 @@ class GOPSy(PSy):
         psy_module.add(UseGen(psy_module, name="field_mod"))
         # add in the subroutines for each invocation
         self.invokes.gen_code(psy_module)
+        # inline kernels where requested
+        self.inline(psy_module)
         return psy_module.root
 
 class GOInvokes(Invokes):

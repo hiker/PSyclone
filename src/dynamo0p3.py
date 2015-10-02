@@ -417,6 +417,8 @@ class DynamoPSy(PSy):
                               funcnames=["r_def"]))
         # add all invoke specific information
         self.invokes.gen_code(psy_module)
+        # inline kernels where requested
+        self.inline(psy_module)
         # return the generated code
         return psy_module.root
 
