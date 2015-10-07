@@ -567,8 +567,12 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
 
 class ColourTrans(Transformation):
 
-    ''' Apply a colouring transformation to a loop (in order to permit a
-        subsequent OpenMP parallelisation over colours). For example:
+    '''Apply a colouring transformation to a loop.
+
+    Transform a loop over cells (columns) into a doubly-nested loop
+    where the outer loop is over colours and the inner is over points
+    of that colour. This then permits a subsequent OpenMP
+    parallelisation of the inner loop. For example:
 
     >>> invoke = ...
     >>> schedule = invoke.schedule
