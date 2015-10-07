@@ -82,6 +82,24 @@ def test_colouring_not_a_loop():
         _, _ = ctrans.apply(schedule)
 
 
+def test_colour_w3():
+    ''' Test that we raise an appropriate error if we attempt to
+    colour a loop that is on W3 (since colouring is not needed
+    on this space and is therefore not supported by the Dynamo
+    infrastructure) '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1.5_single_invoke_write_w3.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.get('invoke_0_compute_total_pv_kernel_type')
+    schedule = invoke.schedule
+    ctrans = Dynamo0p3ColourTrans()
+
+    with pytest.raises(TransformationError):
+        _, _ = ctrans.apply(schedule.children[0])
+
+
 def test_omp_name():
     ''' Test the name property of the Dynamo0p3OMPLoopTrans class '''
     olooptrans = Dynamo0p3OMPLoopTrans()
