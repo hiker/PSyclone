@@ -45,6 +45,9 @@ def test_colour_trans():
     # a string
     gen = str(psy.gen)
 
+    # Check that we're 'use'ing the mesh_mod module
+    assert "USE mesh_mod, ONLY: mesh_type" in gen
+
     # Check that we're calling the API to get the no. of colours
     assert "_mesh_ptr%get_colours_w1(" in gen
 

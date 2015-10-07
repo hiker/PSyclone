@@ -647,7 +647,7 @@ class DynInvoke(Invoke):
         layer). This consists of the PSy invocation subroutine and the
         declaration of its arguments. '''
         from f2pygen import SubroutineGen, TypeDeclGen, AssignGen, DeclGen, \
-            AllocateGen, DeallocateGen, CallGen, CommentGen
+            AllocateGen, DeallocateGen, CallGen, CommentGen, UseGen
         # create a namespace manager so we can avoid name clashes
         self._name_space_manager = NameSpaceFactory().create()
         # create the subroutine
@@ -679,8 +679,10 @@ class DynInvoke(Invoke):
             if arg.vector_size > 1:
                 for idx in range(1, arg.vector_size+1):
                     invoke_sub.add(AssignGen(invoke_sub,
-                                   lhs=arg.proxy_name+"("+str(idx)+")",
-                                   rhs=arg.name+"("+str(idx)+")%get_proxy()"))
+                                             lhs=arg.proxy_name + \
+                                             "("+str(idx)+")",
+                                             rhs=arg.name + \
+                                             "("+str(idx)+")%get_proxy()"))
             else:
                 invoke_sub.add(AssignGen(invoke_sub, lhs=arg.proxy_name,
                                          rhs=arg.name+"%get_proxy()"))
@@ -688,13 +690,13 @@ class DynInvoke(Invoke):
         field_proxy_decs = self.unique_declarations("gh_field", proxy=True)
         if len(field_proxy_decs) > 0:
             invoke_sub.add(TypeDeclGen(invoke_sub,
-                           datatype="field_proxy_type",
-                           entity_decls=field_proxy_decs))
+                                       datatype="field_proxy_type",
+                                       entity_decls=field_proxy_decs))
         op_proxy_decs = self.unique_declarations("gh_operator", proxy=True)
         if len(op_proxy_decs) > 0:
             invoke_sub.add(TypeDeclGen(invoke_sub,
-                           datatype="operator_proxy_type",
-                           entity_decls=op_proxy_decs))
+                                       datatype="operator_proxy_type",
+                                       entity_decls=op_proxy_decs))
         # Initialise the number of layers
         invoke_sub.add(CommentGen(invoke_sub, ""))
         invoke_sub.add(CommentGen(invoke_sub, " Initialise number of layers"))
@@ -707,8 +709,8 @@ class DynInvoke(Invoke):
         nlayers_name = self._name_space_manager.create_name(
             root_name="nlayers", context="PSyVars", label="nlayers")
         invoke_sub.add(AssignGen(invoke_sub, lhs=nlayers_name,
-                       rhs=first_var.proxy_name_indexed + "%" +
-                       first_var.ref_name + "%get_nlayers()"))
+                                 rhs=first_var.proxy_name_indexed + "%" +
+                                 first_var.ref_name + "%get_nlayers()"))
         invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                entity_decls=[nlayers_name]))
         if self.qr_required:
@@ -717,13 +719,14 @@ class DynInvoke(Invoke):
             invoke_sub.add(CommentGen(invoke_sub, " Initialise qr values"))
             invoke_sub.add(CommentGen(invoke_sub, ""))
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-                           entity_decls=["nqp_h", "nqp_v"]))
+                                   entity_decls=["nqp_h", "nqp_v"]))
             invoke_sub.add(DeclGen(invoke_sub, datatype="real", pointer=True,
-                           kind="r_def", entity_decls=["xp(:,:) => null()"]))
+                                   kind="r_def",
+                                   entity_decls=["xp(:,:) => null()"]))
             decl_list = ["zp(:) => null()", "wh(:) => null()",
                          "wv(:) => null()"]
             invoke_sub.add(DeclGen(invoke_sub, datatype="real", pointer=True,
-                           kind="r_def", entity_decls=decl_list))
+                                   kind="r_def", entity_decls=decl_list))
             if len(self._psy_unique_qr_vars) > 1:
                 raise GenerationError(
                     "Oops, not yet coded for multiple qr values")
@@ -733,14 +736,18 @@ class DynInvoke(Invoke):
             qr_vars = ["nqp_h", "nqp_v"]
             for qr_var in qr_ptr_vars.keys():
                 invoke_sub.add(AssignGen(invoke_sub, pointer=True, lhs=qr_var,
-                               rhs=qr_var_name + "%get_" +
-                               qr_ptr_vars[qr_var] + "()"))
+                                         rhs=qr_var_name + "%get_" +
+                                         qr_ptr_vars[qr_var] + "()"))
             for qr_var in qr_vars:
                 invoke_sub.add(AssignGen(invoke_sub, lhs=qr_var,
-                               rhs=qr_var_name + "%get_" + qr_var + "()"))
+                                         rhs=qr_var_name + "%get_" + \
+                                         qr_var + "()"))
 
         if self.is_coloured():
-            # We'll need a pointer to the mesh object in order to 
+            # We need to 'use' the mesh module
+            invoke_sub.add(UseGen(invoke_sub, name="mesh_mod", only="True",
+                                  funcnames=["mesh_type"]))
+            # We'll need a pointer to the mesh object in order to
             # look-up colour maps
             mesh_var_name = first_var.name+"_mesh_ptr"
             invoke_sub.add(TypeDeclGen(invoke_sub, datatype="mesh_type",
@@ -748,7 +755,7 @@ class DynInvoke(Invoke):
                                        entity_decls=[mesh_var_name]))
 
             invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(CommentGen(invoke_sub, 
+            invoke_sub.add(CommentGen(invoke_sub,
                                       " Get a ptr to the mesh object so " +
                                       "that we can look-up colour maps"))
             invoke_sub.add(CommentGen(invoke_sub, ""))
@@ -769,9 +776,9 @@ class DynInvoke(Invoke):
             invoke_sub.add(CommentGen(invoke_sub, ""))
             if is_coloured:
                 invoke_sub.add(CommentGen(invoke_sub,
-                                          " Initialise sizes, look-up colour map and "
-                                          "allocate any basis arrays for "+\
-                                          function_space))
+                                          " Initialise sizes, look-up colour"+\
+                                          " map and allocate any basis "+\
+                                          "arrays for " + function_space))
             else:
                 invoke_sub.add(CommentGen(invoke_sub,
                                           " Initialise sizes and "
@@ -787,7 +794,8 @@ class DynInvoke(Invoke):
             ndf_name = self.ndf_name(function_space)
             var_list.append(ndf_name)
             invoke_sub.add(AssignGen(invoke_sub, lhs=ndf_name,
-                                     rhs=name+"%"+arg.ref_name+"%get_ndf()"))
+                                     rhs=name+"%" + arg.ref_name + \
+                                     "%get_ndf()"))
             # if there is a field on this space then initialise undf
             # for this function space and add name to list to declare
             # later
@@ -795,7 +803,8 @@ class DynInvoke(Invoke):
                 undf_name = self.undf_name(function_space)
                 var_list.append(undf_name)
                 invoke_sub.add(AssignGen(invoke_sub, lhs=undf_name,
-                               rhs=name+"%"+arg.ref_name+"%get_undf()"))
+                                         rhs=name + "%" + arg.ref_name + \
+                                         "%get_undf()"))
 
             if is_coloured:
                 # Add declarations of the colour map and array holding the
@@ -859,10 +868,11 @@ class DynInvoke(Invoke):
             ncol_list = []
             for space in cmap_list:
                 ncol_list.append("ncolours_"+space)
-                invoke_sub.add(DeclGen(parent, datatype = "integer",
+                invoke_sub.add(DeclGen(parent, datatype="integer",
                                        pointer=True,
-                                       entity_decls = ["cmap_"+space+"(:,:)",
-                                                       "ncp_colour_"+space+"(:)"]))
+                                       entity_decls=["cmap_"+space+"(:,:)",
+                                                     "ncp_colour_"+space+\
+                                                     "(:)"]))
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    entity_decls=ncol_list))
 
@@ -888,8 +898,9 @@ class DynInvoke(Invoke):
                     name = arg.proxy_name_indexed
                     # insert the basis array call
                     invoke_sub.add(CallGen(invoke_sub,
-                                   name=name + "%" + arg.ref_name +
-                                   "%compute_basis_function", args=args))
+                                           name=name + "%" + arg.ref_name +
+                                           "%compute_basis_function",
+                                           args=args))
                 if self.diff_basis_required(function_space):
                     # Create the argument list
                     args = []
@@ -903,8 +914,9 @@ class DynInvoke(Invoke):
                     name = arg.proxy_name_indexed
                     # insert the diff basis array call
                     invoke_sub.add(CallGen(invoke_sub, name=name + "%" +
-                                   arg.ref_name +
-                                   "%compute_diff_basis_function", args=args))
+                                           arg.ref_name +
+                                           "%compute_diff_basis_function",
+                                           args=args))
 
         invoke_sub.add(CommentGen(invoke_sub, ""))
         invoke_sub.add(CommentGen(invoke_sub, " Call our kernels"))
@@ -981,9 +993,8 @@ class DynLoop(Loop):
         # Check that we're not within an OpenMP parallel region if
         # we are a loop over colours.
         if self._loop_type == "colours" and self.is_openmp_parallel():
-                    raise GenerationError("Cannot have a loop over "
-                                          "colours within an OpenMP "
-                                          "parallel region.")
+            raise GenerationError("Cannot have a loop over colours "
+                                  "within an OpenMP parallel region.")
         # Set-up loop bounds
         self._start = "1"
         if self._loop_type == "colours":
@@ -1272,7 +1283,7 @@ class DynKern(Kern):
             arglist.append(ndf_name)
             if my_type == "subroutine":
                 parent.add(DeclGen(parent, datatype="integer", intent="in",
-                           entity_decls=[ndf_name]))
+                                   entity_decls=[ndf_name]))
             # 3.1.1 Provide additional compulsory arguments if there
             # is a field on this space
             if self.field_on_space(unique_fs):
@@ -1445,7 +1456,7 @@ class DynKern(Kern):
         # loop then we have to look-up the colour map for the appropriate
         # function space. We do this by looking for the field that has INC
         # access (it is mandated that there must be one or zero of these). If
-        # none is found we use the first field that has WRITE access. 
+        # none is found we use the first field that has WRITE access.
         # TODO Can a kernel write to multiple fields on different spaces?
         if self.is_coloured():
 
@@ -1520,8 +1531,8 @@ class DynKern(Kern):
                 if fs_descriptor.orientation:
                     field = self._arguments.get_field(unique_fs)
                     parent.add(AssignGen(parent, pointer=True,
-                               lhs=fs_descriptor.orientation_name,
-                               rhs=field.proxy_name_indexed + "%" +
+                                         lhs=fs_descriptor.orientation_name,
+                                         rhs=field.proxy_name_indexed + "%" +
                                          field.ref_name +
                                          "%get_cell_orientation(" +
                                          dofmap_args + ")"))
@@ -1814,6 +1825,7 @@ class DynKernelArgument(Argument):
 
     @property
     def descriptor(self):
+        ''' Returns the descriptor-object for this argument '''
         return self._arg
 
     @property
@@ -1880,6 +1892,7 @@ class DynKernelArgument(Argument):
 
     @property
     def intent(self):
+        ''' Returns the Fortran INTENT of this argument as a string '''
         if self.access == "gh_read":
             return "in"
         elif self.access == "gh_write":
