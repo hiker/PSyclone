@@ -1166,7 +1166,16 @@ class Kern(Call):
         return self._module_inline
     @module_inline.setter
     def module_inline(self,value):
-        self._module_inline = value
+        # check all kernels in the same invoke as this one and set any
+        # with the same name to the same value as this one. This is
+        # required as inlining (or not) affects all calls to the same
+        # kernel within an invoke. Note, this will set this kernel as
+        # well so there is no need to set it locally.
+        my_schedule = self.ancestor(Schedule)
+        for kernel in self.walk(my_schedule.children, Kern):
+            if kernel.name == self.name:
+                kernel._module_inline = value
+
     def view(self, indent = 0):
         print self.indent(indent)+"KernCall", \
               self.name+"("+str(self.arguments.raw_arg_list)+")", \

@@ -6,10 +6,10 @@
 !-------------------------------------------------------------------------------
 ! Author R, Ford STFC Daresbury Lab
 
-PROGRAM module_inline_with_use_clash
+PROGRAM module_inline_same_kernel
 
-  use use_kern2_mod, only: use_kern2
+  use time_smooth_mod, only: time_smooth
 
-  call invoke( use_kern2(a) )
+  call invoke( time_smooth(a,b,c), time_smooth(b,c,d) )
 
-END PROGRAM module_inline_with_use_clash
+END PROGRAM module_inline_with_use

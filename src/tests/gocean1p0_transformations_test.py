@@ -901,51 +901,17 @@ def test_module_inline_with_module_use():
     assert 'USE bc_ssh_mod, ONLY: bc_ssh_code' not in gen
 
 
-def test_module_inline_with_module_use():
-    ''' Test that we can module inline a kernel subroutine whose module
-    contains a use statement.'''
-    psy, invoke = get_invoke("test14_invoke_module_inline_with_use.f90", 0)
+def test_module_inline_same_kernel():
+    '''Tests that correct results are obtained when an invoke that uses
+    the same kernel subroutine more than once has that kernel
+    inlined'''
+    psy, invoke = get_invoke("test14_module_inline_same_kernel.f90", 0)
     schedule = invoke.schedule
     kern_call = schedule.children[0].children[0].children[0]
     inline_trans = KernelModuleInlineTrans()
     schedule, _ = inline_trans.apply(kern_call)
     gen=str(psy.gen)
     # check that the subroutine has been inlined
-    assert 'SUBROUTINE use_kern1_code(a)' in gen
-    # check that the use statement specified in the Kernel code exists
-    assert 'USE module2' in gen
-    # check that the use statement specified in the Kernel module exists
-    assert 'USE module1' in gen
-    # check that the associated psy use does not exist
-    assert 'USE use_kern1_mod, ONLY: use_kern1_code' not in gen
-
-
-def test_module_inline_with_module_use_clash():
-    ''' Test that we can module inline a kernel subroutine whose
-    module and subroutine contain use statement of various types
-    including ones which clash with each other'''
-    psy, invoke = get_invoke(
-        "test15_invoke_module_inline_with_use_clash.f90", 0)
-    schedule = invoke.schedule
-    kern_call = schedule.children[0].children[0].children[0]
-    inline_trans = KernelModuleInlineTrans()
-    schedule, _ = inline_trans.apply(kern_call)
-    gen=str(psy.gen)
-    # check that the subroutine has been inlined
-    assert 'SUBROUTINE use_kern2_code()' in gen
-    # check that the associated psy use does not exist
-    assert 'USE use_kern2_mod, ONLY: use_kern2_code' not in gen
-    # check that the expected use statements specified in the Kernel code exist
-    assert 'USE module2, only : e' in gen
-    assert 'USE module3, only : f,g' in gen
-    assert 'USE module4, only : h,i,n' in gen
-    assert 'USE module5' in gen
-    assert 'USE module6' in gen
-    assert 'USE module7, only : k,p' in gen
-    assert 'USE module8, only : l' in gen
-    assert 'USE module9' in gen
-    assert 'USE module10, only : a,b' in gen
-    assert 'USE module11, only : c' in gen
-    assert 'USE module12, only : d,m' in gen
-    assert 'USE module13, only : q' in gen
-    assert 'USE module14' in gen
+    assert 'SUBROUTINE time_smooth_code(' in gen
+    # check that the associated psy "use" does not exist
+    assert 'USE time_smooth_mod, ONLY: time_smooth_code' not in gen
