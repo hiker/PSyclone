@@ -739,6 +739,23 @@ class DynInvoke(Invoke):
             for qr_var in qr_vars:
                 invoke_sub.add(AssignGen(invoke_sub, lhs=qr_var,
                                rhs=qr_var_name + "%get_" + qr_var + "()"))
+
+        if self.is_coloured:
+            # We'll need a pointer to the mesh object in order to 
+            # look-up colour maps
+            mesh_var_name = first_var.name+"_mesh_ptr"
+            invoke_sub.add(TypeDeclGen(invoke_sub, datatype="mesh_type",
+                                       pointer=True,
+                                       entity_decls=[mesh_var_name]))
+
+            invoke_sub.add(CommentGen(invoke_sub, ""))
+            invoke_sub.add(CommentGen(invoke_sub, 
+                                      " Get a ptr to the mesh object so " +
+                                      "that we can look-up colour maps"))
+            invoke_sub.add(CommentGen(invoke_sub, ""))
+            invoke_sub.add(AssignGen(invoke_sub, lhs=mesh_var_name,
+                                     rhs=first_var.name + "%get_mesh()"))
+
         operator_declarations = []
         var_list = []
         var_dim_list = []
@@ -786,7 +803,7 @@ class DynInvoke(Invoke):
                 # no. of cells of each colour
                 cmap_list.append(function_space)
 
-                cname = name+"%mesh%get_colours_"+function_space
+                cname = mesh_var_name+"%get_colours_"+function_space
                 invoke_sub.add(CallGen(invoke_sub,
                                        name=cname,
                                        args=["ncolours_"+function_space,

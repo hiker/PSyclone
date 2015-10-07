@@ -46,7 +46,7 @@ def test_colour_trans():
     gen = str(psy.gen)
 
     # Check that we're calling the API to get the no. of colours
-    assert "XXX%get_colours(" in gen
+    assert "_mesh_ptr%get_colours_w1(" in gen
 
     col_loop_idx = -1
     cell_loop_idx = -1
@@ -391,8 +391,10 @@ def test_colouring_multi_kernel():
     gen = str(psy.gen)
 
     # Check that we're calling the API to get the no. of colours
-    assert "a_proxy%vspace%get_colours(" in gen
-    assert "f_proxy%vspace%get_colours(" in gen
+    assert "INTEGER ncolours_w2" in gen
+    assert "INTEGER, pointer :: cmap_w2(:,:), ncp_colour_w2(:)" in gen
+    assert "TYPE(mesh_type), pointer :: a_mesh_ptr" in gen
+    assert "a_mesh_ptr%get_colours_w2(" in gen
     assert "private(cell,map_w2,map_w3,map_w0)" in gen
 
 
@@ -422,8 +424,26 @@ def test_colouring_kernels_different_spaces():
     invoke.schedule = newsched
     gen = str(psy.gen)
 
-    print gen
-    assert 1 == 0
+    assert "INTEGER ncolours_w2, ncolours_w1" in gen
+    assert "INTEGER, pointer :: cmap_w1(:,:), ncp_colour_w1(:)" in gen
+    assert "INTEGER, pointer :: cmap_w2(:,:), ncp_colour_w2(:)" in gen
+    assert "CALL a_mesh_ptr%get_colours_w1(ncolours_w1, ncp_colour_w1, " +\
+        "cmap_w1)" in gen
+    assert "CALL a_mesh_ptr%get_colours_w2(ncolours_w2, ncp_colour_w2, " +\
+        "cmap_w2)" in gen
+
+    assert """DO colour=1,ncolours_w2
+        !$omp parallel do default(shared), private(cell,map_w2,map_w3,map_w0,map_w1), schedule(static)
+        DO cell=1,ncp_colour_w2(colour)
+          !
+          map_w2 => a_proxy%vspace%get_cell_dofmap(cmap_w2(colour, cell))""" \
+    in gen
+    assert """DO colour=1,ncolours_w1
+        !$omp parallel do default(shared), private(cell,map_w2,map_w3,map_w0,map_w1), schedule(static)
+        DO cell=1,ncp_colour_w1(colour)
+          !
+          map_w1 => f_proxy%vspace%get_cell_dofmap(cmap_w1(colour, cell))""" \
+in gen
 
 
 def test_omp_region_omp_do():
