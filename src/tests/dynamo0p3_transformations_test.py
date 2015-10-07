@@ -15,7 +15,8 @@ from transformations import TransformationError,\
     Dynamo0p3ColourTrans,\
     Dynamo0p3OMPLoopTrans,\
     DynamoOMPParallelLoopTrans,\
-    DynamoLoopFuseTrans
+    DynamoLoopFuseTrans,\
+    KernelModuleInlineTrans
 import os
 import pytest
 
@@ -696,3 +697,23 @@ def test_fuse_colour_loops():
     assert call_idx2 > call_idx1
     assert call_idx1 < end_loop_idx1
     assert call_idx2 < end_loop_idx2
+
+def test_module_inline():
+    '''Tests that correct results are obtained when a kernel is inlined
+    into the psy-layer in the dynamo0.3 API. More in-depth tests can be
+    found in the gocean1p0_transformations.py file'''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "4.6_multikernel_invokes.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.get('invoke_0')
+    schedule = invoke.schedule
+    kern_call = schedule.children[0].children[0]
+    inline_trans = KernelModuleInlineTrans()
+    schedule, _ = inline_trans.apply(kern_call)
+    gen=str(psy.gen)
+    # check that the subroutine has been inlined
+    assert 'SUBROUTINE ru_code()' in gen
+    # check that the associated psy "use" does not exist
+    assert 'USE ru_kernel_mod, only : ru_code' not in gen
