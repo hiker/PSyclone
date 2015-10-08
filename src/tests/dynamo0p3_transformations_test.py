@@ -261,12 +261,14 @@ def test_omp_colour_orient_trans():
     invoke.schedule = schedule
     code = str(psy.gen)
 
+    print code
+
     # Check that we're using the (correct) colour map when getting the
     # orientation
-    assert "get_cell_orientation(cmap_w3(colour, cell))" in code
+    assert "get_cell_orientation(cmap_w2(colour, cell))" in code
 
     # Check that the list of private variables is correct
-    assert "private(cell,map_w3,map_w2,map_w0,orientation_w2)" in code
+    assert "private(cell,map_w2,map_w3,map_w0,orientation_w3)" in code
 
 
 def test_omp_parallel_colouring_needed():

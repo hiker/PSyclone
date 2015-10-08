@@ -663,7 +663,7 @@ class Dynamo0p1ColourTrans(Transformation):
         # check node is a loop
         from psyGen import Loop
         if not isinstance(node, Loop):
-            raise Exception("Error in LoopColour transformation. The "
+            raise Exception("Error in "+self.name+" transformation. The "
                             "node is not a loop")
         # Check iteration space is supported - only cells at the moment
         if not node.iteration_space == "cells":
@@ -726,7 +726,8 @@ class Dynamo0p3ColourTrans(ColourTrans):
       that field is on w3
     * A kernel may have at most one field with 'INC' access
     * Attempting to colour a kernel that updates a field on w3 (with INC
-      access) should result in PSyclone issuing a warning
+      access) should result in PSyclone issuing an error since colouring is
+      not required (and is not supported by the Dynamo infrastructure).
     * Attempting to colour any kernel that doesn't have a field with INC
       access should also result in PSyclone issuing a warning.
     * A separate colour map will be required for each field that is coloured
@@ -752,13 +753,12 @@ class Dynamo0p3ColourTrans(ColourTrans):
         # check node is a loop
         from psyGen import Loop
         if not isinstance(node, Loop):
-            raise TransformationError("Error in DynamoColour transformation. "
+            raise TransformationError("Error in Dynamo0p3ColourTrans. "
                                       "The supplied node is not a loop")
         # Check we need colouring
         if node.field_space == "w3":
-            pass
-            #TODO generate a warning here as we don't need to colour
-            # a loop that updates a field on W3.
+            raise TransformationError(
+                "Colouring a loop on W3 is unecessary and is not supported.")
 
         # Check whether we have a field that has INC access
         if not node.has_inc_arg():
