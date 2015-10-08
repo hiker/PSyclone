@@ -637,6 +637,18 @@ class ColourTrans(Transformation):
 
 
 class KernelModuleInlineTrans(Transformation):
+    '''Switches on, or switches off, the inlining of a Kernel subroutine
+    into the PSy layer module. For example:
+
+    >>> invoke = ...
+    >>> schedule = invoke.schedule
+    >>>
+    >>> inline_trans = KernelModuleInlineTrans()
+    >>>
+    >>> ischedule, _ = inline_trans.apply(schedule.children[0].children[0])
+    >>> ischedule.view()
+
+    '''
 
     def __str__(self):
         return "Inline (or cancel inline of) a kernel subroutine into the PSy \
@@ -644,10 +656,14 @@ class KernelModuleInlineTrans(Transformation):
 
     @property
     def name(self):
+        ''' Returns the name of this transformation as a string '''
         return "KernelModuleInline"
 
     def apply(self, node, inline=True):
-
+        '''Checks that the node is of the correct type (a Kernel) then marks
+        the Kernel to be inlined, or not, depending on the value of
+        the inline argument. If the inline argument is not passed the
+        Kernel is marked to be inlined.'''
         # check node is a kernel
         from psyGen import Kern
         if not isinstance(node, Kern):

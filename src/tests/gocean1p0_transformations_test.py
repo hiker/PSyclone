@@ -12,7 +12,7 @@
 from parse import parse
 from psyGen import PSyFactory
 from transformations import TransformationError, LoopFuseTrans,\
-    OMPParallelTrans, GOceanLoopFuseTrans, GOceanOMPParallelLoopTrans,\
+    OMPParallelTrans, GOceanOMPParallelLoopTrans,\
     GOceanOMPLoopTrans, KernelModuleInlineTrans
 from generator import GenerationError
 import os
@@ -788,8 +788,7 @@ def test_omp_schedule_auto_with_chunk():
 
 def test_module_noinline_default():
     ''' Test that by default there is no module inlining '''
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", 0)
-    schedule = invoke.schedule
+    psy, _ = get_invoke("single_invoke_three_kernels.f90", 0)
     gen = str(psy.gen)
     # check that the subroutine has not been inlined
     assert 'SUBROUTINE compute_cu_code(i, j, cu, p, u)' not in gen
@@ -858,7 +857,7 @@ def test_module_no_inline_with_transformation():
 def test_transformation_inline_error_if_not_kernel():
     ''' Test that the inline transformation fails if the object being
     passed is not a kernel'''
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", 0)
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", 0)
     schedule = invoke.schedule
     kern_call = schedule.children[0].children[0]
     inline_trans = KernelModuleInlineTrans()
@@ -908,7 +907,7 @@ def test_module_inline_same_kernel():
     schedule = invoke.schedule
     kern_call = schedule.children[0].children[0].children[0]
     inline_trans = KernelModuleInlineTrans()
-    schedule, _ = inline_trans.apply(kern_call)
+    _, _ = inline_trans.apply(kern_call)
     gen = str(psy.gen)
     # check that the subroutine has been inlined
     assert 'SUBROUTINE time_smooth_code(' in gen
