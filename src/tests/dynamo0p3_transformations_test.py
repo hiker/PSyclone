@@ -698,6 +698,7 @@ def test_fuse_colour_loops():
     assert call_idx1 < end_loop_idx1
     assert call_idx2 < end_loop_idx2
 
+
 def test_module_inline():
     '''Tests that correct results are obtained when a kernel is inlined
     into the psy-layer in the dynamo0.3 API. More in-depth tests can be
@@ -712,7 +713,7 @@ def test_module_inline():
     kern_call = schedule.children[0].children[0]
     inline_trans = KernelModuleInlineTrans()
     schedule, _ = inline_trans.apply(kern_call)
-    gen=str(psy.gen)
+    gen = str(psy.gen)
     # check that the subroutine has been inlined
     assert 'SUBROUTINE ru_code()' in gen
     # check that the associated psy "use" does not exist

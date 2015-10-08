@@ -792,7 +792,7 @@ def test_module_noinline_default():
     ''' Test that by default there is no module inlining '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", 0)
     schedule = invoke.schedule
-    gen=str(psy.gen)
+    gen = str(psy.gen)
     # check that the subroutine has not been inlined
     assert 'SUBROUTINE compute_cu_code(i, j, cu, p, u)' not in gen
     # check that the associated use exists (as this is removed when
@@ -808,7 +808,7 @@ def test_module_inline():
     schedule = invoke.schedule
     kern_call = schedule.children[0].children[0].children[0]
     kern_call.module_inline = True
-    gen=str(psy.gen)
+    gen = str(psy.gen)
     # check that the subroutine has been inlined
     assert 'SUBROUTINE compute_cu_code(i, j, cu, p, u)' in gen
     # check that the associated use no longer exists
@@ -823,7 +823,7 @@ def test_module_inline_with_transformation():
     kern_call = schedule.children[1].children[0].children[0]
     inline_trans = KernelModuleInlineTrans()
     schedule, _ = inline_trans.apply(kern_call)
-    gen=str(psy.gen)
+    gen = str(psy.gen)
     # check that the subroutine has been inlined
     assert 'SUBROUTINE compute_cv_code(i, j, cv, p, v)' in gen
     # check that the associated use no longer exists
@@ -842,7 +842,7 @@ def test_module_no_inline_with_transformation():
     inline_trans = KernelModuleInlineTrans()
     # use a transformation to switch inlining off again
     schedule, _ = inline_trans.apply(kern_call, inline=False)
-    gen=str(psy.gen)
+    gen = str(psy.gen)
     # check that the subroutine has not been inlined
     assert 'SUBROUTINE compute_cu_code(i, j, cu, p, u)' not in gen
     # check that the associated use exists (as this is removed when
@@ -856,7 +856,7 @@ def test_module_no_inline_with_transformation():
 # never thrown. This would be testable if "inline" were a function.
 # def test_inline_error_if_not_kernel():
 
-    
+
 def test_transformation_inline_error_if_not_kernel():
     ''' Test that the inline transformation fails if the object being
     passed is not a kernel'''
@@ -876,13 +876,14 @@ def test_module_inline_with_sub_use():
     kern_call = schedule.children[0].children[0].children[0]
     inline_trans = KernelModuleInlineTrans()
     schedule, _ = inline_trans.apply(kern_call)
-    gen=str(psy.gen)
+    gen = str(psy.gen)
     # check that the subroutine has been inlined
     assert 'SUBROUTINE bc_ssh_code(ji, jj, istep, ssha, tmask)' in gen
     # check that the use within the subroutine exists
     assert 'USE model_mod, ONLY: rdt' in gen
     # check that the associated psy use does not exist
     assert 'USE bc_ssh_mod, ONLY: bc_ssh_code' not in gen
+
 
 def test_module_inline_with_module_use():
     ''' Test that we can module inline a kernel subroutine whose module
@@ -892,7 +893,7 @@ def test_module_inline_with_module_use():
     kern_call = schedule.children[0].children[0].children[0]
     inline_trans = KernelModuleInlineTrans()
     schedule, _ = inline_trans.apply(kern_call)
-    gen=str(psy.gen)
+    gen = str(psy.gen)
     # check that the subroutine has been inlined
     assert 'SUBROUTINE bc_ssh_code(ji, jj, istep, ssha, tmask)' in gen
     # check that the use within the subroutine exists
@@ -910,7 +911,7 @@ def test_module_inline_same_kernel():
     kern_call = schedule.children[0].children[0].children[0]
     inline_trans = KernelModuleInlineTrans()
     schedule, _ = inline_trans.apply(kern_call)
-    gen=str(psy.gen)
+    gen = str(psy.gen)
     # check that the subroutine has been inlined
     assert 'SUBROUTINE time_smooth_code(' in gen
     # check that the associated psy "use" does not exist

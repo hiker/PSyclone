@@ -248,8 +248,8 @@ class GOKern(Kern):
                 arguments.append(arg.name)
         parent.add(CallGen(parent, self._name, arguments))
         if not self.module_inline:
-            parent.add(UseGen(parent, name = self._module_name, only = True,
-                              funcnames = [self._name]))
+            parent.add(UseGen(parent, name=self._module_name, only=True,
+                              funcnames=[self._name]))
 
 class GOKernelArguments(Arguments):
     ''' Provides information about GOcean kernel call arguments collectively,

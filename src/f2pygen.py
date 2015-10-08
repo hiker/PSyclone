@@ -106,17 +106,18 @@ class BaseGen(object):
         index = len(self.root.content)-1
         found = False
         while not found and index>=0:
-            #if self.root.content[index].__class__.__name__==Do.__name__:
+            # if self.root.content[index].__class__.__name__==Do.__name__:
             if isinstance(self.root.content[index],Do):
                 found = True
             else:
                 index -= 1
         if not found:
-            print "Number of lines: ",len(self.root.content)
+            print "Number of lines: ", len(self.root.content)
             print "Lines ..."
             for line in self.root.content:
-                print "    "+str(type(line))
-            raise RuntimeError("Error, expecting to find a loop but none were found")
+                print "    " + str(type(line))
+            raise RuntimeError(
+                "Error, expecting to find a loop but none were found")
         return self.root.content[index]
 
     def start_parent_loop(self, debug = False):
@@ -279,16 +280,20 @@ end module vanilla
         endmod=module.content[len(module.content)-1]
         endmod.name=name
         ProgUnitGen.__init__(self,None,module)
-    def add_raw_subroutine(self,content):
+
+    def add_raw_subroutine(self, content):
         ''' adds a subroutine to the module that is a raw f2py parse object.
             This is used for inlining kernel subroutines into a module.
         '''
         from parse import KernelProcedure
-        if not isinstance(content,KernelProcedure):
-            raise Exception("Expecting a KernelProcedure type but received "+str(type(content)))
-        content.ast.parent=self.root
-        index=len(self.root.content)-1 # append
-        self.root.content.insert(index,content.ast)
+        if not isinstance(content, KernelProcedure):
+            raise Exception(
+                "Expecting a KernelProcedure type but received " +
+                str(type(content)))
+        content.ast.parent = self.root
+        index = len(self.root.content) - 1  # append
+        self.root.content.insert(index, content.ast)
+
     def add(self,content,position=["auto"]):
         ''' specialise the add method to include a module specific check '''
         if not content.parent==self:

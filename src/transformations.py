@@ -165,7 +165,7 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         except TransformationError as err:
             raise err
         except Exception as err:
-            raise TransformationError("Unexpected exception: {0}".\
+            raise TransformationError("Unexpected exception: {0}".
                                       format(err))
         return LoopFuseTrans.apply(self, node1, node2)
 
@@ -432,7 +432,7 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         # Check iteration space is supported - only cells at the moment
         if not node.iteration_space == "cells":
             raise TransformationError("Error in {0} transformation. The "
-                                      "iteration space is not 'cells'.".\
+                                      "iteration space is not 'cells'.".
                                       format(self.name))
         # If the loop is not already coloured then check whether or not
         # it should be. If the field space is W3 then we don't need
@@ -441,7 +441,7 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
             if node.loop_type is not 'colour' and node.has_inc_arg():
                 raise TransformationError(
                     "Error in {0} transformation. The kernel has an "
-                    "argument with INC access. Colouring is required.".\
+                    "argument with INC access. Colouring is required.".
                     format(self.name))
 
         return OMPParallelLoopTrans.apply(self, node)
@@ -517,14 +517,14 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
         # Check iteration space is supported - only cells at the moment
         if not node.iteration_space == "cells":
             raise TransformationError("Error in {0} transformation. The "
-                                      "iteration space is not 'cells'.".\
+                                      "iteration space is not 'cells'.".
                                       format(self.name))
         # If the loop is not already coloured then check whether or not
         # it should be
         if node.loop_type is not 'colour' and node.has_inc_arg():
             raise TransformationError(
                 "Error in {0} transformation. The kernel has an argument"
-                " with INC access. Colouring is required.".\
+                " with INC access. Colouring is required.".
                 format(self.name))
         return OMPLoopTrans.apply(self, node)
 
@@ -565,6 +565,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
                                       "inner or outer.")
 
         return OMPLoopTrans.apply(self, node)
+
 
 class ColourTrans(Transformation):
 
@@ -788,12 +789,12 @@ class Dynamo0p3ColourTrans(ColourTrans):
         # Check we need colouring
         if node.field_space == "w3":
             pass
-            #TODO generate a warning here as we don't need to colour
+            # TODO generate a warning here as we don't need to colour
             # a loop that updates a field on W3.
 
         # Check whether we have a field that has INC access
         if not node.has_inc_arg():
-            #TODO generate a warning here as we don't need to colour
+            # TODO generate a warning here as we don't need to colour
             # a loop that does not update a field with INC access
             pass
 
@@ -886,8 +887,8 @@ class OMPParallelTrans(Transformation):
         node_position = node_list[0].position
 
         if node_list[0].ancestor(OMPDirective):
-            raise TransformationError("Error in OMPParallel transformation:"+\
-                                      " cannot create an OpenMP PARALLEL "+\
+            raise TransformationError("Error in OMPParallel transformation:" +
+                                      " cannot create an OpenMP PARALLEL " +
                                       "region within another OpenMP region.")
         for child in node_list:
             if child.parent is not node_parent:
