@@ -400,7 +400,7 @@ class Invoke(object):
 
     def gen_code(self, parent):
         from f2pygen import SubroutineGen, TypeDeclGen, DeclGen, \
-                            SelectionGen, AssignGen
+            SelectionGen, AssignGen
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
                                    args=self.psy_unique_vars)
@@ -1098,7 +1098,7 @@ class Call(Node):
 
     def view(self, indent=0):
         print self.indent(indent)+"Call", \
-              self.name+"("+str(self.arguments.raw_arg_list)+")"
+            self.name+"("+str(self.arguments.raw_arg_list)+")"
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -1247,8 +1247,8 @@ class Kern(Call):
 
     def view(self, indent=0):
         print self.indent(indent) + "KernCall", \
-              self.name + "(" + str(self.arguments.raw_arg_list) + ")", \
-              "[module_inline=" + str(self._module_inline) + "]"
+            self.name + "(" + str(self.arguments.raw_arg_list) + ")", \
+            "[module_inline=" + str(self._module_inline) + "]"
         for entity in self._children:
             entity.view(indent=indent + 1)
 

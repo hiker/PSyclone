@@ -11,11 +11,9 @@
 
 from parse import parse
 from psyGen import PSyFactory
-from transformations import TransformationError,\
-                            LoopFuseTrans, OMPParallelTrans,\
-                            GOceanLoopFuseTrans,\
-                            GOceanOMPParallelLoopTrans,\
-                            GOceanOMPLoopTrans, KernelModuleInlineTrans
+from transformations import TransformationError, LoopFuseTrans,\
+    OMPParallelTrans, GOceanLoopFuseTrans, GOceanOMPParallelLoopTrans,\
+    GOceanOMPLoopTrans, KernelModuleInlineTrans
 from generator import GenerationError
 import os
 import pytest
