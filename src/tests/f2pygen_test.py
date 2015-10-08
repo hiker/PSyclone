@@ -110,9 +110,17 @@ class TestModuleGen:
     def test_no_contains(self):
         module=ModuleGen(name="test",contains=False)
         assert "CONTAINS" not in str(module.root)
-    def test_no_implicit_none(implicitnone=False):
-        module=ModuleGen(name="test",implicitnone=False)
+    def test_no_implicit_none(self):
+        module=ModuleGen(name="test", implicitnone=False)
         assert "IMPLICIT NONE" not in str(module.root)
+
+    def test_failed_module_inline(self):
+        ''' test that an error is thrown if the wrong type of object
+        is passed to the add_raw_subroutine method '''
+        module = ModuleGen(name="test")
+        invalid_type = "string"
+        with pytest.raises(Exception):
+            module.add_raw_subroutine(invalid_type)
 
 class TestAllocate:
     ''' pytest tests for an allocate statement. '''

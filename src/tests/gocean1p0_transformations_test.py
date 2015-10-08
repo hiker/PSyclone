@@ -913,3 +913,16 @@ def test_module_inline_same_kernel():
     assert 'SUBROUTINE time_smooth_code(' in gen
     # check that the associated psy "use" does not exist
     assert 'USE time_smooth_mod, ONLY: time_smooth_code' not in gen
+
+
+def test_module_inline_warning_no_change():
+    ''' test of the warning clause in the Kernel transformation when
+    no change is made to the inlining of a Kernel i.e. the inlining
+    request is already what is happening. No warning is currently made
+    as we have not added logging to the code but this test covers the
+    clause '''
+    _, invoke = get_invoke("test14_module_inline_same_kernel.f90", 0)
+    schedule = invoke.schedule
+    kern_call = schedule.children[0].children[0].children[0]
+    inline_trans = KernelModuleInlineTrans()
+    _, _ = inline_trans.apply(kern_call, inline=False)

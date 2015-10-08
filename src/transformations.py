@@ -679,7 +679,9 @@ class KernelModuleInlineTrans(Transformation):
 
         # set kernel's inline status
         if node.module_inline == inline:
-            print "Warning, Kernel inline is already set to "+str(inline)
+            # issue a warning here when we implement logging
+            # print "Warning, Kernel inline is already set to "+str(inline)
+            pass
         else:
             node.module_inline = inline
 
