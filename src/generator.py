@@ -111,6 +111,16 @@ def generate(filename, api="", kernel_path="", script_name=None):
                         "generator: attempted to import '{0}' but script file "
                         "'{1}' does not contain a 'trans()' function".
                         format(filename, script_name))
+                except Exception:
+                    exc_type, exc_value, exc_traceback = sys.exc_info()
+                    lines = traceback.format_exception(exc_type, exc_value,
+                                                       exc_traceback)
+                    e_str = '{\n' +\
+                        ''.join('    ' + line for line in lines[2:]) + '}'
+                    raise GenerationError(
+                        "Generator: script file '{0}'\nraised the following "
+                        "exception during execution ...\n{1}\nPlease check "
+                        "your script".format(script_name, e_str))
             except Exception as msg:
                 if sys_path_appended:
                     os.sys.path.pop()

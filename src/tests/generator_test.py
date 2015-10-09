@@ -188,6 +188,19 @@ def test_script_invalid_content():
                             "test_files", "dynamo0p3", "error.py"))
 
 
+def test_script_invalid_content_runtime():
+    ''' checks that generator.py raises an appropriate error when a
+        script file contains valid python syntactically but produces a
+        runtime exception. '''
+    root_path = os.path.dirname(os.path.abspath(__file__))
+    with pytest.raises(GenerationError):
+        _, _ = generate(os.path.join(root_path, "test_files", "dynamo0p3",
+                                     "1_single_invoke.f90"),
+                        api="dynamo0.3",
+                        script_name=os.path.join(
+                            "test_files", "dynamo0p3", "runtime_error.py"))
+
+
 def test_script_no_trans():
     ''' checks that generator.py raises an appropriate error when a
         script file does not contain a trans() function '''
