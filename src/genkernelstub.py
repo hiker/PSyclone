@@ -71,8 +71,6 @@ if __name__ == "__main__":
         traceback.print_tb(exc_traceback)
         exit(1)
 
-    print dir(args)
-
     if args.outfile is not None:
         file = open(args.outfile, "w")
         file.write(str(stub))
