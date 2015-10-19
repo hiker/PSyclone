@@ -880,10 +880,10 @@ def test_intent():
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
     output = (
-        "  MODULE dummy_code_mod\n"
+        "  MODULE dummy_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE dummy_code_code(nlayers, field_1_w1, field_2_w1, "
+        "    SUBROUTINE dummy_code(nlayers, field_1_w1, field_2_w1, "
         "field_3_w1, ndf_w1, undf_w1, map_w1)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      INTEGER, intent(in) :: nlayers\n"
@@ -896,8 +896,8 @@ def test_intent():
         "field_3_w1\n"
         "      INTEGER, intent(in) :: ndf_w1\n"
         "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
-        "    END SUBROUTINE dummy_code_code\n"
-        "  END MODULE dummy_code_mod")
+        "    END SUBROUTINE dummy_code\n"
+        "  END MODULE dummy_mod")
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
@@ -931,10 +931,10 @@ def test_spaces():
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
     output = (
-        "  MODULE dummy_code_mod\n"
+        "  MODULE dummy_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE dummy_code_code(nlayers, field_1_w0, field_2_w1, "
+        "    SUBROUTINE dummy_code(nlayers, field_1_w0, field_2_w1, "
         "field_3_w2, field_4_w3, ndf_w0, undf_w0, map_w0, ndf_w1, undf_w1, "
         "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)\n"
         "      USE constants_mod, ONLY: r_def\n"
@@ -959,8 +959,8 @@ def test_spaces():
         "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
         "      INTEGER, intent(in) :: ndf_w3\n"
         "      INTEGER, intent(in), dimension(ndf_w3) :: map_w3\n"
-        "    END SUBROUTINE dummy_code_code\n"
-        "  END MODULE dummy_code_mod")
+        "    END SUBROUTINE dummy_code\n"
+        "  END MODULE dummy_mod")
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
@@ -991,10 +991,10 @@ def test_vectors():
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
     output = (
-        "  MODULE dummy_code_mod\n"
+        "  MODULE dummy_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE dummy_code_code(nlayers, field_1_w0_v1, "
+        "    SUBROUTINE dummy_code(nlayers, field_1_w0_v1, "
         "field_1_w0_v2, field_1_w0_v3, ndf_w0, undf_w0, map_w0)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      INTEGER, intent(in) :: nlayers\n"
@@ -1007,8 +1007,8 @@ def test_vectors():
         "field_1_w0_v3\n"
         "      INTEGER, intent(in) :: ndf_w0\n"
         "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
-        "    END SUBROUTINE dummy_code_code\n"
-        "  END MODULE dummy_code_mod")
+        "    END SUBROUTINE dummy_code\n"
+        "  END MODULE dummy_mod")
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
@@ -1043,10 +1043,10 @@ def test_operators():
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
     output = (
-        "  MODULE dummy_code_mod\n"
+        "  MODULE dummy_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE dummy_code_code(cell, nlayers, op_1_ncell_3d, op_1, "
+        "    SUBROUTINE dummy_code(cell, nlayers, op_1_ncell_3d, op_1, "
         "op_2_ncell_3d, op_2, op_3_ncell_3d, op_3, op_4_ncell_3d, op_4, "
         "op_5_ncell_3d, op_5, ndf_w0, ndf_w1, ndf_w2, ndf_w3, "
         "ndf_any_space_1)\n"
@@ -1073,8 +1073,8 @@ def test_operators():
         "      INTEGER, intent(in) :: ndf_w2\n"
         "      INTEGER, intent(in) :: ndf_w3\n"
         "      INTEGER, intent(in) :: ndf_any_space_1\n"
-        "    END SUBROUTINE dummy_code_code\n"
-        "  END MODULE dummy_code_mod")
+        "    END SUBROUTINE dummy_code\n"
+        "  END MODULE dummy_mod")
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
@@ -1142,10 +1142,10 @@ def test_basis():
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
     output = (
-        "  MODULE dummy_code_mod\n"
+        "  MODULE dummy_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE dummy_code_code(cell, nlayers, field_1_w0, "
+        "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, "
         "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "
         "undf_w0, map_w0, basis_w0, ndf_w1, basis_w1, ndf_w2, undf_w2, "
         "map_w2, basis_w2, ndf_w3, basis_w3, nqp_h, nqp_v, wh, wv)\n"
@@ -1181,8 +1181,8 @@ def test_basis():
         "      INTEGER, intent(in) :: nqp_h, nqp_v\n"
         "      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh\n"
         "      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv\n"
-        "    END SUBROUTINE dummy_code_code\n"
-        "  END MODULE dummy_code_mod")
+        "    END SUBROUTINE dummy_code\n"
+        "  END MODULE dummy_mod")
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
@@ -1253,10 +1253,10 @@ def test_diff_basis():
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
     output = (
-        "  MODULE dummy_code_mod\n"
+        "  MODULE dummy_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE dummy_code_code(cell, nlayers, field_1_w0, "
+        "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, "
         "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "
         "undf_w0, map_w0, diff_basis_w0, ndf_w1, diff_basis_w1, ndf_w2, "
         "undf_w2, map_w2, diff_basis_w2, ndf_w3, diff_basis_w3, nqp_h, "
@@ -1293,8 +1293,8 @@ def test_diff_basis():
         "      INTEGER, intent(in) :: nqp_h, nqp_v\n"
         "      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh\n"
         "      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv\n"
-        "    END SUBROUTINE dummy_code_code\n"
-        "  END MODULE dummy_code_mod")
+        "    END SUBROUTINE dummy_code\n"
+        "  END MODULE dummy_mod")
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
@@ -1365,7 +1365,7 @@ def test_orientation():
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
     output = (
-        "    SUBROUTINE dummy_code_code(cell, nlayers, field_1_w0, "
+        "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, "
         "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "
         "undf_w0, map_w0, orientation_w0, ndf_w1, orientation_w1, ndf_w2, "
         "undf_w2, map_w2, orientation_w2, ndf_w3, orientation_w3, nqp_h, "
@@ -1398,8 +1398,8 @@ def test_orientation():
         "      INTEGER, intent(in) :: nqp_h, nqp_v\n"
         "      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh\n"
         "      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv\n"
-        "    END SUBROUTINE dummy_code_code\n"
-        "  END MODULE dummy_code_mod")
+        "    END SUBROUTINE dummy_code\n"
+        "  END MODULE dummy_mod")
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
@@ -1415,10 +1415,10 @@ def test_enforce_bc_kernel_stub_gen():
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
     output = (
-        "  MODULE enforce_bc_code_mod\n"
+        "  MODULE enforce_bc_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE enforce_bc_code_code(nlayers, field_1_any_space_1, "
+        "    SUBROUTINE enforce_bc_code(nlayers, field_1_any_space_1, "
         "ndf_any_space_1, undf_any_space_1, map_any_space_1, boundary_dofs)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      INTEGER, intent(in) :: nlayers\n"
@@ -1430,11 +1430,58 @@ def test_enforce_bc_kernel_stub_gen():
         "map_any_space_1\n"
         "      INTEGER, intent(in), dimension(ndf_any_space_1,2) :: "
         "boundary_dofs\n"
-        "    END SUBROUTINE enforce_bc_code_code\n"
-        "  END MODULE enforce_bc_code_mod")
+        "    END SUBROUTINE enforce_bc_code\n"
+        "  END MODULE enforce_bc_mod")
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
 
 # note, we do not need a separate test for qr as it is implicitly
 # tested for in the above examples.
+# fields : intent
+
+SUB_NAME = '''
+module dummy_mod
+  type, extends(kernel_type) :: dummy_type
+     type(arg_type), meta_args(1) =    &
+          (/ arg_type(gh_field,gh_write,w1) &
+           /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => dummy
+  end type dummy_type
+contains
+  subroutine dummy()
+  end subroutine dummy
+end module dummy_mod
+'''
+
+
+def test_sub_name():
+    ''' test for expected behaviour when the kernel subroutine does
+    not conform to the convention of having "_code" at the end of its
+    name. In this case we append "_code to the name and _mod to the
+    kernel name.'''
+    ast = fpapi.parse(SUB_NAME, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = kernel.gen_stub
+    output = (
+        "  MODULE dummy_mod\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE dummy_code(nlayers, field_1_w1, "
+        "ndf_w1, undf_w1, map_w1)\n"
+        "      USE constants_mod, ONLY: r_def\n"
+        "      INTEGER, intent(in) :: nlayers\n"
+        "      INTEGER, intent(in) :: undf_w1\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w1) :: "
+        "field_1_w1\n"
+        "      INTEGER, intent(in) :: ndf_w1\n"
+        "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
+        "    END SUBROUTINE dummy_code\n"
+        "  END MODULE dummy_mod")
+    print output
+    print str(generated_code)
+    assert str(generated_code).find(output) != -1
