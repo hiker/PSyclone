@@ -1351,7 +1351,7 @@ class DynKern(Kern):
         # base name which (if dynamo0.3 naming conventions are
         # followed) is used as the root for the module and subroutine
         # names.
-        if self.name.endswith("_code"):
+        if self.name.lower().endswith("_code"):
             base_name = self.name[:-5]
         else:
             # TODO: add a warning here when logging is added
@@ -1361,7 +1361,8 @@ class DynKern(Kern):
         psy_module = ModuleGen(base_name+"_mod")
 
         # create the subroutine
-        sub_stub = SubroutineGen(psy_module, name=base_name+"_code")
+        sub_stub = SubroutineGen(psy_module, name=base_name+"_code",
+                                 implicitnone=True)
         # create the arglist and declarations
         arglist = self._create_arg_list(sub_stub, my_type="subroutine")
         # add the arglist
