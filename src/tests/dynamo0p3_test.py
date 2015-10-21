@@ -852,6 +852,37 @@ def test_kernel_datatype_not_found():
         generate("test_files/dynamo0p3/testkern_no_datatype.F90",
                  api="dynamo0.3")
 
+SIMPLE = (
+    "  MODULE simple_mod\n"
+    "    IMPLICIT NONE\n"
+    "    CONTAINS\n"
+    "    SUBROUTINE simple_code(nlayers, field_1_w1, ndf_w1, undf_w1,"
+    " map_w1)\n"
+    "      USE constants_mod, ONLY: r_def\n"
+    "      IMPLICIT NONE\n"
+    "      INTEGER, intent(in) :: nlayers\n"
+    "      INTEGER, intent(in) :: undf_w1\n"
+    "      REAL(KIND=r_def), intent(out), dimension(undf_w1) ::"
+    " field_1_w1\n"
+    "      INTEGER, intent(in) :: ndf_w1\n"
+    "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
+    "    END SUBROUTINE simple_code\n"
+    "  END MODULE simple_mod")
+
+def test_stub_generate_working():
+    ''' check that the stub generate produces the expected output '''
+    result = generate("test_files/dynamo0p3/simple.f90",
+                      api="dynamo0.3")
+    print result
+    assert str(result).find(SIMPLE) != -1
+
+def test_stub_generate_working_noapi():
+    ''' check that the stub generate produces the expected output when
+    we use the default api (which should be dynamo0.3)'''
+    result = generate("test_files/dynamo0p3/simple.f90")
+    print result
+    assert str(result).find(SIMPLE) != -1
+
 # fields : intent
 INTENT = '''
 module dummy_mod
