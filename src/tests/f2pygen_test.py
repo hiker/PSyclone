@@ -73,7 +73,7 @@ class TestDeclare:
                               "INTEGER, intent(in) :: var1")
         print str(module.root)
         assert idx_par - idx_var == 1, \
-            "variable declarion must be before directive"
+            "variable declaration must be before directive"
 
 
 class TestIf:
@@ -213,17 +213,15 @@ class TestDeallocate:
 def line_number(root, string_name):
     ''' f2pygen helper routine which returns the first index of the
     supplied string or -1 if it is not found '''
-    idx = -1
     lines = str(root).splitlines()
-    for curr_idx, line in enumerate(lines):
+    for idx, line in enumerate(lines):
         if string_name in line:
-            idx = curr_idx
-            break
-    return idx
+            return idx
+    return -1
 
 def count_lines(root, string_name):
-    ''' f2pygen helper routine which returns the first index of the
-    supplied string or -1 if it is not found '''
+    '''f2pygen helper routine which returns the number of lines that
+    contain the supplied string '''
     count = 0
     lines = str(root).splitlines()
     for curr_idx, line in enumerate(lines):
@@ -357,7 +355,6 @@ class TestImplicitNone():
             sub.add(CommentGen(sub, " hello "+str(idx)),
                        position=["before_index", 2*idx])
         sub.add(ImplicitNoneGen(sub))
-        lines=str(sub.root).splitlines()
         in_idx = line_number(sub.root, "IMPLICIT NONE")
         assert in_idx == 3
 

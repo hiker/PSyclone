@@ -1109,7 +1109,7 @@ def test_operator_different_spaces():
     kernel = DynKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError):
-        generated_code = kernel.gen_stub
+        _ = kernel.gen_stub
 
 # basis function : spaces
 BASIS = '''
@@ -1220,7 +1220,7 @@ def test_basis_unsupported_space():
     kernel = DynKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError):
-        generated_code = kernel.gen_stub
+        _ = kernel.gen_stub
 
 # diff basis function : spaces
 DIFF_BASIS = '''
@@ -1325,7 +1325,7 @@ end module dummy_mod
 '''
 
 
-def test_diff_basis_unsupported_space():
+def test_diff_basis_unsupp_space():
     ''' test that an error is raised when a differential basis
     function is on an unsupported space (currently any_space_*)'''
     ast = fpapi.parse(DIFF_BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
@@ -1333,7 +1333,7 @@ def test_diff_basis_unsupported_space():
     kernel = DynKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError):
-        generated_code = kernel.gen_stub
+        _ = kernel.gen_stub
 
 # orientation : spaces
 ORIENTATION = '''
@@ -1362,7 +1362,7 @@ end module dummy_mod
 '''
 
 
-def test_orientation():
+def test_orientation_stubs():
     ''' Test that orientation is handled correctly for kernel
     stubs '''
     ast = fpapi.parse(ORIENTATION, ignore_comments=False)
