@@ -1367,42 +1367,9 @@ def test_diff_basis_unsupp_space():
         _ = kernel.gen_stub
 
 # orientation : spaces
-ORIENTATION = '''
-module dummy_mod
-  type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(4) =    &
-          (/ arg_type(gh_field,   gh_write,w0), &
-             arg_type(gh_operator,gh_inc,  w1, w1), &
-             arg_type(gh_field,   gh_read, w2), &
-             arg_type(gh_operator,gh_write,w3, w3)  &
-           /)
-     type(func_type), meta_funcs(4) =    &
-          (/ func_type(w0, gh_orientation), &
-             func_type(w1, gh_orientation), &
-             func_type(w2, gh_orientation), &
-             func_type(w3, gh_orientation) &
-           /)
-     integer, parameter :: iterates_over = cells
-   contains
-     procedure() :: code => dummy_code
-  end type dummy_type
-contains
-  subroutine dummy_code()
-  end subroutine dummy_code
-end module dummy_mod
-'''
 
-
-def test_orientation_stubs():
-    ''' Test that orientation is handled correctly for kernel
-    stubs '''
-    ast = fpapi.parse(ORIENTATION, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    generated_code = kernel.gen_stub
-    output = (
-        "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, "
+ORIENTATION_OUTPUT = (
+        "    SUBROUTINE dummy_orientation_code(cell, nlayers, field_1_w0, "
         "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "
         "undf_w0, map_w0, orientation_w0, ndf_w1, orientation_w1, ndf_w2, "
         "undf_w2, map_w2, orientation_w2, ndf_w3, orientation_w3, nqp_h, "
@@ -1436,11 +1403,26 @@ def test_orientation_stubs():
         "      INTEGER, intent(in) :: nqp_h, nqp_v\n"
         "      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh\n"
         "      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv\n"
-        "    END SUBROUTINE dummy_code\n"
-        "  END MODULE dummy_mod")
-    print output
+        "    END SUBROUTINE dummy_orientation_code\n"
+        "  END MODULE dummy_orientation_mod")
+
+def test_orientation_stubs():
+    ''' Test that orientation is handled correctly for kernel
+    stubs '''
+    # Read-in the meta-data from file (it's in a file because it's also
+    # used when testing the genkernelstub script from the command
+    # line).
+    with open (os.path.join(BASE_PATH, "dummy_orientation_mod.f90"),
+               "r") as myfile:
+        orientation = myfile.read()
+
+    ast = fpapi.parse(orientation, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = kernel.gen_stub
     print str(generated_code)
-    assert str(generated_code).find(output) != -1
+    assert str(generated_code).find(ORIENTATION_OUTPUT) != -1
 
 
 def test_enforce_bc_kernel_stub_gen():
@@ -1525,3 +1507,37 @@ def test_sub_name():
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
+
+
+def test_kernel_stub_usage():
+    ''' Check that the kernel-stub generator prints a usage message
+    if no arguments are supplied '''
+    from subprocess import check_output, CalledProcessError, STDOUT
+
+    USAGE_MSG = (
+        "usage: genkernelstub.py [-h] [-o OUTFILE] [-api API] filename\n"
+        "genkernelstub.py: error: too few arguments")
+
+    try:
+        out = check_output(["python", "../genkernelstub.py"],
+                           stderr=STDOUT)
+    except CalledProcessError as err:
+        # Calling the script without arguments causes it to return
+        # an error as well as printing the usage info. Therefore
+        # we catch the error here and get at the message by
+        # querying the Error object
+        out = err.output
+
+    assert USAGE_MSG in out
+
+
+def test_kernel_stub_gen_cmd_line():
+    ''' Check that we can call the kernel-stub generator from the
+    command line '''
+    from subprocess import check_output
+
+    out = check_output(["python", "../genkernelstub.py",
+                        os.path.join(BASE_PATH, "dummy_orientation_mod.f90")])
+
+    print "Output was: ",out
+    assert ORIENTATION_OUTPUT in out
