@@ -541,6 +541,27 @@ def test_loop_fuse_different_spaces():
                             schedule.children[1])
 
 
+def test_loop_fuse_unexpected_error():
+    ''' Test that we catch an unexpected error when loop fusing '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "4_multikernel_invokes.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.get('invoke_0')
+    schedule = invoke.schedule
+
+    ftrans = DynamoLoopFuseTrans()
+
+    # cause an unexpected error
+    schedule.children[0].children = None
+
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = ftrans.apply(schedule.children[0],
+                            schedule.children[1])
+    assert 'Unexpected exception' in str(excinfo.value)
+
+
 def test_loop_fuse():
     ''' Test that we are able to fuse two loops together '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),

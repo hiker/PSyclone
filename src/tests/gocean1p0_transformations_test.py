@@ -13,7 +13,7 @@ from parse import parse
 from psyGen import PSyFactory
 from transformations import TransformationError, LoopFuseTrans,\
     OMPParallelTrans, GOceanOMPParallelLoopTrans,\
-    GOceanOMPLoopTrans, KernelModuleInlineTrans
+    GOceanOMPLoopTrans, KernelModuleInlineTrans, GOceanLoopFuseTrans
 from generator import GenerationError
 import os
 from utils import count_lines
@@ -53,6 +53,23 @@ def test_loop_fuse_different_iterates_over():
         _, _ = lftrans.apply(schedule.children[0],
                              schedule.children[1])
 
+
+def test_loop_fuse_unexpected_error():
+    ''' Test that we catch an unexpected error when loop fusing '''
+    _, invoke = get_invoke("test14_module_inline_same_kernel.f90", 0)
+    schedule = invoke.schedule
+
+    lftrans = GOceanLoopFuseTrans()
+
+    # cause an unexpected error
+    schedule.children[0].children = None
+
+    # Attempt to fuse two loops that are iterating over different
+    # things
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = lftrans.apply(schedule.children[0],
+                             schedule.children[1])
+    assert 'Unexpected exception' in str(excinfo.value)
 
 def test_omp_region_with_wrong_arg_type():
     ''' Test that the OpenMP PARALLEL region transformation
