@@ -655,7 +655,8 @@ def test_bc_kernel():
     for the current implementation of dynamo. Future API's will not
     support any hacks. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                           "12.2_enforce_bc_kernel.f90"), api="dynamo0.3")
+                                        "12.2_enforce_bc_kernel.f90"),
+                           api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = psy.gen
     output1 = "INTEGER, pointer :: boundary_dofs(:,:) => null()"
@@ -869,6 +870,7 @@ SIMPLE = (
     "    END SUBROUTINE simple_code\n"
     "  END MODULE simple_mod")
 
+
 def test_stub_generate_working():
     ''' check that the stub generate produces the expected output '''
     result = generate("test_files/dynamo0p3/simple.f90",
@@ -876,12 +878,14 @@ def test_stub_generate_working():
     print result
     assert str(result).find(SIMPLE) != -1
 
+
 def test_stub_generate_working_noapi():
     ''' check that the stub generate produces the expected output when
     we use the default api (which should be dynamo0.3)'''
     result = generate("test_files/dynamo0p3/simple.f90")
     print result
     assert str(result).find(SIMPLE) != -1
+
 
 # fields : intent
 INTENT = '''
@@ -1369,42 +1373,43 @@ def test_diff_basis_unsupp_space():
 # orientation : spaces
 
 ORIENTATION_OUTPUT = (
-        "    SUBROUTINE dummy_orientation_code(cell, nlayers, field_1_w0, "
-        "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "
-        "undf_w0, map_w0, orientation_w0, ndf_w1, orientation_w1, ndf_w2, "
-        "undf_w2, map_w2, orientation_w2, ndf_w3, orientation_w3, nqp_h, "
-        "nqp_v, wh, wv)\n"
-        "      USE constants_mod, ONLY: r_def\n"
-        "      IMPLICIT NONE\n"
-        "      INTEGER, intent(in) :: cell\n"
-        "      INTEGER, intent(in) :: nlayers\n"
-        "      INTEGER, intent(in) :: undf_w0\n"
-        "      INTEGER, intent(in) :: undf_w2\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
-        "field_1_w0\n"
-        "      INTEGER, intent(in) :: op_2_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
-        "op_2_ncell_3d) :: op_2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
-        "field_3_w2\n"
-        "      INTEGER, intent(in) :: op_4_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
-        "op_4_ncell_3d) :: op_4\n"
-        "      INTEGER, intent(in) :: ndf_w0\n"
-        "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
-        "      INTEGER, intent(in), dimension(ndf_w0) :: orientation_w0\n"
-        "      INTEGER, intent(in) :: ndf_w1\n"
-        "      INTEGER, intent(in), dimension(ndf_w1) :: orientation_w1\n"
-        "      INTEGER, intent(in) :: ndf_w2\n"
-        "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
-        "      INTEGER, intent(in), dimension(ndf_w2) :: orientation_w2\n"
-        "      INTEGER, intent(in) :: ndf_w3\n"
-        "      INTEGER, intent(in), dimension(ndf_w3) :: orientation_w3\n"
-        "      INTEGER, intent(in) :: nqp_h, nqp_v\n"
-        "      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh\n"
-        "      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv\n"
-        "    END SUBROUTINE dummy_orientation_code\n"
-        "  END MODULE dummy_orientation_mod")
+    "    SUBROUTINE dummy_orientation_code(cell, nlayers, field_1_w0, "
+    "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "
+    "undf_w0, map_w0, orientation_w0, ndf_w1, orientation_w1, ndf_w2, "
+    "undf_w2, map_w2, orientation_w2, ndf_w3, orientation_w3, nqp_h, "
+    "nqp_v, wh, wv)\n"
+    "      USE constants_mod, ONLY: r_def\n"
+    "      IMPLICIT NONE\n"
+    "      INTEGER, intent(in) :: cell\n"
+    "      INTEGER, intent(in) :: nlayers\n"
+    "      INTEGER, intent(in) :: undf_w0\n"
+    "      INTEGER, intent(in) :: undf_w2\n"
+    "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
+    "field_1_w0\n"
+    "      INTEGER, intent(in) :: op_2_ncell_3d\n"
+    "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
+    "op_2_ncell_3d) :: op_2\n"
+    "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
+    "field_3_w2\n"
+    "      INTEGER, intent(in) :: op_4_ncell_3d\n"
+    "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
+    "op_4_ncell_3d) :: op_4\n"
+    "      INTEGER, intent(in) :: ndf_w0\n"
+    "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
+    "      INTEGER, intent(in), dimension(ndf_w0) :: orientation_w0\n"
+    "      INTEGER, intent(in) :: ndf_w1\n"
+    "      INTEGER, intent(in), dimension(ndf_w1) :: orientation_w1\n"
+    "      INTEGER, intent(in) :: ndf_w2\n"
+    "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
+    "      INTEGER, intent(in), dimension(ndf_w2) :: orientation_w2\n"
+    "      INTEGER, intent(in) :: ndf_w3\n"
+    "      INTEGER, intent(in), dimension(ndf_w3) :: orientation_w3\n"
+    "      INTEGER, intent(in) :: nqp_h, nqp_v\n"
+    "      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh\n"
+    "      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv\n"
+    "    END SUBROUTINE dummy_orientation_code\n"
+    "  END MODULE dummy_orientation_mod")
+
 
 def test_orientation_stubs():
     ''' Test that orientation is handled correctly for kernel
@@ -1412,8 +1417,8 @@ def test_orientation_stubs():
     # Read-in the meta-data from file (it's in a file because it's also
     # used when testing the genkernelstub script from the command
     # line).
-    with open (os.path.join(BASE_PATH, "dummy_orientation_mod.f90"),
-               "r") as myfile:
+    with open(os.path.join(BASE_PATH, "dummy_orientation_mod.f90"),
+              "r") as myfile:
         orientation = myfile.read()
 
     ast = fpapi.parse(orientation, ignore_comments=False)
@@ -1514,7 +1519,7 @@ def test_kernel_stub_usage():
     if no arguments are supplied '''
     from subprocess import check_output, CalledProcessError, STDOUT
 
-    USAGE_MSG = (
+    usage_msg = (
         "usage: genkernelstub.py [-h] [-o OUTFILE] [-api API] filename\n"
         "genkernelstub.py: error: too few arguments")
 
@@ -1528,7 +1533,7 @@ def test_kernel_stub_usage():
         # querying the Error object
         out = err.output
 
-    assert USAGE_MSG in out
+    assert usage_msg in out
 
 
 def test_kernel_stub_gen_cmd_line():
@@ -1539,5 +1544,5 @@ def test_kernel_stub_gen_cmd_line():
     out = check_output(["python", "../genkernelstub.py",
                         os.path.join(BASE_PATH, "dummy_orientation_mod.f90")])
 
-    print "Output was: ",out
+    print "Output was: ", out
     assert ORIENTATION_OUTPUT in out
