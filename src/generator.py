@@ -164,7 +164,7 @@ if __name__ == "__main__":
         exit(0)
     except (OSError, IOError, ParseError, GenerationError,
             RuntimeError) as error:
-        print "Error:", error
+        print "Error:", error.message
         exit(1)
     except Exception as error:
         print "Error, unexpected exception:\n"
