@@ -16,6 +16,7 @@ from transformations import TransformationError, LoopFuseTrans,\
     GOceanOMPLoopTrans, KernelModuleInlineTrans
 from generator import GenerationError
 import os
+from utils import count_lines
 import pytest
 
 API = "gocean1.0"
@@ -806,8 +807,11 @@ def test_module_inline():
     kern_call = schedule.children[0].children[0].children[0]
     kern_call.module_inline = True
     gen = str(psy.gen)
-    # check that the subroutine has been inlined
-    assert 'SUBROUTINE compute_cu_code(i, j, cu, p, u)' in gen
+    # check that the subroutine has been inlined correctly
+    expected = (
+        "    END SUBROUTINE invoke_0\n"
+        "    SUBROUTINE compute_cu_code(i, j, cu, p, u)\n")
+    assert expected in gen
     # check that the associated use no longer exists
     assert 'USE compute_cu_mod, ONLY: compute_cu_code' not in gen
 
@@ -882,23 +886,6 @@ def test_module_inline_with_sub_use():
     assert 'USE bc_ssh_mod, ONLY: bc_ssh_code' not in gen
 
 
-def test_module_inline_with_module_use():
-    ''' Test that we can module inline a kernel subroutine whose module
-    contains a use statement.'''
-    psy, invoke = get_invoke("single_invoke_scalar_int_arg.f90", 0)
-    schedule = invoke.schedule
-    kern_call = schedule.children[0].children[0].children[0]
-    inline_trans = KernelModuleInlineTrans()
-    schedule, _ = inline_trans.apply(kern_call)
-    gen = str(psy.gen)
-    # check that the subroutine has been inlined
-    assert 'SUBROUTINE bc_ssh_code(ji, jj, istep, ssha, tmask)' in gen
-    # check that the use within the subroutine exists
-    assert 'USE model_mod, ONLY: rdt' in gen
-    # check that the associated psy use does not exist
-    assert 'USE bc_ssh_mod, ONLY: bc_ssh_code' not in gen
-
-
 def test_module_inline_same_kernel():
     '''Tests that correct results are obtained when an invoke that uses
     the same kernel subroutine more than once has that kernel
@@ -913,6 +900,9 @@ def test_module_inline_same_kernel():
     assert 'SUBROUTINE time_smooth_code(' in gen
     # check that the associated psy "use" does not exist
     assert 'USE time_smooth_mod, ONLY: time_smooth_code' not in gen
+    # check that the subroutine has only been inlined once
+    count = count_lines(psy.gen, "SUBROUTINE time_smooth_code(")
+    assert count == 1, "Expecting subroutine to be inlined once"
 
 
 def test_module_inline_warning_no_change():

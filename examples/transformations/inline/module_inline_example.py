@@ -9,13 +9,13 @@ def inline():
 
     ast, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                    "..", "..", "..", "src", "tests",
-                                   "test_files", "dynamo0p1",
+                                   "test_files", "dynamo0p1", "algorithm",
                                    "1_single_function.f90"),
                       api="dynamo0.1")
     psy = PSyFactory("dynamo0.1").create(info)
     invokes = psy.invokes
     print psy.invokes.names
-    invoke = invokes.get("invoke_testkern_type")
+    invoke = invokes.get("invoke_0_testkern_type")
     schedule = invoke.schedule
     schedule.view()
     kern = schedule.children[0].children[0]

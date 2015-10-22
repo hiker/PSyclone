@@ -334,7 +334,8 @@ end module vanilla
                 "Expecting a KernelProcedure type but received " +
                 str(type(content)))
         content.ast.parent = self.root
-        index = len(self.root.content) - 1  # append
+        # add content after any existing subroutines
+        index = len(self.root.content) - 1
         self.root.content.insert(index, content.ast)
 
     def add(self,content,position=["auto"]):
