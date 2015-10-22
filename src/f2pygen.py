@@ -72,7 +72,7 @@ class BaseGen(object):
 
         if position[0]=="auto":
             raise Exception('Error: BaseGen:add: auto option must be implemented by the sub class!')
-        options=["append","first","after","before","insert","after_index"]
+        options=["append","first","after","before","insert","before_index","after_index"]
         if position[0] not in options:
             raise GenerationError("Error: BaseGen:add: supported positions are {0} but found {1}".format(str(options),position[0]))
         if position[0]=="append":
@@ -86,6 +86,8 @@ class BaseGen(object):
             self.root.content.insert(self.root.content.index(position[1])+1,new_object.root)
         elif position[0]=="after_index":
             self.root.content.insert(position[1]+1,new_object.root)
+        elif position[0]=="before_index":
+            self.root.content.insert(position[1],new_object.root)
         elif position[0]=="before":
             try:
                 self.root.content.insert(self.root.content.index(position[1]),new_object.root)
@@ -187,8 +189,9 @@ class ProgUnitGen(BaseGen):
 
     def add(self,content,position=["auto"]):
         '''specialise the add method to provide module and subroutine
-           specific intelligent adding of use statements and declarations
-           if the position argument is set to auto (which is the default) '''
+           specific intelligent adding of use statements, implicit
+           none statements and declarations if the position argument
+           is set to auto (which is the default)'''
         # content may have been passed on so make me the parent
         if content.root.parent!=self.root:
             content.root.parent=self.root
@@ -199,6 +202,7 @@ class ProgUnitGen(BaseGen):
         else: # position[0]=="auto" so insert in a context sensitive way
 
             if isinstance(content,DeclGen) or isinstance(content,TypeDeclGen):
+
                 # have I already been declared?
                 for child in self._children:
                     if isinstance(child,DeclGen) or isinstance(child,TypeDeclGen):
@@ -208,10 +212,11 @@ class ProgUnitGen(BaseGen):
                                     content.root.entity_decls.remove(var_name)
                                     if len(content.root.entity_decls)==0:
                                         return # return as all variables in this declaration already exists
+                index = 0
                 # skip over any use statements
-                index=0
-                while isinstance(self.root.content[index],fparser.statements.Use):
-                    index+=1
+                index = self._skip_use_and_comments(index)
+                # skip over implicit none if it exists
+                index = self._skip_imp_none_and_comments(index)
                 # skip over any declarations which have an intent
                 try:
                     intent=True
@@ -250,10 +255,50 @@ class ProgUnitGen(BaseGen):
                                             if len(content.root.items)==0:
                                                 return
                 index=0
+            elif isinstance(content, ImplicitNoneGen):
+                # does implicit none already exist?
+                for child in self._children:
+                    if isinstance(child,ImplicitNoneGen):
+                        return
+                # skip over any use statements
+                index = 0
+                index = self._skip_use_and_comments(index)
             else:
                 index=len(self.root.content)-1 
             self.root.content.insert(index,content.root)
             self._children.append(content)
+
+    def _skip_use_and_comments(self,index):
+        ''' skip over any use statements and comments in the ast '''
+        import fparser
+        while isinstance(self.root.content[index],
+                         fparser.statements.Use) \
+        or isinstance(self.root.content[index],
+                      fparser.statements.Comment):
+            index += 1
+        # now roll back to previous Use
+        while isinstance(self.root.content[index-1],
+                      fparser.statements.Comment):
+            index -= 1
+        return index
+
+    def _skip_imp_none_and_comments(self,index):
+        ''' skip over an implicit none statement if it exists and any
+        comments before it '''
+        import fparser
+        end_index = index
+        while isinstance(self.root.content[index],
+                         fparser.typedecl_statements.Implicit) \
+        or isinstance(self.root.content[index],
+                      fparser.statements.Comment):
+            if isinstance(self.root.content[index],
+                         fparser.typedecl_statements.Implicit):
+                end_index = index + 1
+                break
+            else:
+                index = index + 1
+        return end_index
+
 
 class ModuleGen(ProgUnitGen):
     ''' create a fortran module '''
@@ -262,10 +307,6 @@ class ModuleGen(ProgUnitGen):
 
         code='''\
 module vanilla
-'''
-        if implicitnone:
-            code+='''\
-implicit none
 '''
         if contains:
             code+='''\
@@ -280,6 +321,8 @@ end module vanilla
         endmod=module.content[len(module.content)-1]
         endmod.name=name
         ProgUnitGen.__init__(self,None,module)
+        if implicitnone:
+            self.add(ImplicitNoneGen(self))
 
     def add_raw_subroutine(self, content):
         ''' adds a subroutine to the module that is a raw f2py parse object.
@@ -383,9 +426,26 @@ class DirectiveGen(BaseGen):
 
         BaseGen.__init__(self,parent,my_comment)
 
+
+class ImplicitNoneGen(BaseGen):
+
+    def __init__(self,parent):
+
+        if type(parent) is not ModuleGen and type(parent) is not SubroutineGen:
+            raise Exception("The parent of ImplicitNoneGen must be a module or a subroutine, but found {0}".format(type(parent)))
+        from fparser import api
+        reader=FortranStringReader("IMPLICIT NONE\n")
+        reader.set_mode(True, True) # free form, strict
+        subline=reader.next()
+
+        from fparser.typedecl_statements import Implicit
+        my_imp_none = Implicit(parent.root,subline)
+
+        BaseGen.__init__(self,parent,my_imp_none)
+
 class SubroutineGen(ProgUnitGen):
 
-    def __init__(self,parent,name="",args=[],index=None):
+    def __init__(self,parent,name="",args=[],index=None, implicitnone=False):
         from fparser import api
         reader=FortranStringReader("subroutine vanilla(vanilla_arg)\nend subroutine")
         reader.set_mode(True, True) # free form, strict
@@ -393,13 +453,23 @@ class SubroutineGen(ProgUnitGen):
         endsubline=reader.next()
 
         from fparser.block_statements import Subroutine,EndSubroutine
-        sub=Subroutine(parent.root,subline)
-        sub.name=name
-        sub.args=args
-        endsub=EndSubroutine(sub,endsubline)
-        sub.content.append(endsub)
+        self._sub=Subroutine(parent.root,subline)
+        self._sub.name=name
+        self._sub.args=args
+        endsub=EndSubroutine(self._sub,endsubline)
+        self._sub.content.append(endsub)
+        ProgUnitGen.__init__(self,parent,self._sub)
+        if implicitnone:
+            self.add(ImplicitNoneGen(self))
 
-        ProgUnitGen.__init__(self,parent,sub)
+    @property
+    def args(self):
+        return self._sub.args
+
+    @args.setter
+    def args(self, namelist):
+        ''' sets the subroutine arguments to the values in the list provide.'''
+        self._sub.args = namelist
 
 def addsub(name,args,parent,index=None):
     from fparser import api
@@ -622,10 +692,6 @@ def addtypedecl(name,entity_decls,parent,index=None,attrspec=[],intent="",pointe
     typedecl.attrspec=my_attrspec
     typedecl.entity_decls=entity_decls
 
-    # insert after any existing type declarations
-    #for statement in parent.content:
-    #    print type(statement)
-    #exit(0)
     idx=0
     while isinstance(parent.content[idx],Type):
         idx+=1
