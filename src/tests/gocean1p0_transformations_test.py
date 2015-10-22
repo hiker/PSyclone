@@ -11,8 +11,8 @@
 
 from parse import parse
 from psyGen import PSyFactory
-from transformations import TransformationError, LoopFuseTrans,\
-    OMPParallelTrans, GOceanOMPParallelLoopTrans,\
+from transformations import TransformationError, LoopFuseTrans, \
+    OMPParallelTrans, GOceanOMPParallelLoopTrans, \
     GOceanOMPLoopTrans, KernelModuleInlineTrans, GOceanLoopFuseTrans
 from generator import GenerationError
 import os
@@ -70,6 +70,7 @@ def test_loop_fuse_unexpected_error():
         _, _ = lftrans.apply(schedule.children[0],
                              schedule.children[1])
     assert 'Unexpected exception' in str(excinfo.value)
+
 
 def test_omp_region_with_wrong_arg_type():
     ''' Test that the OpenMP PARALLEL region transformation

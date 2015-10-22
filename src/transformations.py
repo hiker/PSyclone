@@ -58,7 +58,8 @@ class LoopFuseTrans(Transformation):
         return "LoopFuse"
 
     def _validate(self, node1, node2):
-        # check nodes are loops
+        ''' validity checks for input arguments '''
+        # Check that the supplied Node is a Loop
         from psyGen import Loop
         if not isinstance(node1, Loop) or not isinstance(node2, Loop):
             raise TransformationError("Error in LoopFuse transformation. "
@@ -354,6 +355,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         return "Add an 'OpenMP PARALLEL DO' directive with no validity checks"
 
     def _validate(self, node):
+        ''' validity checks for input arguments '''
         # Check that the supplied Node is a Loop
         from psyGen import Loop
         if not isinstance(node, Loop):

@@ -10,12 +10,12 @@
 
 from parse import parse
 from psyGen import PSyFactory
-from transformations import TransformationError,\
-    OMPParallelTrans,\
-    Dynamo0p3ColourTrans,\
-    Dynamo0p3OMPLoopTrans,\
-    DynamoOMPParallelLoopTrans,\
-    DynamoLoopFuseTrans,\
+from transformations import TransformationError, \
+    OMPParallelTrans, \
+    Dynamo0p3ColourTrans, \
+    Dynamo0p3OMPLoopTrans, \
+    DynamoOMPParallelLoopTrans, \
+    DynamoLoopFuseTrans, \
     KernelModuleInlineTrans
 import os
 import pytest
@@ -28,7 +28,7 @@ TEST_API = "dynamo0.3"
 def test_colour_trans_declarations():
     ''' Check that we generate the correct variable declarations
     when doing a colouring transformation '''
-    ''' test of the colouring transformation of a single loop '''
+    # test of the colouring transformation of a single loop
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),

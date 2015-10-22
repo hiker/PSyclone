@@ -108,16 +108,11 @@ class BaseGen(object):
         index = len(self.root.content)-1
         found = False
         while not found and index>=0:
-            # if self.root.content[index].__class__.__name__==Do.__name__:
             if isinstance(self.root.content[index],Do):
                 found = True
             else:
                 index -= 1
         if not found:
-            print "Number of lines: ", len(self.root.content)
-            print "Lines ..."
-            for line in self.root.content:
-                print "    " + str(type(line))
             raise RuntimeError(
                 "Error, expecting to find a loop but none were found")
         return self.root.content[index]
