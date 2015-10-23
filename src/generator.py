@@ -22,7 +22,7 @@ from parse import parse, ParseError
 from psyGen import PSyFactory, GenerationError
 from algGen import AlgorithmError
 from config import SUPPORTEDAPIS, DEFAULTAPI
-
+from line_length import FortLineLength
 
 def generate(filename, api="", kernel_path="", script_name=None):
     '''Takes a GungHo algorithm specification as input and outputs the
@@ -150,6 +150,11 @@ if __name__ == "__main__":
     PARSER.add_argument(
         '-d', '--directory', default="", help='path to root of directory '
         'structure containing kernel source code')
+    PARSER.add_argument(
+        '-l', '--limit', dest='limit', action='store_true', default=False,
+        help='limit the fortran line length to 132 characters')
+
+
     ARGS = PARSER.parse_args()
     if ARGS.api not in SUPPORTEDAPIS:
         print "Unsupported API '{0}' specified. Supported API's are "
@@ -173,6 +178,11 @@ if __name__ == "__main__":
         print EXC_VALUE
         traceback.print_tb(EXC_TRACEBACK)
         exit(1)
+    if ARGS.limit:
+        fll = FortLineLength(line_length=132)
+        PSY_STR = fll.process(str(PSY))
+    else:
+        PSY_STR = str(PSY)
     if ARGS.oalg is not None:
         MY_FILE = open(ARGS.oalg, "w")
         MY_FILE.write(str(ALG))
@@ -181,7 +191,8 @@ if __name__ == "__main__":
         print "Transformed algorithm code:\n", ALG
     if ARGS.opsy is not None:
         MY_FILE = open(ARGS.opsy, "w")
-        MY_FILE.write(str(PSY))
+        MY_FILE.write(PSY_STR)
         MY_FILE.close()
     else:
-        print "Generated psy layer code:\n", PSY
+        print "Generated psy layer code:\n", PSY_STR
+            
