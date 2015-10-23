@@ -10,7 +10,7 @@
 from parse import parse
 from psyGen import PSyFactory
 
-api="gocean"
+api="gocean1.0"
 ast,invokeInfo=parse("shallow_gocean.f90",api=api)
 psy=PSyFactory(api).create(invokeInfo)
 print psy.gen
