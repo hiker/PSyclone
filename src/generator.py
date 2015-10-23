@@ -179,16 +179,18 @@ if __name__ == "__main__":
         traceback.print_tb(EXC_TRACEBACK)
         exit(1)
     if ARGS.limit:
-        fll = FortLineLength(line_length=132)
+        fll = FortLineLength()
         PSY_STR = fll.process(str(PSY))
+        ALG_STR = fll.process(str(ALG))
     else:
         PSY_STR = str(PSY)
+        ALG_STR = str(ALG)
     if ARGS.oalg is not None:
         MY_FILE = open(ARGS.oalg, "w")
-        MY_FILE.write(str(ALG))
+        MY_FILE.write(ALG_STR)
         MY_FILE.close()
     else:
-        print "Transformed algorithm code:\n", ALG
+        print "Transformed algorithm code:\n", ALG_STR
     if ARGS.opsy is not None:
         MY_FILE = open(ARGS.opsy, "w")
         MY_FILE.write(PSY_STR)

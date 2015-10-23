@@ -8,7 +8,7 @@
 
 ''' Provides support for breaking long fortran lines into smaller ones
 to allow the code to conform to the maximum line length limits (132
-for f90 free format and onwards '''
+for f90 free format is the default) '''
 
 
 class FortLineLength(object):
@@ -18,14 +18,14 @@ class FortLineLength(object):
 
     def __init__(self, line_length=132):
         self._line_types = ["statement", "openmp_directive",
-                            "openacc_directive", "unknown"]
+                            "openacc_directive", "comment",
+                            "unknown"]
         self._line_length = line_length
 
     def process(self, fortran_in):
         ''' takes fortran code as a string as input and output fortran
         code as a string with any long lines wrappe appropriately '''
 
-        total_wrapped_lines = 0
         fortran_out = ""
         for line in fortran_in.split('\n'):
             if len(line) > self._line_length:
@@ -37,21 +37,22 @@ class FortLineLength(object):
                             "fort_line_length: Unsupported line type [{0}]"
                             " found ...\n{1}".format(line_type, line))
 
-                total_wrapped_lines += 1
-
-                while len(line) > self._line_length:
-                    # line_length-2 for continuation characters
-                    break_point = self._find_break_point(line,
-                                                         self._line_length-2)
-                    fortran_out += line[:break_point] + " &\n"
-                    line = line[break_point:]
-                if line:
-                    fortran_out += line + "\n"
+                if line_type == "comment":
+                    # simply truncate
+                    fortran_out += line[:self._line_length] + "\n"
+                else:
+                    while len(line) > self._line_length:
+                        # line_length-2 for continuation characters
+                        break_point = self._find_break_point(
+                            line, self._line_length-2)
+                        fortran_out += line[:break_point] + " &\n"
+                        line = line[break_point:]
+                    if line:
+                        fortran_out += line + "\n"
 
             else:
                 fortran_out += line + "\n"
-        fortran_out += "! fort_line_length wrapped {0} lines\n".\
-            format(str(total_wrapped_lines))
+
         return fortran_out
 
     def _get_line_type(self, line):
@@ -62,15 +63,18 @@ class FortLineLength(object):
 
         import re
         stat = re.compile(r'^\s*(INTEGER|REAL|TYPE|CALL|SUBROUTINE|USE)',
-                       flags=re.I)
-        omp = re.compile(r'^"!$OMP"', flags=re.I)
-        acc = re.compile(r'^"!$ACC"', flags=re.I)
+                          flags=re.I)
+        omp = re.compile(r'^\s*"!$OMP"', flags=re.I)
+        acc = re.compile(r'^\s*"!$ACC"', flags=re.I)
+        comment = re.compile(r'^\s*!')
         if stat.match(line):
             return "statement"
         if omp.match(line):
             return "openmp_directive"
         if acc.match(line):
             return "openacc_directive"
+        if comment.match(line):
+            return "comment"
         return "unknown"
 
     def _find_break_point(self, line, max_index):
