@@ -22,18 +22,24 @@ class FortLineLength(object):
         self._line_types = ["statement", "openmp_directive",
                             "openacc_directive", "comment",
                             "unknown"]
-        self._cont_start = {"statement":"",
-                            "openmp_directive":"!$omp& ",
-                            "openacc_directive":"!$acc& ",
-                            "comment":"!& "}
-        self._cont_end = {"statement":" &",
-                          "openmp_directive":" &",
-                          "openacc_directive":" &",
-                          "comment":""}
-        self._key_lists = {"statement":[", ", ",", " "],
-                           "openmp_directive":[" ", ",",")","="],
-                           "openacc_directive":[" ", ",",")","="],
-                           "comment":[" ",".",","]}
+        self._cont_start = {"statement": "",
+                            "openmp_directive": "!$omp& ",
+                            "openacc_directive": "!$acc& ",
+                            "comment": "!& "}
+        self._cont_end = {"statement": " &",
+                          "openmp_directive": " &",
+                          "openacc_directive": " &",
+                          "comment": ""}
+        self._key_lists = {"statement": [", ", ",", " "],
+                           "openmp_directive": [" ", ",", ")", "="],
+                           "openacc_directive": [" ", ",", ")", "="],
+                           "comment": [" ", ".", ","]}
+        import re
+        self._stat = re.compile(r'^\s*(INTEGER|REAL|TYPE|CALL|SUBROUTINE|USE)',
+                          flags=re.I)
+        self._omp = re.compile(r'^\s*!\$OMP', flags=re.I)
+        self._acc = re.compile(r'^\s*!\$ACC', flags=re.I)
+        self._comment = re.compile(r'^\s*!')
 
     def process(self, fortran_in):
         ''' takes fortran code as a string as input and output fortran
@@ -45,22 +51,25 @@ class FortLineLength(object):
                 line_type = self._get_line_type(line)
                 if line_type == "unknown":
                     raise Exception(
-                            "fort_line_length: Unsupported line type [{0}]"
-                            " found ...\n{1}".format(line_type, line))
+                        "fort_line_length: Unsupported line type [{0}]"
+                        " found ...\n{1}".format(line_type, line))
 
-                break_point = self._find_break_point(line,
-                    self._line_length-len(self._cont_end[line_type]),
-                    self._key_lists[line_type])
-                fortran_out += line[:break_point] + self._cont_end[line_type] + "\n"
+                c_start = self._cont_start[line_type]
+                c_end = self._cont_end[line_type]
+                key_list = self._key_lists[line_type]
+
+                break_point = self._find_break_point(
+                    line, self._line_length-len(c_end), key_list)
+                fortran_out += line[:break_point] + c_end + "\n"
                 line = line[break_point:]
-                while len(line)+len(self._cont_start[line_type]) > self._line_length:
-                    break_point = self._find_break_point(line,
-                        self._line_length-len(self._cont_end[line_type])-len(self._cont_start[line_type]),
-                        self._key_lists[line_type])
-                    fortran_out += self._cont_start[line_type] + line[:break_point] + self._cont_end[line_type] + "\n"
+                while len(line) + len(c_start) > self._line_length:
+                    break_point = self._find_break_point(
+                        line, self._line_length-len(c_end)-len(c_start),
+                        key_list)
+                    fortran_out += c_start + line[:break_point] + c_end + "\n"
                     line = line[break_point:]
                 if line:
-                    fortran_out += self._cont_start[line_type] + line + "\n"
+                    fortran_out += c_start + line + "\n"
             else:
                 fortran_out += line + "\n"
 
@@ -73,19 +82,13 @@ class FortLineLength(object):
         statements. It also enables us to know a little about the
         structure of the line which could be useful at some point.'''
 
-        import re
-        stat = re.compile(r'^\s*(INTEGER|REAL|TYPE|CALL|SUBROUTINE|USE)',
-                          flags=re.I)
-        omp = re.compile(r'^\s*!\$OMP', flags=re.I)
-        acc = re.compile(r'^\s*!\$ACC', flags=re.I)
-        comment = re.compile(r'^\s*!')
-        if stat.match(line):
+        if self._stat.match(line):
             return "statement"
-        if omp.match(line):
+        if self._omp.match(line):
             return "openmp_directive"
-        if acc.match(line):
+        if self._acc.match(line):
             return "openacc_directive"
-        if comment.match(line):
+        if self._comment.match(line):
             return "comment"
         return "unknown"
 
@@ -97,4 +100,6 @@ class FortLineLength(object):
             if idx > 0:
                 return idx+len(key)
         raise Exception(
-            "Error in find_break_point. No suitable break point found for line '"+line[:max_index]+"' and keys '"+str(key_list)+"'")
+            "Error in find_break_point. No suitable break point found"
+            " for line '" + line[:max_index] + "' and keys '" +
+            str(key_list) + "'")

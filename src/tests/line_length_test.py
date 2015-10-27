@@ -14,6 +14,7 @@ from line_length import FortLineLength
 
 # functions
 
+
 def test_openmp_directive():
     ''' Tests that we raise an error if we find an long line that is
     an openmp directive '''
@@ -22,6 +23,7 @@ def test_openmp_directive():
     fll = FortLineLength(line_length=len(input_file)-3)
     output_file = fll.process(input_file)
     assert output_file == expected_output
+
 
 def test_acc_directive():
     ''' Tests that we deal with an OpenACC directive appropriately
@@ -32,6 +34,7 @@ def test_acc_directive():
     output_file = fll.process(input_file)
     assert output_file == expected_output
 
+
 def test_unknown():
     ''' Tests that we raise an error if we find a long line that we
     can't determine the type of '''
@@ -41,6 +44,7 @@ def test_unknown():
         _ = fll.process(input_file)
     assert 'Unsupported line type' in str(excinfo.value)
 
+
 def test_comment():
     ''' Tests that a long comment line wrapped as expected '''
     input_file = " ! this is a comment"
@@ -48,6 +52,7 @@ def test_comment():
     fll = FortLineLength(line_length=len(input_file)-5)
     output_file = fll.process(input_file)
     assert output_file == expected_output
+
 
 def test_unchanged():
     ''' Tests that a file whose lines are shorter than the specified
@@ -102,6 +107,7 @@ EXPECTED_OUTPUT = (
     "!& blah blah\n"
     "    stuff\n")
 
+
 def test_wrapped():
     ''' Tests that a file whose lines are longer than the specified
     line length is wrapped appropriately by the FortLineLength class '''
@@ -111,6 +117,7 @@ def test_wrapped():
     print "("+output_file+")"
     assert output_file == EXPECTED_OUTPUT, "output and expected output differ "
 
+
 def test_wrapped_lower():
     ''' Tests that a lower case file whose lines are longer than the
     specified line length is wrapped appropriately by the
@@ -119,8 +126,10 @@ def test_wrapped_lower():
     output_file = fll.process(INPUT_FILE.lower())
     print "("+EXPECTED_OUTPUT.lower()+")"
     print "("+output_file+")"
-    assert output_file == EXPECTED_OUTPUT.lower(), "output and expected output differ "
-    
+    assert output_file == EXPECTED_OUTPUT.lower(), \
+        "output and expected output differ "
+
+
 def test_fail_to_wrap():
     ''' Tests that we raise an error if we can't find anywhere to wrap
     the line'''
@@ -130,37 +139,43 @@ def test_fail_to_wrap():
         _ = fll.process(input_file)
     assert 'No suitable break point found' in str(excinfo.value)
 
-# multiple lines work OK e.g. continuation lines
+
 def test_multiple_lines_statements():
     ''' test that multiple lines works as expected for statements
     (INTEGER, REAL, TYPE, CALL, SUBROUTINE and USE) '''
     input_file = (
         "INTEGER blahdeblah, blahdeblah, blahdeblah, blahdeblah\n")
     expected_output = (
-        "INTEGER  &\nblahdeblah,  &\nblahdeblah,  &\nblahdeblah,  &\nblahdeblah\n")
+        "INTEGER  &\nblahdeblah,  &\nblahdeblah,  &\nblahdeblah,"
+        "  &\nblahdeblah\n")
     fll = FortLineLength(line_length=18)
     output_file = fll.process(input_file)
     assert output_file == expected_output
+
 
 def test_multiple_lines_omp():
     ''' test that multiple lines works as expected for OpenMP directives '''
     input_file = (
         "!$omp blahdeblah, blahdeblah, blahdeblah, blahdeblah\n")
     expected_output = (
-        "!$omp blahdeblah,  &\n!$omp& blahdeblah,  &\n!$omp& blahdeblah,  &\n!$omp& blahdeblah\n")
+        "!$omp blahdeblah,  &\n!$omp& blahdeblah,  &\n!$omp& blahdeblah,"
+        "  &\n!$omp& blahdeblah\n")
     fll = FortLineLength(line_length=24)
     output_file = fll.process(input_file)
     assert output_file == expected_output
+
 
 def test_multiple_lines_acc():
     ''' test that multiple lines works as expected for OpenACC directives '''
     input_file = (
         "!$acc blahdeblah, blahdeblah, blahdeblah, blahdeblah\n")
     expected_output = (
-        "!$acc blahdeblah,  &\n!$acc& blahdeblah,  &\n!$acc& blahdeblah,  &\n!$acc& blahdeblah\n")
+        "!$acc blahdeblah,  &\n!$acc& blahdeblah,  &\n!$acc& blahdeblah,"
+        "  &\n!$acc& blahdeblah\n")
     fll = FortLineLength(line_length=24)
     output_file = fll.process(input_file)
     assert output_file == expected_output
+
 
 def test_multiple_lines_comment():
     ''' test that multiple lines works as expected for comments '''
@@ -171,7 +186,8 @@ def test_multiple_lines_comment():
     fll = FortLineLength(line_length=18)
     output_file = fll.process(input_file)
     assert output_file == expected_output
-        
+
+
 def test_exception_line_too_long():
     ''' Test that output lines are not longer than the maximum
     specified'''
@@ -183,7 +199,9 @@ def test_exception_line_too_long():
     fll = FortLineLength(line_length=24)
     output_file = fll.process(input_file)
     for line in output_file.split('\n'):
-        assert len(line) <= 24, "Error, output line is longer than the maximum allowed"
+        assert len(line) <= 24, \
+            "Error, output line is longer than the maximum allowed"
+
 
 def test_break_types_multi_line():
     ''' Test the different supported line breaks.'''
@@ -193,15 +211,20 @@ def test_break_types_multi_line():
         "!$acc stuffynostrils,(blahdeblah)blahdeblah=(blahdeblah)\n"
         "!     stuffynostrils,blahdeblah.blahdeblah blahdeblah).\n")
     expected_output = (
-        "INTEGER  &\nstuffynostrils,  &\nblahdeblah, &\nblahdeblah blahdeblah\n"
-        "!$omp  &\n!$omp& stuffynostrils, &\n!$omp& (blahdeblah) &\n!$omp& blahdeblah= &\n!$omp& (blahdeblah)\n"
-        "!$acc  &\n!$acc& stuffynostrils, &\n!$acc& (blahdeblah) &\n!$acc& blahdeblah= &\n!$acc& (blahdeblah)\n"
-        "!     \n!& stuffynostrils,\n!& blahdeblah.\n!& blahdeblah \n!& blahdeblah).\n")
+        "INTEGER  &\nstuffynostrils,  &\nblahdeblah, &\nblahdeblah"
+        " blahdeblah\n"
+        "!$omp  &\n!$omp& stuffynostrils, &\n!$omp& (blahdeblah) &\n!$omp&"
+        " blahdeblah= &\n!$omp& (blahdeblah)\n"
+        "!$acc  &\n!$acc& stuffynostrils, &\n!$acc& (blahdeblah) &\n!$acc&"
+        " blahdeblah= &\n!$acc& (blahdeblah)\n"
+        "!     \n!& stuffynostrils,\n!& blahdeblah.\n!& blahdeblah \n!&"
+        " blahdeblah).\n")
 
     fll = FortLineLength(line_length=24)
     output_file = fll.process(input_file)
     print "("+output_file+")"
     assert output_file == expected_output
+
 
 def test_edge_conditions_statements():
     ''' Test that we get correct behaviour using statements (INTEGER,
@@ -227,6 +250,7 @@ def test_edge_conditions_statements():
     output_string = fll.process(input_string)
     assert output_string == expected_output
 
+
 def test_edge_conditions_omp():
     '''Test that we get correct behaviour using OpenMP directives when
     the input line equals the max line length, or multiples thereof
@@ -251,6 +275,7 @@ def test_edge_conditions_omp():
     output_string = fll.process(input_string)
     assert output_string == expected_output
 
+
 def test_edge_conditions_acc():
     '''Test that we get correct behaviour using OpenACC directives when
     the input line equals the max line length, or multiples thereof
@@ -274,6 +299,7 @@ def test_edge_conditions_acc():
     fll = FortLineLength(line_length=len("!$ACC  OPENACC OPENAC"))
     output_string = fll.process(input_string)
     assert output_string == expected_output
+
 
 def test_edge_conditions_comments():
     '''Test that we get correct behaviour using OpenACC directives when
