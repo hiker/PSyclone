@@ -31,8 +31,8 @@ class FortLineLength(object):
                           "openacc_directive":" &",
                           "comment":""}
         self._key_lists = {"statement":[", ", ",", " "],
-                           "openmp_directive":[" ", ",",")"],
-                           "openacc_directive":[" ", ",",")"],
+                           "openmp_directive":[" ", ",",")","="],
+                           "openacc_directive":[" ", ",",")","="],
                            "comment":[" ",".",","]}
 
     def process(self, fortran_in):
@@ -48,11 +48,16 @@ class FortLineLength(object):
                             "fort_line_length: Unsupported line type [{0}]"
                             " found ...\n{1}".format(line_type, line))
 
-                while len(line) > self._line_length:
-                    break_point = self._find_break_point(
-                        line, self._line_length-len(self._cont_end[line_type]),
+                break_point = self._find_break_point(line,
+                    self._line_length-len(self._cont_end[line_type]),
+                    self._key_lists[line_type])
+                fortran_out += line[:break_point] + self._cont_end[line_type] + "\n"
+                line = line[break_point:]
+                while len(line)+len(self._cont_start[line_type]) > self._line_length:
+                    break_point = self._find_break_point(line,
+                        self._line_length-len(self._cont_end[line_type])-len(self._cont_start[line_type]),
                         self._key_lists[line_type])
-                    fortran_out += line[:break_point] + self._cont_end[line_type] + "\n"
+                    fortran_out += self._cont_start[line_type] + line[:break_point] + self._cont_end[line_type] + "\n"
                     line = line[break_point:]
                 if line:
                     fortran_out += self._cont_start[line_type] + line + "\n"
@@ -89,7 +94,7 @@ class FortLineLength(object):
 
         for key in key_list:
             idx = line.rfind(key, 0, max_index)
-            if idx != -1:
-                return idx+len(key)-1
+            if idx > 0:
+                return idx+len(key)
         raise Exception(
-            "Error in find_break_point. No suitable break point found")
+            "Error in find_break_point. No suitable break point found for line '"+line[:max_index]+"' and keys '"+str(key_list)+"'")

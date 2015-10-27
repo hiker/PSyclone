@@ -18,7 +18,7 @@ def test_openmp_directive():
     ''' Tests that we raise an error if we find an long line that is
     an openmp directive '''
     input_file = "  !$OMP PARALLEL LOOP\n"
-    expected_output = "  !$OMP PARALLEL &\n!$omp&  LOOP\n"
+    expected_output = "  !$OMP PARALLEL  &\n!$omp& LOOP\n"
     fll = FortLineLength(line_length=len(input_file)-3)
     output_file = fll.process(input_file)
     assert output_file == expected_output
@@ -27,7 +27,7 @@ def test_acc_directive():
     ''' Tests that we deal with an OpenACC directive appropriately
     when its needs to be line wrapped '''
     input_file = "  !$ACC kernels loop gang(32), vector(16)\n"
-    expected_output = "  !$ACC kernels loop gang(32), &\n!$acc&  vector(16)\n"
+    expected_output = "  !$ACC kernels loop gang(32),  &\n!$acc& vector(16)\n"
     fll = FortLineLength(line_length=len(input_file)-5)
     output_file = fll.process(input_file)
     assert output_file == expected_output
@@ -36,14 +36,15 @@ def test_unknown():
     ''' Tests that we raise an error if we find a long line that we
     can't determine the type of '''
     input_file = "  A = 10 + B + C\n"
-    with pytest.raises(Exception):
+    with pytest.raises(Exception) as excinfo:
         fll = FortLineLength(line_length=len(input_file)-5)
         _ = fll.process(input_file)
+    assert 'Unsupported line type' in str(excinfo.value)
 
 def test_comment():
     ''' Tests that a long comment line wrapped as expected '''
     input_file = " ! this is a comment"
-    expected_output = " ! this is a\n!&  comment"
+    expected_output = " ! this is a \n!& comment"
     fll = FortLineLength(line_length=len(input_file)-5)
     output_file = fll.process(input_file)
     assert output_file == expected_output
@@ -67,6 +68,168 @@ def test_unchanged():
     print "("+input_file+")"
     print "("+output_file+")"
     assert input_file == output_file, "input should remain unchanged"
-    
-# upper case and lower case use, call, subroutine, integer, real, type
 
+INPUT_FILE = (
+    "    INTEGER    stuff blah blah blah\n"
+    "    REAL       stuff blah blah blah\n"
+    "    TYPE       stuff blah blah blah\n"
+    "    CALL       stuff blah blah blah\n"
+    "    SUBROUTINE stuff blah blah blah\n"
+    "    USE        stuff blah blah blah\n"
+    "    !$OMP      stuff blah blah blah\n"
+    "    !$ACC      stuff blah blah blah\n"
+    "    ! stuff     blah blah blah blah\n"
+    "    stuff\n")
+
+EXPECTED_OUTPUT = (
+    "    INTEGER    stuff blah  &\n"
+    "blah blah\n"
+    "    REAL       stuff blah  &\n"
+    "blah blah\n"
+    "    TYPE       stuff blah  &\n"
+    "blah blah\n"
+    "    CALL       stuff blah  &\n"
+    "blah blah\n"
+    "    SUBROUTINE stuff blah  &\n"
+    "blah blah\n"
+    "    USE        stuff blah  &\n"
+    "blah blah\n"
+    "    !$OMP      stuff blah  &\n"
+    "!$omp& blah blah\n"
+    "    !$ACC      stuff blah  &\n"
+    "!$acc& blah blah\n"
+    "    ! stuff     blah blah \n"
+    "!& blah blah\n"
+    "    stuff\n")
+
+def test_wrapped():
+    ''' Tests that a file whose lines are longer than the specified
+    line length is wrapped appropriately by the FortLineLength class '''
+    fll = FortLineLength(line_length=30)
+    output_file = fll.process(INPUT_FILE)
+    print "("+EXPECTED_OUTPUT+")"
+    print "("+output_file+")"
+    assert output_file == EXPECTED_OUTPUT, "output and expected output differ "
+
+def test_wrapped_lower():
+    ''' Tests that a lower case file whose lines are longer than the
+    specified line length is wrapped appropriately by the
+    FortLineLength class'''
+    fll = FortLineLength(line_length=30)
+    output_file = fll.process(INPUT_FILE.lower())
+    print "("+EXPECTED_OUTPUT.lower()+")"
+    print "("+output_file+")"
+    assert output_file == EXPECTED_OUTPUT.lower(), "output and expected output differ "
+    
+def test_unknown():
+    ''' Tests that we raise an error if we can't find anywhere to wrap
+    the line'''
+    input_file = "!$OMPPARALLELDO"
+    with pytest.raises(Exception) as excinfo:
+        fll = FortLineLength(line_length=len(input_file)-1)
+        _ = fll.process(input_file)
+    assert 'No suitable break point found' in str(excinfo.value)
+
+# multiple lines work OK e.g. continuation lines
+def test_multiple_lines_statements():
+    ''' test that multiple lines works as expected for statements
+    (INTEGER, REAL, TYPE, CALL, SUBROUTINE and USE) '''
+    input_file = (
+        "INTEGER blahdeblah, blahdeblah, blahdeblah, blahdeblah\n")
+    expected_output = (
+        "INTEGER  &\nblahdeblah,  &\nblahdeblah,  &\nblahdeblah,  &\nblahdeblah\n")
+    fll = FortLineLength(line_length=18)
+    output_file = fll.process(input_file)
+    assert output_file == expected_output
+
+def test_multiple_lines_omp():
+    ''' test that multiple lines works as expected for OpenMP directives '''
+    input_file = (
+        "!$omp blahdeblah, blahdeblah, blahdeblah, blahdeblah\n")
+    expected_output = (
+        "!$omp blahdeblah,  &\n!$omp& blahdeblah,  &\n!$omp& blahdeblah,  &\n!$omp& blahdeblah\n")
+    fll = FortLineLength(line_length=24)
+    output_file = fll.process(input_file)
+    assert output_file == expected_output
+
+def test_multiple_lines_acc():
+    ''' test that multiple lines works as expected for OpenACC directives '''
+    input_file = (
+        "!$acc blahdeblah, blahdeblah, blahdeblah, blahdeblah\n")
+    expected_output = (
+        "!$acc blahdeblah,  &\n!$acc& blahdeblah,  &\n!$acc& blahdeblah,  &\n!$acc& blahdeblah\n")
+    fll = FortLineLength(line_length=24)
+    output_file = fll.process(input_file)
+    assert output_file == expected_output
+
+def test_multiple_lines_comment():
+    ''' test that multiple lines works as expected for comments '''
+    input_file = (
+        "! blahdeblah, blahdeblah, blahdeblah, blahdeblah\n")
+    expected_output = (
+        "! blahdeblah, \n!& blahdeblah, \n!& blahdeblah, \n!& blahdeblah\n")
+    fll = FortLineLength(line_length=18)
+    output_file = fll.process(input_file)
+    assert output_file == expected_output
+        
+def test_exception_line_too_long():
+    ''' Test that output lines are not longer than the maximum
+    specified'''
+    input_file = (
+        "INTEGER stuffynostrils, blahdeblah,blahdeblah blahdeblah\n"
+        "!$omp stuffynostrils,(blahdeblah)blahdeblah=(blahdeblah)\n"
+        "!$acc stuffynostrils,(blahdeblah)blahdeblah=(blahdeblah)\n"
+        "!     stuffynostrils,blahdeblah.blahdeblah blahdeblah).\n")
+    fll = FortLineLength(line_length=24)
+    output_file = fll.process(input_file)
+    for line in output_file.split('\n'):
+        assert len(line) <= 24, "Error, output line is longer than the maximum allowed"
+
+def test_break_types_multi_line():
+    ''' Test the different supported line breaks.'''
+    input_file = (
+        "INTEGER stuffynostrils, blahdeblah,blahdeblah blahdeblah\n"
+        "!$omp stuffynostrils,(blahdeblah)blahdeblah=(blahdeblah)\n"
+        "!$acc stuffynostrils,(blahdeblah)blahdeblah=(blahdeblah)\n"
+        "!     stuffynostrils,blahdeblah.blahdeblah blahdeblah).\n")
+    expected_output = (
+        "INTEGER  &\nstuffynostrils,  &\nblahdeblah, &\nblahdeblah blahdeblah\n"
+        "!$omp  &\n!$omp& stuffynostrils, &\n!$omp& (blahdeblah) &\n!$omp& blahdeblah= &\n!$omp& (blahdeblah)\n"
+        "!$acc  &\n!$acc& stuffynostrils, &\n!$acc& (blahdeblah) &\n!$acc& blahdeblah= &\n!$acc& (blahdeblah)\n"
+        "!     \n!& stuffynostrils,\n!& blahdeblah.\n!& blahdeblah \n!& blahdeblah).\n")
+
+    fll = FortLineLength(line_length=24)
+    output_file = fll.process(input_file)
+    print "("+output_file+")"
+    assert output_file == expected_output
+
+def test_edge_conditions_statements():
+    ''' Test that we get correct behaviour using statements (INTEGER,
+    REAL, TYPE, CALL, SUBROUTINE and USE) when the input line equals
+    the max line length, or multiples thereof and lengths one larger
+    and one smaller. This is to make sure we don't have issues like
+    ending up with a continuation but no following line.'''
+    input_string = (
+        "INTEGER INTEG\n"
+        "INTEGER INTEGE\n"
+        "INTEGER INTEGER\n"
+        "INTEGER INTEGER INTEG\n"
+        "INTEGER INTEGER INTEGE\n"
+        "INTEGER INTEGER INTEGER\n")
+    expected_output = (
+        "INTEGER INTEG\n"
+        "INTEGER INTEGE\n"
+        "INTEGER  &\nINTEGER\n"
+        "INTEGER  &\nINTEGER INTEG\n"
+        "INTEGER  &\nINTEGER INTEGE\n"
+        "INTEGER  &\nINTEGER  &\nINTEGER\n")
+    fll = FortLineLength(line_length=len("INTEGER INTEGE"))
+    output_string = fll.process(input_string)
+    assert output_string == expected_output
+
+def test_edge_conditions_omp():
+    assert False, "Not yet implemented"
+def test_edge_conditions_acc():
+    assert False, "Not yet implemented"
+def test_edge_conditions_comments():
+    assert False, "Not yet implemented"
