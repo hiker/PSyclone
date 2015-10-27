@@ -121,7 +121,7 @@ def test_wrapped_lower():
     print "("+output_file+")"
     assert output_file == EXPECTED_OUTPUT.lower(), "output and expected output differ "
     
-def test_unknown():
+def test_fail_to_wrap():
     ''' Tests that we raise an error if we can't find anywhere to wrap
     the line'''
     input_file = "!$OMPPARALLELDO"
@@ -228,8 +228,73 @@ def test_edge_conditions_statements():
     assert output_string == expected_output
 
 def test_edge_conditions_omp():
-    assert False, "Not yet implemented"
+    '''Test that we get correct behaviour using OpenMP directives when
+    the input line equals the max line length, or multiples thereof
+    and lengths one larger and one smaller. This is to make sure we
+    don't have issues like ending up with a continuation but no
+    following line. '''
+    input_string = (
+        "!$OMP  OPENMP OPEN\n"
+        "!$OMP  OPENMP OPENM\n"
+        "!$OMP  OPENMP OPENMP\n"
+        "!$OMP  OPENMP OPENMP OPEN\n"
+        "!$OMP  OPENMP OPENMP OPENM\n"
+        "!$OMP  OPENMP OPENMP OPENMP\n")
+    expected_output = (
+        "!$OMP  OPENMP OPEN\n"
+        "!$OMP  OPENMP OPENM\n"
+        "!$OMP  OPENMP  &\n!$omp& OPENMP\n"
+        "!$OMP  OPENMP  &\n!$omp& OPENMP OPEN\n"
+        "!$OMP  OPENMP  &\n!$omp& OPENMP OPENM\n"
+        "!$OMP  OPENMP  &\n!$omp& OPENMP  &\n!$omp& OPENMP\n")
+    fll = FortLineLength(line_length=len("!$OMP  OPENMP OPENM"))
+    output_string = fll.process(input_string)
+    assert output_string == expected_output
+
 def test_edge_conditions_acc():
-    assert False, "Not yet implemented"
+    '''Test that we get correct behaviour using OpenACC directives when
+    the input line equals the max line length, or multiples thereof
+    and lengths one larger and one smaller. This is to make sure we
+    don't have issues like ending up with a continuation but no
+    following line. '''
+    input_string = (
+        "!$ACC  OPENACC OPENA\n"
+        "!$ACC  OPENACC OPENAC\n"
+        "!$ACC  OPENACC OPENACC\n"
+        "!$ACC  OPENACC OPENACC OPENA\n"
+        "!$ACC  OPENACC OPENACC OPENAC\n"
+        "!$ACC  OPENACC OPENACC OPENACC\n")
+    expected_output = (
+        "!$ACC  OPENACC OPENA\n"
+        "!$ACC  OPENACC OPENAC\n"
+        "!$ACC  OPENACC  &\n!$acc& OPENACC\n"
+        "!$ACC  OPENACC  &\n!$acc& OPENACC OPENA\n"
+        "!$ACC  OPENACC  &\n!$acc& OPENACC OPENAC\n"
+        "!$ACC  OPENACC  &\n!$acc& OPENACC  &\n!$acc& OPENACC\n")
+    fll = FortLineLength(line_length=len("!$ACC  OPENACC OPENAC"))
+    output_string = fll.process(input_string)
+    assert output_string == expected_output
+
 def test_edge_conditions_comments():
-    assert False, "Not yet implemented"
+    '''Test that we get correct behaviour using OpenACC directives when
+    the input line equals the max line length, or multiples thereof
+    and lengths one larger and one smaller. This is to make sure we
+    don't have issues like ending up with a continuation but no
+    following line. '''
+    input_string = (
+        "!  COMMENT COMME\n"
+        "!  COMMENT COMMEN\n"
+        "!  COMMENT COMMENT\n"
+        "!  COMMENT COMMENT COMME\n"
+        "!  COMMENT COMMENT COMMEN\n"
+        "!  COMMENT COMMENT COMMENT\n")
+    expected_output = (
+        "!  COMMENT COMME\n"
+        "!  COMMENT COMMEN\n"
+        "!  COMMENT \n!& COMMENT\n"
+        "!  COMMENT \n!& COMMENT COMME\n"
+        "!  COMMENT \n!& COMMENT COMMEN\n"
+        "!  COMMENT \n!& COMMENT \n!& COMMENT\n")
+    fll = FortLineLength(line_length=len("!  COMMENT COMMEN"))
+    output_string = fll.process(input_string)
+    assert output_string == expected_output
