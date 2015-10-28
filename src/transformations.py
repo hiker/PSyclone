@@ -73,7 +73,7 @@ class LoopFuseTrans(Transformation):
         if abs(node1.position-node2.position) != 1:
             raise TransformationError("Error in LoopFuse transformation. "
                                       "nodes are not siblings who are "
-                                      "next to eachother")
+                                      "next to each other")
         # Check iteration space is the same
         if not node1.iteration_space == node2.iteration_space:
             raise TransformationError("Error in LoopFuse transformation. "
@@ -648,11 +648,21 @@ class KernelModuleInlineTrans(Transformation):
     >>> ischedule, _ = inline_trans.apply(schedule.children[0].children[0])
     >>> ischedule.view()
 
+    .. warning ::
+        For this transformation to work correctly, the Kernel subroutine
+        must only use data that is passed in by argument, declared locally
+        or included via use association within the subroutine. Two
+        examples where inlining will not work correctly are 1) if a
+        variable is declared as a module variable and used within the
+        Kernel subroutine 2) if a variable is included via use association
+        at the module level and used within the Kernel subroutine. There
+        are currently no checks that these rules are being followed when
+        inlining so the onus is on the user to ensure correctness.
     '''
 
     def __str__(self):
-        return "Inline (or cancel inline of) a kernel subroutine into the PSy \
-               module"
+        return ("Inline (or cancel inline of) a kernel subroutine into the "
+                "PSy module")
 
     @property
     def name(self):
