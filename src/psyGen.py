@@ -654,7 +654,7 @@ class Schedule(Node):
         >>> invokes.names
         >>> invoke = invokes.get("name")
         >>> schedule = invoke.schedule
-        >>> print schedule.view()
+        >>> schedule.view()
 
     '''
 
@@ -961,9 +961,9 @@ class Loop(Node):
         self._canvas = None
 
     def view(self, indent=0):
-        print self.indent(indent) + "Loop[type='{0}',field_space='{1}'," + \
-            "it_space='{2}']".format(self._loop_type, self._field_space,
-                                     self.iteration_space)
+        print self.indent(indent) +\
+            "Loop[type='{0}',field_space='{1}',it_space='{2}']".\
+            format(self._loop_type, self._field_space, self.iteration_space)
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -1540,7 +1540,9 @@ class TransInfo(object):
         try:
             return self._obj_map[name]
         except KeyError:
-            raise GenerationError("Invalid transformation name supplied")
+            raise GenerationError("Invalid transformation name: got {0} "
+                                  "but expected one of {1}".\
+                                  format(name, self._obj_map.keys()))
 
     def _find_subclasses(self, module, base_class):
         ''' return a list of classes defined within the specified module that
