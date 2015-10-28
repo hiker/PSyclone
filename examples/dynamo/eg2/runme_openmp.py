@@ -24,7 +24,7 @@ print t.list
 
 lf=t.get_trans_name('LoopFuse')
 ol=t.get_trans_name('OMPParallelLoopTrans')
-lc=t.get_trans_name('LoopColour')
+lc=t.get_trans_name('LoopColourTrans')
 
 schedule.view()
 fuse_schedule,memento=lf.apply(schedule.children[0],schedule.children[1])
