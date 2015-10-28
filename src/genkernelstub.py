@@ -23,6 +23,7 @@ import sys
 import traceback
 from line_length import FortLineLength
 
+
 def generate(filename, api=""):
 
     '''Generates an empty kernel subroutine with the required arguments

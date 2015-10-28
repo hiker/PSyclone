@@ -36,7 +36,7 @@ class FortLineLength(object):
                            "comment": [" ", ".", ","]}
         import re
         self._stat = re.compile(r'^\s*(INTEGER|REAL|TYPE|CALL|SUBROUTINE|USE)',
-                          flags=re.I)
+                                flags=re.I)
         self._omp = re.compile(r'^\s*!\$OMP', flags=re.I)
         self._acc = re.compile(r'^\s*!\$ACC', flags=re.I)
         self._comment = re.compile(r'^\s*!')

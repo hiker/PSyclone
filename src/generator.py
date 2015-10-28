@@ -24,6 +24,7 @@ from algGen import AlgorithmError
 from config import SUPPORTEDAPIS, DEFAULTAPI
 from line_length import FortLineLength
 
+
 def generate(filename, api="", kernel_path="", script_name=None):
     '''Takes a GungHo algorithm specification as input and outputs the
     associated generated algorithm and psy codes suitable for
@@ -154,7 +155,6 @@ if __name__ == "__main__":
         '-l', '--limit', dest='limit', action='store_true', default=False,
         help='limit the fortran line length to 132 characters')
 
-
     ARGS = PARSER.parse_args()
     if ARGS.api not in SUPPORTEDAPIS:
         print "Unsupported API '{0}' specified. Supported API's are "
@@ -197,4 +197,3 @@ if __name__ == "__main__":
         MY_FILE.close()
     else:
         print "Generated psy layer code:\n", PSY_STR
-            
