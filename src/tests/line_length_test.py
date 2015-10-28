@@ -16,8 +16,8 @@ from line_length import FortLineLength
 
 
 def test_openmp_directive():
-    ''' Tests that we raise an error if we find an long line that is
-    an openmp directive '''
+    ''' Tests that we successfully break an OpenMP directive line
+    on a space '''
     input_file = "  !$OMP PARALLEL LOOP\n"
     expected_output = "  !$OMP PARALLEL  &\n!$omp& LOOP\n"
     fll = FortLineLength(line_length=len(input_file)-3)
