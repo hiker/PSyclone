@@ -65,7 +65,7 @@ if __name__ == "__main__":
     PARSER.add_argument("-o", "--outfile", help="filename of output")
     PARSER.add_argument("-api", default=DEFAULTSTUBAPI,
                         help="choose a particular api from {0}, default {1}".
-                             format(str(SUPPORTEDSTUBAPIS), DEFAULTSTUBAPI))
+                        format(str(SUPPORTEDSTUBAPIS), DEFAULTSTUBAPI))
     PARSER.add_argument('filename', help='Kernel metadata')
     PARSER.add_argument(
         '-l', '--limit', dest='limit', action='store_true', default=False,
@@ -87,8 +87,8 @@ if __name__ == "__main__":
         exit(1)
 
     if ARGS.limit:
-        fll = FortLineLength()
-        STUB_STR = fll.process(str(STUB))
+        FLL = FortLineLength()
+        STUB_STR = FLL.process(str(STUB))
     else:
         STUB_STR = str(STUB)
     if ARGS.outfile is not None:

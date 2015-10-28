@@ -157,8 +157,8 @@ if __name__ == "__main__":
 
     ARGS = PARSER.parse_args()
     if ARGS.api not in SUPPORTEDAPIS:
-        print "Unsupported API '{0}' specified. Supported API's are "
-        "{1}.".format(ARGS.api, SUPPORTEDAPIS)
+        print "Unsupported API '{0}' specified. Supported API's are "\
+            "{1}.".format(ARGS.api, SUPPORTEDAPIS)
         exit(1)
     try:
         ALG, PSY = generate(ARGS.filename, api=ARGS.api,
@@ -179,9 +179,9 @@ if __name__ == "__main__":
         traceback.print_tb(EXC_TRACEBACK)
         exit(1)
     if ARGS.limit:
-        fll = FortLineLength()
-        PSY_STR = fll.process(str(PSY))
-        ALG_STR = fll.process(str(ALG))
+        FLL = FortLineLength()
+        PSY_STR = FLL.process(str(PSY))
+        ALG_STR = FLL.process(str(ALG))
     else:
         PSY_STR = str(PSY)
         ALG_STR = str(ALG)
