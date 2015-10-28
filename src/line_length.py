@@ -41,6 +41,19 @@ class FortLineLength(object):
         self._acc = re.compile(r'^\s*!\$ACC', flags=re.I)
         self._comment = re.compile(r'^\s*!')
 
+    def long_lines(self, fortran_in):
+        '''returns true if at least one of the lines in the input code is
+           longer than the allowed length. Otherwise returns false '''
+        for line in fortran_in.split('\n'):
+            if len(line) > self._line_length:
+                return True
+        return False
+
+    @property
+    def length(self):
+        ''' returns the maximum allowed line length'''
+        return self._line_length
+
     def process(self, fortran_in):
         ''' takes fortran code as a string as input and output fortran
         code as a string with any long lines wrappe appropriately '''
