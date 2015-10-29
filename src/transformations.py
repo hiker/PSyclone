@@ -652,12 +652,15 @@ class KernelModuleInlineTrans(Transformation):
         For this transformation to work correctly, the Kernel subroutine
         must only use data that is passed in by argument, declared locally
         or included via use association within the subroutine. Two
-        examples where inlining will not work correctly are 1) if a
-        variable is declared as a module variable and used within the
-        Kernel subroutine 2) if a variable is included via use association
-        at the module level and used within the Kernel subroutine. There
-        are currently no checks that these rules are being followed when
-        inlining so the onus is on the user to ensure correctness.
+        examples where in-lining will not work correctly are:
+
+        #. A variable is declared within the module that ``contains`` the
+           Kernel subroutine and is then accessed within that Kernel;
+        #. A variable is included via use association at the module level
+           and accessed within the Kernel subroutine.
+
+        *There are currently no checks that these rules are being followed
+        when in-lining so the onus is on the user to ensure correctness.*
     '''
 
     def __str__(self):
