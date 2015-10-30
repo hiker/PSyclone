@@ -302,11 +302,10 @@ def test_edge_conditions_acc():
 
 
 def test_edge_conditions_comments():
-    '''Test that we get correct behaviour using OpenACC directives when
-    the input line equals the max line length, or multiples thereof
-    and lengths one larger and one smaller. This is to make sure we
-    don't have issues like ending up with a continuation but no
-    following line. '''
+    '''Test that we get correct behaviour with comments when the input
+    line equals the max line length, or multiples thereof and lengths
+    one larger and one smaller. This is to make sure we don't have
+    issues like ending up with a continuation but no following line.'''
     input_string = (
         "!  COMMENT COMME\n"
         "!  COMMENT COMMEN\n"
@@ -324,3 +323,38 @@ def test_edge_conditions_comments():
     fll = FortLineLength(line_length=len("!  COMMENT COMMEN"))
     output_string = fll.process(input_string)
     assert output_string == expected_output
+
+
+def test_long_lines_true():
+    ''' Tests that the long_lines method returns true with fortran
+    input which has at least one line longer than the specified
+    maximum'''
+    input_string = (
+        "! line1\n"
+        "! " + "line2"*6 + "\n"
+        "! line3\n")
+    fll = FortLineLength(line_length=30)
+    assert fll.long_lines(input_string),\
+        "long_lines_true test should return True"
+
+
+def test_long_lines_false():
+    ''' Tests that the long_lines method returns false with fortran
+    input which has all lines shorter than the specified maximum'''
+    input_string = (
+        "! line1\n"
+        "! " + "line2"*5 + "\n" +
+        "! line3\n")
+    fll = FortLineLength(line_length=30)
+    assert not fll.long_lines(input_string),\
+        "long_lines_false test should return False"
+
+
+def test_length():
+    ''' Tests that the length method returns the expected value '''
+    input_length = 20
+    fll = FortLineLength(line_length=input_length)
+    output_length = fll.length
+    assert output_length == input_length,\
+        "test_length expecting length method to be the same as the length" +\
+        "provided on input"

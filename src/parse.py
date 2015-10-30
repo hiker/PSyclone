@@ -573,6 +573,10 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
         raise IOError("File %s not found" % alg_filename)
     try:
         ast = fpapi.parse(alg_filename, ignore_comments = False, analyze = False)
+        # ast includes an extra comment line which contains file
+        # details. This line can be long which can cause line length
+        # issues. Therefore set the information (name) to be empty.
+        ast.name = ""
     except:
         import traceback
         traceback.print_exc()
@@ -696,13 +700,19 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                     else:
                         try:
                             modast = fpapi.parse(matches[0])
+                            # ast includes an extra comment line which
+                            # contains file details. This line can be
+                            # long which can cause line length
+                            # issues. Therefore set the information
+                            # (name) to be empty.
+                            modast.name = ""
                         except:
                             raise ParseError("Failed to parse kernel code "
                                              "'{0}'. Is the Fortran correct?".
                                              format(matches[0]))
                         if line_length:
                             fll = FortLineLength()
-                            if fll.long_lines(str(ast)):
+                            if fll.long_lines(str(modast)):
                                 raise ParseError(
                                     "parse: the kernel file '{0}' does not"
                                     " conform to the specified {1} line length"
