@@ -78,7 +78,8 @@ def generate(filename, api="", kernel_path="", script_name=None,
     try:
         from algGen import Alg
         ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
-                                 kernel_path=kernel_path, line_length=line_length)
+                                 kernel_path=kernel_path,
+                                 line_length=line_length)
         psy = PSyFactory(api).create(invoke_info)
         if script_name is not None:
             sys_path_appended = False
@@ -177,8 +178,8 @@ if __name__ == "__main__":
         exit(0)
     except (OSError, IOError, ParseError, GenerationError,
             RuntimeError) as error:
-        exc_type, exc_value, exc_traceback = sys.exc_info()
-        print exc_value
+        _, EXC_VALUE, _ = sys.exc_info()
+        print EXC_VALUE
         exit(1)
     except Exception as error:
         print "Error, unexpected exception:\n"
