@@ -538,13 +538,13 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
     :param str invoke_name: The expected name of the invocation calls in the algorithm specification
     :param str inf_name: The expected module name of any required infrastructure routines.
     :param str kernel_path: The path to search for kernel source files (if different from the location of the algorithm source).
-    :parame bool line_length: A logical flag specifying whether we
-                              care about line lengths being longer
-                              than 132 characters. If so, the input
-                              (algorithm and kernel) code is checked
-                              to make sure that it conforms and an
-                              error raised if not. The default is
-                              False.
+    :param bool line_length: A logical flag specifying whether we
+                             care about line lengths being longer
+                             than 132 characters. If so, the input
+                             (algorithm and kernel) code is checked
+                             to make sure that it conforms and an
+                             error raised if not. The default is
+                             False.
     :rtype: ast,invoke_info
     :raises IOError: if the filename or search path does not exist
     :raises ParseError: if there is an error in the parsing

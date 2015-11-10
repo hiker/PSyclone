@@ -68,3 +68,12 @@ The algGen module
 
 .. autoclass:: Alg
     :members:
+
+The line_length module
+----------------------
+
+.. automodule:: line_length
+
+.. autoclass:: FortLineLength
+    :members:
+
