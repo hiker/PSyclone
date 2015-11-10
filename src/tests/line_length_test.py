@@ -11,6 +11,8 @@
 # imports
 import pytest
 from line_length import FortLineLength
+from generator import generate
+import os
 
 # functions
 
@@ -33,16 +35,6 @@ def test_acc_directive():
     fll = FortLineLength(line_length=len(input_file)-5)
     output_file = fll.process(input_file)
     assert output_file == expected_output
-
-
-def test_unknown():
-    ''' Tests that we raise an error if we find a long line that we
-    can't determine the type of '''
-    input_file = "  A = 10 + B + C\n"
-    with pytest.raises(Exception) as excinfo:
-        fll = FortLineLength(line_length=len(input_file)-5)
-        _ = fll.process(input_file)
-    assert 'Unsupported line type' in str(excinfo.value)
 
 
 def test_comment():
@@ -358,3 +350,17 @@ def test_length():
     assert output_length == input_length,\
         "test_length expecting length method to be the same as the length" +\
         "provided on input"
+
+def test_long_line_continuator():
+    '''Tests that an input algorithm file with long lines of a type not
+       recognised by FortLineLength (assignments in this case), which
+       already have continuators to make the code conform to the line
+       length limit, does not cause an error.
+    '''
+    alg, psy = generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                     "test_files", "dynamo0p3",
+                                     "13.2_alg_long_line_continuator.f90"),
+                        api = "dynamo0.3")
+    input_string = str(alg)
+    fll = FortLineLength()
+    output_string = fll.process(input_string)

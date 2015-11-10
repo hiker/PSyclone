@@ -583,7 +583,9 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
 	raise ParseError("Fatal error in external fparser tool")
     if line_length:
         fll = FortLineLength()
-        if fll.long_lines(str(ast)):
+        with open (alg_filename, "r") as myfile:
+            code_str=myfile.read()
+        if fll.long_lines(code_str):
             raise ParseError(
                 "parse: the algorithm file does not conform to the specified"
                 " {0} line length limit".format(str(fll.length)))
@@ -712,7 +714,9 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                                              format(matches[0]))
                         if line_length:
                             fll = FortLineLength()
-                            if fll.long_lines(str(modast)):
+                            with open (matches[0], "r") as myfile:
+                                code_str=myfile.read()
+                            if fll.long_lines(code_str):
                                 raise ParseError(
                                     "parse: the kernel file '{0}' does not"
                                     " conform to the specified {1} line length"

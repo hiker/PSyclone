@@ -65,9 +65,9 @@ def test_wrong_kernel_path():
     root_path = os.path.dirname(os.path.abspath(__file__))
     with pytest.raises(IOError):
         generate(os.path.join(root_path,
-                              "test_files", "dynamo0p1", "algorithm",
-                              "1_single_function.f90"),
-                 api="dynamo0.1",
+                              "test_files", "dynamo0p3",
+                              "1.1_single_invoke_qr.f90"),
+                 api="dynamo0.3",
                  kernel_path=os.path.join(root_path,
                                           "test_files", "gocean0p1"))
 
@@ -356,3 +356,12 @@ def test_kern_lines_too_long_not_tested():
     use the dynamo0.3 API in this case but could have chosen any.'''
     alg_filename = os.path.join(DYN03_BASE_PATH, "13.1_kern_long_line.f90")
     _, _ = generate(alg_filename, api="dynamo0.3")
+
+def test_continuators():
+    '''Tests that input files with long lines that already have
+       continuators to make the code conform to the line length limit
+       do not cause an error '''
+    _, _ = generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1.1_single_invoke_qr.f90"),
+                    api = "dynamo0.3", line_length=True)

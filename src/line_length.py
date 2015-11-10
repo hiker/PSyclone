@@ -25,15 +25,18 @@ class FortLineLength(object):
         self._cont_start = {"statement": "",
                             "openmp_directive": "!$omp& ",
                             "openacc_directive": "!$acc& ",
-                            "comment": "!& "}
+                            "comment": "!& ",
+                            "unknown": ""}
         self._cont_end = {"statement": " &",
                           "openmp_directive": " &",
                           "openacc_directive": " &",
-                          "comment": ""}
+                          "comment": "",
+                          "unknown": " &"}
         self._key_lists = {"statement": [", ", ",", " "],
                            "openmp_directive": [" ", ",", ")", "="],
                            "openacc_directive": [" ", ",", ")", "="],
-                           "comment": [" ", ".", ","]}
+                           "comment": [" ", ".", ","],
+                           "unknown": [" ", ",", "=", "+", ")"]}
         import re
         self._stat = re.compile(r'^\s*(INTEGER|REAL|TYPE|CALL|SUBROUTINE|USE)',
                                 flags=re.I)
@@ -62,7 +65,8 @@ class FortLineLength(object):
         for line in fortran_in.split('\n'):
             if len(line) > self._line_length:
                 line_type = self._get_line_type(line)
-                if line_type == "unknown":
+                # Currently we accept unknown line types and do our best
+                if line_type == "unknown" and False:
                     raise Exception(
                         "fort_line_length: Unsupported line type [{0}]"
                         " found ...\n{1}".format(line_type, line))
