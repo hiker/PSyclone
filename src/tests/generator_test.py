@@ -324,7 +324,7 @@ def test_alg_lines_too_long_tested():
     case but could have chosen any. '''
     alg_filename = os.path.join(DYN03_BASE_PATH, "13_alg_long_line.f90")
     with pytest.raises(ParseError) as excinfo:
-        _,  _ = generate(alg_filename, api="dynamo0.3", line_length=True)
+        _, _ = generate(alg_filename, api="dynamo0.3", line_length=True)
     assert 'algorithm file does not conform' in str(excinfo.value)
 
 

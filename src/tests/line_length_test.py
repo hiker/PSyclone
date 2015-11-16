@@ -358,11 +358,11 @@ def test_long_line_continuator():
        already have continuators to make the code conform to the line
        length limit, does not cause an error.
     '''
-    alg, psy = generate(os.path.join(os.path.dirname(os.path.
+    alg, _ = generate(os.path.join(os.path.dirname(os.path.
                                                      abspath(__file__)),
                                      "test_files", "dynamo0p3",
                                      "13.2_alg_long_line_continuator.f90"),
                         api="dynamo0.3")
     input_string = str(alg)
     fll = FortLineLength()
-    output_string = fll.process(input_string)
+    _ = fll.process(input_string)

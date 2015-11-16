@@ -9,7 +9,7 @@
 ''' A module to perform pytest unit and functional tests on the parse
 function. '''
 
-from parse import parse, ParseError
+from parse import parse
 import os
 
 
