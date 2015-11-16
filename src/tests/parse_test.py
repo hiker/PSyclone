@@ -12,21 +12,22 @@ function. '''
 from parse import parse, ParseError
 import os
 
+
 def test_continuators_kernel():
     '''Tests that an input kernel file with long lines that already has
        continuators to make the code conform to the line length limit
        does not cause an error. '''
     _, _ = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
-                                 "1.1_single_invoke_qr.f90"),
-                    api = "dynamo0.3", line_length=True)
+                              "test_files", "dynamo0p3",
+                              "1.1_single_invoke_qr.f90"),
+                 api="dynamo0.3", line_length=True)
+
 
 def test_continuators_algorithm():
     '''Tests that an input algorithm file with long lines that already has
        continuators to make the code conform to the line length limit
        does not cause an error. '''
     _, _ = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
-                                 "13.2_alg_long_line_continuator.f90"),
-                    api = "dynamo0.3", line_length=True)
-
+                              "test_files", "dynamo0p3",
+                              "13.2_alg_long_line_continuator.f90"),
+                 api="dynamo0.3", line_length=True)

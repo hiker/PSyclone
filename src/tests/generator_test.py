@@ -357,6 +357,7 @@ def test_kern_lines_too_long_not_tested():
     alg_filename = os.path.join(DYN03_BASE_PATH, "13.1_kern_long_line.f90")
     _, _ = generate(alg_filename, api="dynamo0.3")
 
+
 def test_continuators():
     '''Tests that input files with long lines that already have
        continuators to make the code conform to the line length limit
@@ -364,4 +365,4 @@ def test_continuators():
     _, _ = generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1.1_single_invoke_qr.f90"),
-                    api = "dynamo0.3", line_length=True)
+                    api="dynamo0.3", line_length=True)
