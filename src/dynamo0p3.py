@@ -1159,7 +1159,7 @@ class DynKern(Kern):
                                 first_arg_decl = decl
                         else:
                             text = arg.proxy_name + "(" + str(idx) + ")" + \
-                                   dataref
+                                dataref
                         arglist.append(text)
                 else:
                     if my_type == "subroutine":
@@ -1258,11 +1258,11 @@ class DynKern(Kern):
                         # the size of the first dimension for a
                         # basis array depends on the
                         # function space. The values are
-                        # w0=1, w1=3, w2=3, w3=1, wtheta=3, w2h=1, w2v=1
+                        # w0=1, w1=3, w2=3, w3=1, wtheta=1, w2h=3, w2v=3
                         first_dim = None
-                        if unique_fs.lower() in ["w0", "w3", "w2h", "w2v"]:
+                        if unique_fs.lower() in ["w0", "w3", "wtheta"]:
                             first_dim = "1"
-                        elif unique_fs.lower() in ["w1", "w2", "wtheta"]:
+                        elif unique_fs.lower() in ["w1", "w2", "w2h", "w2v"]:
                             first_dim = "3"
                         else:
                             raise GenerationError(
