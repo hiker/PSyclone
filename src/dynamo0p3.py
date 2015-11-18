@@ -271,6 +271,20 @@ class DynArgDescriptor03(Descriptor):
                 "not get to here.")
 
     @property
+    def function_spaces(self):
+        ''' Return the function space names that this instance operates
+        on as a list. In the case of a gh_operator, where there are 2 function
+        spaces, we return both. '''
+        if self._type == "gh_field":
+            return [ self.function_space ]
+        elif self._type == "gh_operator":
+            return [ self.function_space_from, self.function_space_to ]
+        else:
+            raise RuntimeError(
+                "Internal error, DynArgDescriptor03:function_spaces(), should "
+                "not get to here.")
+
+    @property
     def is_any_space(self):
         ''' Returns True if this descriptor is of type any_space. This
         could be any on the any_space spaces, i.e. any of any_space_1,
@@ -348,7 +362,7 @@ class DynKernMetadata(KernelType):
         # return via the func_descriptors method.
         arg_fs_names = []
         for descriptor in self._arg_descriptors:
-            arg_fs_names.append(descriptor.function_space)
+            arg_fs_names.extend(descriptor.function_spaces)
         used_fs_names = []
         for func_type in func_types:
             descriptor = DynFuncDescriptor03(func_type)
@@ -524,7 +538,7 @@ class DynInvoke(Invoke):
         for kern_call in self.schedule.kern_calls():
             if fs_name in kern_call.arguments.unique_fss:
                 for arg in kern_call.arguments.args:
-                    if arg.function_space == fs_name:
+                    if fs_name in arg.function_spaces:
                         return arg
         raise GenerationError("Functionspace name not found")
 
@@ -701,7 +715,7 @@ class DynInvoke(Invoke):
             root_name="nlayers", context="PSyVars", label="nlayers")
         invoke_sub.add(AssignGen(invoke_sub, lhs=nlayers_name,
                        rhs=first_var.proxy_name_indexed + "%" +
-                       first_var.ref_name + "%get_nlayers()"))
+                       first_var.ref_name() + "%get_nlayers()"))
         invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                entity_decls=[nlayers_name]))
         if self.qr_required:
@@ -749,7 +763,7 @@ class DynInvoke(Invoke):
             ndf_name = self.ndf_name(function_space)
             var_list.append(ndf_name)
             invoke_sub.add(AssignGen(invoke_sub, lhs=ndf_name,
-                                     rhs=name+"%"+arg.ref_name+"%get_ndf()"))
+                                     rhs=name+"%"+arg.ref_name(function_space)+"%get_ndf()"))
             # if there is a field on this space then initialise undf
             # for this function space and add name to list to declare
             # later
@@ -757,13 +771,13 @@ class DynInvoke(Invoke):
                 undf_name = self.undf_name(function_space)
                 var_list.append(undf_name)
                 invoke_sub.add(AssignGen(invoke_sub, lhs=undf_name,
-                               rhs=name+"%"+arg.ref_name+"%get_undf()"))
+                               rhs=name+"%"+arg.ref_name(function_space)+"%get_undf()"))
             if self.basis_required(function_space):
                 # initialise 'dim' variable for this function space
                 # and add name to list to declare later
                 lhs = "dim_"+function_space
                 var_dim_list.append(lhs)
-                rhs = name+"%"+arg.ref_name+"%get_dim_space()"
+                rhs = name+"%"+arg.ref_name(function_space)+"%get_dim_space()"
                 invoke_sub.add(AssignGen(invoke_sub, lhs=lhs, rhs=rhs))
                 # allocate the basis function variable
                 alloc_args = "dim_" + function_space + ", " + \
@@ -778,7 +792,7 @@ class DynInvoke(Invoke):
                 # space and add name to list to declare later
                 lhs = "diff_dim_"+function_space
                 var_dim_list.append(lhs)
-                rhs = name+"%"+arg.ref_name+"%get_dim_space_diff()"
+                rhs = name+"%"+arg.ref_name(function_space)+"%get_dim_space_diff()"
                 invoke_sub.add(AssignGen(invoke_sub, lhs=lhs, rhs=rhs))
                 # allocate the diff basis function variable
                 alloc_args = "diff_dim_" + function_space + ", " + \
@@ -837,7 +851,7 @@ class DynInvoke(Invoke):
                     name = arg.proxy_name_indexed
                     # insert the basis array call
                     invoke_sub.add(CallGen(invoke_sub,
-                                   name=name + "%" + arg.ref_name +
+                                   name=name + "%" + arg.ref_name(function_space) +
                                    "%compute_basis_function", args=args))
                 if self.diff_basis_required(function_space):
                     # Create the argument list
@@ -852,7 +866,7 @@ class DynInvoke(Invoke):
                     name = arg.proxy_name_indexed
                     # insert the diff basis array call
                     invoke_sub.add(CallGen(invoke_sub, name=name + "%" +
-                                   arg.ref_name +
+                                   arg.ref_name(function_space) +
                                    "%compute_diff_basis_function", args=args))
         invoke_sub.add(CommentGen(invoke_sub, ""))
         invoke_sub.add(CommentGen(invoke_sub, " Call our kernels"))
@@ -940,7 +954,7 @@ class DynLoop(Loop):
             self._stop = "ncp_colour(colour)"
         else:
             self._stop = self.field.proxy_name_indexed + "%" + \
-                self.field.ref_name + "%get_ncell()"
+                self.field.ref_name() + "%get_ncell()"
         Loop.gen_code(self, parent)
 
 
@@ -1424,7 +1438,7 @@ class DynKern(Kern):
             new_parent.add(CommentGen(new_parent, ""),
                            position=["before", position])
             name = arg.proxy_name_indexed + \
-                "%" + arg.ref_name + "%get_colours"
+                "%" + arg.ref_name() + "%get_colours"
             new_parent.add(CallGen(new_parent,
                                    name=name,
                                    args=["ncolour", "ncp_colour", "cmap"]),
@@ -1471,7 +1485,7 @@ class DynKern(Kern):
                 field = self._arguments.get_field(unique_fs)
                 parent.add(AssignGen(parent, pointer=True, lhs=map_name,
                                      rhs=field.proxy_name_indexed +
-                                     "%" + field.ref_name +
+                                     "%" + field.ref_name(unique_fs) +
                                      "%get_cell_dofmap("+dofmap_args+")"))
         if maps_required:
             parent.add(CommentGen(parent, ""))
@@ -1493,7 +1507,7 @@ class DynKern(Kern):
                     parent.add(AssignGen(parent, pointer=True,
                                lhs=fs_descriptor.orientation_name,
                                rhs=field.proxy_name_indexed + "%" +
-                                         field.ref_name +
+                                         field.ref_name(unique_fs) +
                                          "%get_cell_orientation(" +
                                          dofmap_args + ")"))
         if self._fs_descriptors.orientation:
@@ -1750,11 +1764,12 @@ class DynKernelArguments(Arguments):
     def unique_fss(self):
         ''' Returns a unique list of function spaces used by the
         arguments. '''
-        func_space = []
+        func_space_list = []
         for arg in self._args:
-            if arg.function_space not in func_space:
-                func_space.append(arg.function_space)
-        return func_space
+            for function_space in arg.function_spaces:
+                if function_space not in func_space_list:
+                    func_space_list.append(function_space)
+        return func_space_list
 
     def iteration_space_arg(self, mapping=None):
         ''' Returns the first argument that is written to. This can be
@@ -1788,13 +1803,32 @@ class DynKernelArgument(Argument):
     def descriptor(self):
         return self._arg
 
-    @property
-    def ref_name(self):
+    def ref_name(self, function_space=None):
         ''' Returns the name used to dereference this type of argument. '''
+        if not function_space:
+            function_space = self.function_space
+        if function_space not in self.function_spaces:
+            raise GenerationError(
+                "DynKernelArgument:ref_name(fs). The supplied function space "
+                "(fs='{0}') is not one of the function spaces associated with "
+                "this argument (fss='{1}')".format(function_space,
+                                                   self.function_spaces))
         if self._type == "gh_field":
             return "vspace"
         elif self._type == "gh_operator":
-            return "fs_from"
+            if function_space == self.descriptor.function_space_from:
+                return "fs_from"
+            elif function_space == self.descriptor.function_space_to:
+                return "fs_to"
+            else:
+                raise GenerationError(
+                    "ref_name: Error, function space '{0}' is one of the "
+                    "gh_operator function spaces '{1}' but is not being "
+                    "returned by either function_space from '{2}' or "
+                    "function_space_to '{3}'".format(
+                        function_space, self.function_spaces,
+                        self.descriptor.function_space_from,
+                        self.descriptor.function_space_to))
         else:
             raise GenerationError(
                 "ref_name: Error, unsupported arg type '{0}' found".
@@ -1849,6 +1883,13 @@ class DynKernelArgument(Argument):
         ''' Returns the expected finite element function space for this
             argument as specified by the kernel argument metadata. '''
         return self._arg.function_space
+
+    @property
+    def function_spaces(self):
+        '''Returns the expected finite element function spaces for this
+            argument as a list as specified by the kernel argument
+            metadata.'''
+        return self._arg.function_spaces
 
     @property
     def intent(self):
