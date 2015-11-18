@@ -1743,13 +1743,14 @@ class DynKernelArguments(Arguments):
         self._dofs = []
 
     def get_field(self, func_space):
-        ''' Returns the first field found that is on the specified
-        function space. If no field is found an exception is raised. '''
+        '''Returns the first field or operator found that is on the specified
+        function space. If no field or operator is found an exception
+        is raised. '''
         for arg in self._args:
-            if arg.function_space == func_space:
+            if func_space in arg.function_spaces:
                 return arg
         raise FieldNotFoundError("DynKernelArguments:get_field: there is no"
-                                 " field with function space {0}".
+                                 " field or operator with function space {0}".
                                  format(func_space))
 
     @property

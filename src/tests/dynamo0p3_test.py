@@ -500,13 +500,110 @@ def test_operator():
         "oxy(3)%data, ndf_w0, undf_w0, map_w0, basis_w0, diff_basis_w0, nqp_h"
         ", nqp_v, wh, wv)") != -1
 
+
 def test_operator_different_spaces():
     '''tests that an operator with different to and from spaces is
     implemented correctly in the PSy layer'''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "10.3_operator_different_spaces.f90"),
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "10.3_operator_different_spaces.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    generated_code = psy.gen
+    generated_code = str(psy.gen)
+    output = (
+        "    SUBROUTINE invoke_0_assemble_weak_derivative_w3_w2_kernel_type"
+        "(mapping, chi, qr)\n"
+        "      USE assemble_weak_derivative_w3_w2_kernel_mod, ONLY: "
+        "assemble_weak_derivative_w3_w2_kernel_code\n"
+        "      TYPE(field_type), intent(inout) :: chi(3)\n"
+        "      TYPE(operator_type), intent(inout) :: mapping\n"
+        "      TYPE(quadrature_type), intent(in) :: qr\n"
+        "      INTEGER, pointer :: orientation_w2(:) => null()\n"
+        "      INTEGER, pointer :: map_w0(:) => null()\n"
+        "      INTEGER cell\n"
+        "      REAL(KIND=r_def), allocatable :: diff_basis_w2(:,:,:,:), "
+        "basis_w3(:,:,:,:), diff_basis_w0(:,:,:,:)\n"
+        "      INTEGER diff_dim_w2, dim_w3, diff_dim_w0\n"
+        "      INTEGER ndf_w2, ndf_w3, ndf_w0, undf_w0\n"
+        "      REAL(KIND=r_def), pointer :: zp(:) => null(), wh(:) => null(), "
+        "wv(:) => null()\n"
+        "      REAL(KIND=r_def), pointer :: xp(:,:) => null()\n"
+        "      INTEGER nqp_h, nqp_v\n"
+        "      INTEGER nlayers\n"
+        "      TYPE(operator_proxy_type) mapping_proxy\n"
+        "      TYPE(field_proxy_type) chi_proxy(3)\n"
+        "      !\n"
+        "      ! Initialise field proxies\n"
+        "      !\n"
+        "      mapping_proxy = mapping%get_proxy()\n"
+        "      chi_proxy(1) = chi(1)%get_proxy()\n"
+        "      chi_proxy(2) = chi(2)%get_proxy()\n"
+        "      chi_proxy(3) = chi(3)%get_proxy()\n"
+        "      !\n"
+        "      ! Initialise number of layers\n"
+        "      !\n"
+        "      nlayers = mapping_proxy%fs_from%get_nlayers()\n"
+        "      !\n"
+        "      ! Initialise qr values\n"
+        "      !\n"
+        "      wv => qr%get_wqp_v()\n"
+        "      xp => qr%get_xqp_h()\n"
+        "      zp => qr%get_xqp_v()\n"
+        "      wh => qr%get_wqp_h()\n"
+        "      nqp_h = qr%get_nqp_h()\n"
+        "      nqp_v = qr%get_nqp_v()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w2\n"
+        "      !\n"
+        "      ndf_w2 = mapping_proxy%fs_from%get_ndf()\n"
+        "      diff_dim_w2 = mapping_proxy%fs_from%get_dim_space_diff()\n"
+        "      ALLOCATE (diff_basis_w2(diff_dim_w2, ndf_w2, nqp_h, nqp_v))\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w3\n"
+        "      !\n"
+        "      ndf_w3 = mapping_proxy%fs_to%get_ndf()\n"
+        "      dim_w3 = mapping_proxy%fs_to%get_dim_space()\n"
+        "      ALLOCATE (basis_w3(dim_w3, ndf_w3, nqp_h, nqp_v))\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w0\n"
+        "      !\n"
+        "      ndf_w0 = chi_proxy(1)%vspace%get_ndf()\n"
+        "      undf_w0 = chi_proxy(1)%vspace%get_undf()\n"
+        "      diff_dim_w0 = chi_proxy(1)%vspace%get_dim_space_diff()\n"
+        "      ALLOCATE (diff_basis_w0(diff_dim_w0, ndf_w0, nqp_h, nqp_v))\n"
+        "      !\n"
+        "      ! Compute basis arrays\n"
+        "      !\n"
+        "      CALL mapping_proxy%fs_from%compute_diff_basis_function("
+        "diff_basis_w2, ndf_w2, nqp_h, nqp_v, xp, zp)\n"
+        "      CALL mapping_proxy%fs_to%compute_basis_function(basis_w3, "
+        "ndf_w3, nqp_h, nqp_v, xp, zp)\n"
+        "      CALL chi_proxy(1)%vspace%compute_diff_basis_function("
+        "diff_basis_w0, ndf_w0, nqp_h, nqp_v, xp, zp)\n"
+        "      !\n"
+        "      ! Call our kernels\n"
+        "      !\n"
+        "      DO cell=1,mapping_proxy%fs_from%get_ncell()\n"
+        "        !\n"
+        "        map_w0 => chi_proxy(1)%vspace%get_cell_dofmap(cell)\n"
+        "        !\n"
+        "        orientation_w2 => mapping_proxy%fs_from%"
+        "get_cell_orientation(cell)\n"
+        "        !\n"
+        "        CALL assemble_weak_derivative_w3_w2_kernel_code(cell, "
+        "nlayers, mapping_proxy%ncell_3d, mapping_proxy%local_stencil, "
+        "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, ndf_w2, "
+        "diff_basis_w2, orientation_w2, ndf_w3, basis_w3, ndf_w0, undf_w0, "
+        "map_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)\n"
+        "      END DO \n"
+        "      !\n"
+        "      ! Deallocate basis arrays\n"
+        "      !\n"
+        "      DEALLOCATE (diff_basis_w2, basis_w3, diff_basis_w0)\n"
+        "      !\n"
+        "    END SUBROUTINE invoke_0_assemble_weak_derivative_w3_w2"
+        "_kernel_type")
+    assert output in generated_code
+
 
 def test_operator_nofield():
     ''' tests that an operator with no field on the same space is
@@ -531,6 +628,23 @@ def test_operator_nofield():
         "diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
 
 
+def test_operator_nofield_different_space():
+    ''' tests that an operator with no field on different spaces is
+    implemented correctly in the PSy layer '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "10.5_operator_no_field_different_"
+                                        "space.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    gen_code_str = str(psy.gen)
+    print gen_code_str
+    assert gen_code_str.find("nlayers = my_mapping_proxy%fs_from%get_nlayers()")
+    assert gen_code_str.find("ndf_w3 = my_mapping_proxy%fs_from%get_ndf()")
+    assert gen_code_str.find("ndf_w2 = my_mapping_proxy%fs_to%get_ndf()")
+    assert gen_code_str.find("DO cell=1,my_mapping_proxy%fs_from%get_ncell()")
+    assert gen_code_str.find("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%local_stencil, ndf_w3, ndf_w2)")
+
+
 def test_operator_orientation():
     ''' tests that an operator requiring orientation information is
     implemented correctly in the PSy layer '''
@@ -550,17 +664,33 @@ def test_operator_orientation():
     assert gen_str.find(
         "orientation_w1 => mm_w1_proxy%fs_from%get_cell_orientation"
         "(cell)") != -1
-
     assert gen_str.find(
         "CALL testkern_operator_orient_code(cell, nlayers, mm_w1_proxy%ncell_"
         "3d, mm_w1_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data,"
         " chi_proxy(3)%data, ndf_w1, basis_w1, orientation_w1, ndf_w0, undf_w"
         "0, map_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
 
+def test_operator_orientation_different_space():
+    '''tests that an operator on different spaces requiring orientation
+    information is implemented correctly in the PSy layer. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "10.4_operator_orient_different_"
+                                        "space.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    gen_str = str(psy.gen)
+    assert gen_str.find("INTEGER, pointer :: orientation_w1(:) => null(), orientation_w2(:) => null()")
+    assert gen_str.find("ndf_w2 = my_mapping_proxy%fs_from%get_ndf()")
+    assert gen_str.find("ndf_w1 = my_mapping_proxy%fs_to%get_ndf()")
+    assert gen_str.find("dim_w1 = my_mapping_proxy%fs_to%get_dim_space()")
+    assert gen_str.find("CALL my_mapping_proxy%fs_to%compute_basis_function(basis_w1, ndf_w1, nqp_h, nqp_v, xp, zp)")
+    assert gen_str.find("orientation_w2 => my_mapping_proxy%fs_from%get_cell_orientation(cell)")
+    assert gen_str.find("orientation_w1 => my_mapping_proxy%fs_to%get_cell_orientation(cell)")
+    assert gen_str.find("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, ndf_w2, orientation_w2, ndf_w1, basis_w1, orientation_w1, ndf_w0, undf_w0, map_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)")
 
 def test_any_space_1():
     ''' tests that any_space is implemented correctly in the PSy
-    layer. Includes more than one type of any_space delcaration
+    layer. Includes more than one type of any_space declaration
     and func_type basis functions on any_space. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "11_any_space.f90"),
                            api="dynamo0.3")
