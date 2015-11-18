@@ -500,6 +500,13 @@ def test_operator():
         "oxy(3)%data, ndf_w0, undf_w0, map_w0, basis_w0, diff_basis_w0, nqp_h"
         ", nqp_v, wh, wv)") != -1
 
+def test_operator_different_spaces():
+    '''tests that an operator with different to and from spaces is
+    implemented correctly in the PSy layer'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "10.3_operator_different_spaces.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = psy.gen
 
 def test_operator_nofield():
     ''' tests that an operator with no field on the same space is
@@ -1135,7 +1142,7 @@ end module dummy_mod
 '''
 
 
-def test_operator_different_spaces():
+def test_stub_operator_different_spaces():
     ''' test that an error is raised when an operator has two
     different spaces as this is not yet supported in the stub
     generator. '''
