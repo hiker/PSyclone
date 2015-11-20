@@ -336,6 +336,104 @@ def test_field():
     assert str(generated_code).find(output) != -1
 
 
+def test_field_fs():
+    ''' Tests that a call with a set of fields making use of all
+    function spaces and no basis functions produces correct code.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1.5_single_invoke_fs.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = psy.gen
+    output = (
+        "  MODULE psy_single_invoke_fs\n"
+        "    USE constants_mod, ONLY: r_def\n"
+        "    USE quadrature_mod, ONLY: quadrature_type\n"
+        "    USE operator_mod, ONLY: operator_type, operator_proxy_type\n"
+        "    USE field_mod, ONLY: field_type, field_proxy_type\n"
+        "    IMPLICIT NONE\n"
+        "    CONTAINS\n"
+        "    SUBROUTINE invoke_0_testkern_fs_type(f1, f2, m1, m2, f3, f4, "
+        "m3)\n"
+        "      USE testkern_fs, ONLY: testkern_code\n"
+        "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2, f3, f4, m3\n"
+        "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
+        "map_w3(:) => null(), map_wtheta(:) => null(), map_w2h(:) => null(), "
+        "map_w2v(:) => null()\n"
+        "      INTEGER cell\n"
+        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3, "
+        "ndf_wtheta, undf_wtheta, ndf_w2h, undf_w2h, ndf_w2v, undf_w2v\n"
+        "      INTEGER nlayers\n"
+        "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy, "
+        "f3_proxy, f4_proxy, m3_proxy\n"
+        "      !\n"
+        "      ! Initialise field proxies\n"
+        "      !\n"
+        "      f1_proxy = f1%get_proxy()\n"
+        "      f2_proxy = f2%get_proxy()\n"
+        "      m1_proxy = m1%get_proxy()\n"
+        "      m2_proxy = m2%get_proxy()\n"
+        "      f3_proxy = f3%get_proxy()\n"
+        "      f4_proxy = f4%get_proxy()\n"
+        "      m3_proxy = m3%get_proxy()\n"
+        "      !\n"
+        "      ! Initialise number of layers\n"
+        "      !\n"
+        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w1\n"
+        "      !\n"
+        "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_w1 = f1_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w2\n"
+        "      !\n"
+        "      ndf_w2 = f2_proxy%vspace%get_ndf()\n"
+        "      undf_w2 = f2_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w3\n"
+        "      !\n"
+        "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
+        "      undf_w3 = m2_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for wtheta\n"
+        "      !\n"
+        "      ndf_wtheta = f3_proxy%vspace%get_ndf()\n"
+        "      undf_wtheta = f3_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w2h\n"
+        "      !\n"
+        "      ndf_w2h = f4_proxy%vspace%get_ndf()\n"
+        "      undf_w2h = f4_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w2v\n"
+        "      !\n"
+        "      ndf_w2v = m3_proxy%vspace%get_ndf()\n"
+        "      undf_w2v = m3_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Call our kernels\n"
+        "      !\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "        !\n"
+        "        map_w1 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        map_w2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        map_w3 => m2_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        map_wtheta => f3_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        map_w2h => f4_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        map_w2v => m3_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        !\n"
+        "        CALL testkern_code(nlayers, f1_proxy%data, f2_proxy%data, "
+        "m1_proxy%data, m2_proxy%data, f3_proxy%data, f4_proxy%data, "
+        "m3_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, "
+        "ndf_w3, undf_w3, map_w3, ndf_wtheta, undf_wtheta, map_wtheta, "
+        "ndf_w2h, undf_w2h, map_w2h, ndf_w2v, undf_w2v, map_w2v)\n"
+        "      END DO \n"
+        "      !\n"
+        "    END SUBROUTINE invoke_0_testkern_fs_type\n"
+        "  END MODULE psy_single_invoke_fs")
+    print str(generated_code)
+    print output
+    assert str(generated_code).find(output) != -1
+
+
 def test_field_qr():
     ''' Tests that a call, with a set of fields requiring
     quadrature, produces correct code. '''
@@ -1079,11 +1177,14 @@ def test_intent():
 SPACES = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(4) =    &
-          (/ arg_type(gh_field,gh_write, w0), &
-             arg_type(gh_field,gh_write, w1), &
-             arg_type(gh_field,gh_write, w2), &
-             arg_type(gh_field,gh_write, w3)  &
+     type(arg_type), meta_args(7) =               &
+          (/ arg_type(gh_field,gh_write, w0),     &
+             arg_type(gh_field,gh_write, w1),     &
+             arg_type(gh_field,gh_write, w2),     &
+             arg_type(gh_field,gh_write, w3),     &
+             arg_type(gh_field,gh_write, wtheta), &
+             arg_type(gh_field,gh_write, w2h),    &
+             arg_type(gh_field,gh_write, w2v)     &
            /)
      integer, parameter :: iterates_over = cells
    contains
@@ -1108,8 +1209,11 @@ def test_spaces():
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
         "    SUBROUTINE dummy_code(nlayers, field_1_w0, field_2_w1, "
-        "field_3_w2, field_4_w3, ndf_w0, undf_w0, map_w0, ndf_w1, undf_w1, "
-        "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)\n"
+        "field_3_w2, field_4_w3, field_5_wtheta, field_6_w2h, field_7_w2v, "
+        "ndf_w0, undf_w0, map_w0, ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, "
+        "map_w2, ndf_w3, undf_w3, map_w3, ndf_wtheta, undf_wtheta, "
+        "map_wtheta, ndf_w2h, undf_w2h, map_w2h, ndf_w2v, undf_w2v, "
+        "map_w2v)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: nlayers\n"
@@ -1117,6 +1221,9 @@ def test_spaces():
         "      INTEGER, intent(in) :: undf_w1\n"
         "      INTEGER, intent(in) :: undf_w2\n"
         "      INTEGER, intent(in) :: undf_w3\n"
+        "      INTEGER, intent(in) :: undf_wtheta\n"
+        "      INTEGER, intent(in) :: undf_w2h\n"
+        "      INTEGER, intent(in) :: undf_w2v\n"
         "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
         "field_1_w0\n"
         "      REAL(KIND=r_def), intent(out), dimension(undf_w1) :: "
@@ -1125,6 +1232,12 @@ def test_spaces():
         "field_3_w2\n"
         "      REAL(KIND=r_def), intent(out), dimension(undf_w3) :: "
         "field_4_w3\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_wtheta) :: "
+        "field_5_wtheta\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w2h) :: "
+        "field_6_w2h\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_w2v) :: "
+        "field_7_w2v\n"
         "      INTEGER, intent(in) :: ndf_w0\n"
         "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
         "      INTEGER, intent(in) :: ndf_w1\n"
@@ -1133,6 +1246,12 @@ def test_spaces():
         "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
         "      INTEGER, intent(in) :: ndf_w3\n"
         "      INTEGER, intent(in), dimension(ndf_w3) :: map_w3\n"
+        "      INTEGER, intent(in) :: ndf_wtheta\n"
+        "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
+        "      INTEGER, intent(in) :: ndf_w2h\n"
+        "      INTEGER, intent(in), dimension(ndf_w2h) :: map_w2h\n"
+        "      INTEGER, intent(in) :: ndf_w2v\n"
+        "      INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     print output
@@ -1287,17 +1406,23 @@ def test_stub_operator_different_spaces():
 BASIS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(4) =    &
+     type(arg_type), meta_args(7) =    &
           (/ arg_type(gh_field,   gh_write,w0), &
              arg_type(gh_operator,gh_inc,  w1, w1), &
              arg_type(gh_field,   gh_read, w2), &
-             arg_type(gh_operator,gh_write,w3, w3)  &
+             arg_type(gh_operator,gh_write,w3, w3),  &
+             arg_type(gh_field,   gh_write, wtheta), &
+             arg_type(gh_operator,gh_inc, w2h, w2h), &
+             arg_type(gh_field,   gh_read, w2v)  &
            /)
-     type(func_type), meta_funcs(4) =    &
-          (/ func_type(w0, gh_basis), &
-             func_type(w1, gh_basis), &
-             func_type(w2, gh_basis), &
-             func_type(w3, gh_basis)  &
+     type(func_type), meta_funcs(7) =     &
+          (/ func_type(w0, gh_basis),     &
+             func_type(w1, gh_basis),     &
+             func_type(w2, gh_basis),     &
+             func_type(w3, gh_basis),     &
+             func_type(wtheta, gh_basis), &
+             func_type(w2h, gh_basis),    &
+             func_type(w2v, gh_basis)     &
            /)
      integer, parameter :: iterates_over = cells
    contains
@@ -1321,16 +1446,21 @@ def test_basis():
         "  MODULE dummy_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, "
-        "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "
-        "undf_w0, map_w0, basis_w0, ndf_w1, basis_w1, ndf_w2, undf_w2, "
-        "map_w2, basis_w2, ndf_w3, basis_w3, nqp_h, nqp_v, wh, wv)\n"
+        "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
+        "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
+        "op_6_ncell_3d, op_6, field_7_w2v, ndf_w0, undf_w0, map_w0, "
+        "basis_w0, ndf_w1, basis_w1, ndf_w2, undf_w2, map_w2, basis_w2, "
+        "ndf_w3, basis_w3, ndf_wtheta, undf_wtheta, map_wtheta, "
+        "basis_wtheta, ndf_w2h, basis_w2h, ndf_w2v, undf_w2v, map_w2v, "
+        "basis_w2v, nqp_h, nqp_v, wh, wv)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: cell\n"
         "      INTEGER, intent(in) :: nlayers\n"
         "      INTEGER, intent(in) :: undf_w0\n"
         "      INTEGER, intent(in) :: undf_w2\n"
+        "      INTEGER, intent(in) :: undf_wtheta\n"
+        "      INTEGER, intent(in) :: undf_w2v\n"
         "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
         "field_1_w0\n"
         "      INTEGER, intent(in) :: op_2_ncell_3d\n"
@@ -1341,6 +1471,13 @@ def test_basis():
         "      INTEGER, intent(in) :: op_4_ncell_3d\n"
         "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
         "op_4_ncell_3d) :: op_4\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_wtheta) :: "
+        "field_5_wtheta\n"
+        "      INTEGER, intent(in) :: op_6_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2h,ndf_w2h,"
+        "op_6_ncell_3d) :: op_6\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) :: "
+        "field_7_w2v\n"
         "      INTEGER, intent(in) :: ndf_w0\n"
         "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,nqp_h,nqp_v) "
@@ -1355,11 +1492,23 @@ def test_basis():
         "      INTEGER, intent(in) :: ndf_w3\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) "
         ":: basis_w3\n"
+        "      INTEGER, intent(in) :: ndf_wtheta\n"
+        "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_wtheta,nqp_h,"
+        "nqp_v) :: basis_wtheta\n"
+        "      INTEGER, intent(in) :: ndf_w2h\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2h,nqp_h,nqp_v) "
+        ":: basis_w2h\n"
+        "      INTEGER, intent(in) :: ndf_w2v\n"
+        "      INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2v,nqp_h,nqp_v) "
+        ":: basis_w2v\n"
         "      INTEGER, intent(in) :: nqp_h, nqp_v\n"
         "      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh\n"
         "      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
+
     print output
     print str(generated_code)
     assert str(generated_code).find(output) != -1
@@ -1398,17 +1547,23 @@ def test_basis_unsupported_space():
 DIFF_BASIS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(4) =    &
+     type(arg_type), meta_args(7) =    &
           (/ arg_type(gh_field,   gh_write,w0), &
              arg_type(gh_operator,gh_inc,  w1, w1), &
              arg_type(gh_field,   gh_read, w2), &
-             arg_type(gh_operator,gh_write,w3, w3)  &
+             arg_type(gh_operator,gh_write,w3, w3),  &
+             arg_type(gh_field,   gh_write, wtheta), &
+             arg_type(gh_operator,gh_inc, w2h, w2h), &
+             arg_type(gh_field,   gh_read, w2v)  &
            /)
-     type(func_type), meta_funcs(4) =    &
-          (/ func_type(w0, gh_diff_basis), &
-             func_type(w1, gh_diff_basis), &
-             func_type(w2, gh_diff_basis), &
-             func_type(w3, gh_diff_basis) &
+     type(func_type), meta_funcs(7) =          &
+          (/ func_type(w0, gh_diff_basis),     &
+             func_type(w1, gh_diff_basis),     &
+             func_type(w2, gh_diff_basis),     &
+             func_type(w3, gh_diff_basis),     &
+             func_type(wtheta, gh_diff_basis), &
+             func_type(w2h, gh_diff_basis),    &
+             func_type(w2v, gh_diff_basis)     &
            /)
      integer, parameter :: iterates_over = cells
    contains
@@ -1433,17 +1588,21 @@ def test_diff_basis():
         "  MODULE dummy_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, "
-        "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "
-        "undf_w0, map_w0, diff_basis_w0, ndf_w1, diff_basis_w1, ndf_w2, "
-        "undf_w2, map_w2, diff_basis_w2, ndf_w3, diff_basis_w3, nqp_h, "
-        "nqp_v, wh, wv)\n"
+        "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
+        "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
+        "op_6_ncell_3d, op_6, field_7_w2v, ndf_w0, undf_w0, map_w0, "
+        "diff_basis_w0, ndf_w1, diff_basis_w1, ndf_w2, undf_w2, map_w2, "
+        "diff_basis_w2, ndf_w3, diff_basis_w3, ndf_wtheta, undf_wtheta, "
+        "map_wtheta, diff_basis_wtheta, ndf_w2h, diff_basis_w2h, ndf_w2v, "
+        "undf_w2v, map_w2v, diff_basis_w2v, nqp_h, nqp_v, wh, wv)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: cell\n"
         "      INTEGER, intent(in) :: nlayers\n"
         "      INTEGER, intent(in) :: undf_w0\n"
         "      INTEGER, intent(in) :: undf_w2\n"
+        "      INTEGER, intent(in) :: undf_wtheta\n"
+        "      INTEGER, intent(in) :: undf_w2v\n"
         "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
         "field_1_w0\n"
         "      INTEGER, intent(in) :: op_2_ncell_3d\n"
@@ -1454,6 +1613,13 @@ def test_diff_basis():
         "      INTEGER, intent(in) :: op_4_ncell_3d\n"
         "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
         "op_4_ncell_3d) :: op_4\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_wtheta) :: "
+        "field_5_wtheta\n"
+        "      INTEGER, intent(in) :: op_6_ncell_3d\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2h,ndf_w2h,"
+        "op_6_ncell_3d) :: op_6\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) :: "
+        "field_7_w2v\n"
         "      INTEGER, intent(in) :: ndf_w0\n"
         "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,nqp_h,nqp_v) "
@@ -1468,6 +1634,17 @@ def test_diff_basis():
         "      INTEGER, intent(in) :: ndf_w3\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) "
         ":: diff_basis_w3\n"
+        "      INTEGER, intent(in) :: ndf_wtheta\n"
+        "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_wtheta,nqp_h,"
+        "nqp_v) :: diff_basis_wtheta\n"
+        "      INTEGER, intent(in) :: ndf_w2h\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2h,nqp_h,nqp_v) "
+        ":: diff_basis_w2h\n"
+        "      INTEGER, intent(in) :: ndf_w2v\n"
+        "      INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2v,nqp_h,nqp_v) "
+        ":: diff_basis_w2v\n"
         "      INTEGER, intent(in) :: nqp_h, nqp_v\n"
         "      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh\n"
         "      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv\n"
@@ -1654,32 +1831,29 @@ def test_sub_name():
 def test_kernel_stub_usage():
     ''' Check that the kernel-stub generator prints a usage message
     if no arguments are supplied '''
-    from subprocess import check_output, CalledProcessError, STDOUT
+    from subprocess import Popen, STDOUT, PIPE
 
     usage_msg = (
-        "usage: genkernelstub.py [-h] [-o OUTFILE] [-api API] filename\n"
+        "usage: genkernelstub.py [-h] [-o OUTFILE] [-api API] [-l] filename\n"
         "genkernelstub.py: error: too few arguments")
 
-    try:
-        out = check_output(["python", "../genkernelstub.py"],
-                           stderr=STDOUT)
-    except CalledProcessError as err:
-        # Calling the script without arguments causes it to return
-        # an error as well as printing the usage info. Therefore
-        # we catch the error here and get at the message by
-        # querying the Error object
-        out = err.output
-
+    # We use the Popen constructor here rather than check_output because
+    # the latter is only available in Python 2.7 onwards.
+    out = Popen(['python', '../genkernelstub.py'],
+                stdout=PIPE,
+                stderr=STDOUT).communicate()[0]
     assert usage_msg in out
 
 
 def test_kernel_stub_gen_cmd_line():
     ''' Check that we can call the kernel-stub generator from the
     command line '''
-    from subprocess import check_output
-
-    out = check_output(["python", "../genkernelstub.py",
-                        os.path.join(BASE_PATH, "dummy_orientation_mod.f90")])
+    from subprocess import Popen, PIPE
+    # We use the Popen constructor here rather than check_output because
+    # the latter is only available in Python 2.7 onwards.
+    out = Popen(["python", "../genkernelstub.py",
+                 os.path.join(BASE_PATH, "dummy_orientation_mod.f90")],
+                stdout=PIPE).communicate()[0]
 
     print "Output was: ", out
     assert ORIENTATION_OUTPUT in out
