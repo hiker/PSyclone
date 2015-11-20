@@ -847,6 +847,59 @@ def test_any_space_2():
         ", undf_any_space_1, map_any_space_1)") != -1
 
 
+def test_operator_any_space_different_space():
+    ''' tests that any_space is implemented correctly in the PSy
+    layer. Includes different spaces for an operator and no other
+    fields.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "11.2_any_space.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = psy.gen
+    print generated_code
+    assert str(generated_code).find(
+        "ndf_any_space_2 = a_proxy%fs_from%get_ndf()") != -1
+    assert str(generated_code).find(
+        "ndf_any_space_1 = a_proxy%fs_to%get_ndf()") != -1
+
+
+def test_operator_any_space_different_space():
+    ''' tests that any_space is implemented correctly in the PSy
+    layer in a more complicated example. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "11.3_any_space.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = psy.gen
+    print generated_code
+    assert str(generated_code).find(
+        "ndf_any_space_1 = b_proxy%fs_to%get_ndf()") != -1
+    assert str(generated_code).find(
+        "dim_any_space_1 = b_proxy%fs_to%get_dim_space()") != -1
+    assert str(generated_code).find(
+        "ndf_any_space_2 = b_proxy%fs_from%get_ndf()") != -1
+    assert str(generated_code).find(
+        "ndf_any_space_3 = c_proxy%fs_to%get_ndf()") != -1
+    assert str(generated_code).find(
+        "ndf_any_space_4 = d_proxy%fs_from%get_ndf()") != -1
+    assert str(generated_code).find(
+        "undf_any_space_4 = d_proxy%fs_from%get_undf()") != -1
+    assert str(generated_code).find(
+        "dim_any_space_4 = d_proxy%fs_from%get_dim_space()") != -1
+    assert str(generated_code).find(
+        "ndf_any_space_5 = a_proxy%vspace%get_ndf()") != -1
+    assert str(generated_code).find(
+        "undf_any_space_5 = a_proxy%vspace%get_undf()") != -1
+    assert str(generated_code).find(
+        "CALL b_proxy%fs_to%compute_basis_function") != -1
+    assert str(generated_code).find(
+        "CALL d_proxy%fs_from%compute_basis_function") != -1
+    assert str(generated_code).find(
+        "CALL d_proxy%fs_from%compute_diff_basis_function") != -1
+    assert str(generated_code).find(
+        "map_any_space_5 => a_proxy%vspace%get_cell_dofmap(cell)") != -1
+    assert str(generated_code).find(
+        "map_any_space_4 => d_proxy%fs_from%get_cell_dofmap(cell)") != -1
+
+
 def test_kernel_specific():
     '''tests that kernel-specific code is added to the
     matrix_vector_kernel_mm kernel. This code is required as the
