@@ -57,32 +57,49 @@ def test_arg_descriptor_wrong_type():
                         "arg_typ(gh_field,gh_read, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-
+    assert "each meta_arg entry must be of type 'arg_type'" \
+        in str(excinfo.value)
 
 def test_ad_field_type_too_few_args():
     ''' Tests that an error is raised when the argument descriptor
     metadata has fewer than 3 args. '''
     fparser.logging.disable('CRITICAL')
     code = CODE.replace("arg_type(gh_field,gh_write,w1)",
-                        "arg_typ(gh_field,gh_write)", 1)
+                        "arg_type(gh_field,gh_write)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-
+    assert 'each meta_arg entry must have at least 3 args' \
+        in str(excinfo.value)
 
 def test_ad_fld_type_too_many_args():
     ''' Tests that an error is raised when the argument descriptor
     metadata has more than 3 args. '''
     fparser.logging.disable('CRITICAL')
     code = CODE.replace("arg_type(gh_field,gh_write,w1)",
-                        "arg_typ(gh_field,gh_write,w1,w1)", 1)
+                        "arg_type(gh_field,gh_write,w1,w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert 'each meta_arg entry must have 3 arguments' \
+        in str(excinfo.value)
+
+def test_ad_fld_type_1st_arg():
+    ''' Tests that an error is raised when the 1st argument is
+    invalid'''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_field,gh_write,w1)",
+                        "arg_type(gh_hedge,gh_write,w1)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert 'the 1st argument of a meta_arg entry should be a valid ' \
+        'argument type' in str(excinfo.value)
 
 
 def test_ad_op_type_too_few_args():
@@ -90,23 +107,24 @@ def test_ad_op_type_too_few_args():
     metadata has fewer than 4 args. '''
     fparser.logging.disable('CRITICAL')
     code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
-                        "arg_type(gh_operator, w2, w2)", 1)
+                        "arg_type(gh_operator,gh_read, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-
+    assert 'meta_arg entry must have 4 arguments' in str(excinfo.value)
 
 def test_ad_op_type_too_many_args():
     ''' Tests that an error is raised when the operator descriptor
     metadata has more than 4 args. '''
     fparser.logging.disable('CRITICAL')
-    code = CODE.replace("arg_type(gh_field,gh_write,w1)",
-                        "arg_typ(gh_field,gh_write,w1,w1,gh_field)", 1)
+    code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
+                        "arg_type(gh_operator,gh_read, w2, w2, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert 'meta_arg entry must have 4 arguments' in str(excinfo.value)
 
 
 def test_ad_invalid_type():
@@ -116,8 +134,9 @@ def test_ad_invalid_type():
     code = CODE.replace("gh_operator", "gh_operato", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert '1st argument of a meta_arg entry' in str(excinfo.value)
 
 
 def test_ad_invalid_access_type():
@@ -127,9 +146,9 @@ def test_ad_invalid_access_type():
     code = CODE.replace("gh_read", "gh_ead", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-
+    assert '2nd argument of a meta_arg entry' in str(excinfo.value)
 
 def test_arg_descriptor_invalid_fs1():
     ''' Tests that an error is raised when an invalid function space
@@ -138,8 +157,9 @@ def test_arg_descriptor_invalid_fs1():
     code = CODE.replace("gh_field,gh_read, w3", "gh_field,gh_read, w4", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert '3rd argument of a meta_arg entry' in str(excinfo.value)
 
 
 def test_arg_descriptor_invalid_fs2():
@@ -149,9 +169,9 @@ def test_arg_descriptor_invalid_fs2():
     code = CODE.replace("w2, w2", "w2, w4", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-
+    assert '4th argument of a meta_arg entry' in str(excinfo.value)
 
 def test_invalid_vector_operator():
     ''' Tests that an error is raised when a vector does not use "*"
@@ -160,9 +180,9 @@ def test_invalid_vector_operator():
     code = CODE.replace("gh_field,gh_write,w1", "gh_field+3,gh_write,w1", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-
+    assert "must use '*' as the separator" in str(excinfo.value)
 
 def test_invalid_vector_value_type():
     ''' Tests that an error is raised when a vector value is not a valid
@@ -171,8 +191,9 @@ def test_invalid_vector_value_type():
     code = CODE.replace("gh_field,gh_write,w1", "gh_field*n,gh_write,w1", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert 'vector notation expects the format (field*n)' in str(excinfo.value)
 
 
 def test_invalid_vector_value_range():
@@ -182,8 +203,9 @@ def test_invalid_vector_value_range():
     code = CODE.replace("gh_field,gh_write,w1", "gh_field*1,gh_write,w1", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert 'must contain a valid integer vector size' in str(excinfo.value)
 
 # Testing that an error is raised when a vector value is not provided is
 # not required here as it causes a parse error in the generic code.
@@ -196,9 +218,10 @@ def test_fs_descriptor_wrong_type():
     code = CODE.replace("func_type(w2", "funced_up_type(w2", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-
+    assert "each meta_func entry must be of type 'func_type'" in \
+        str(excinfo.value)
 
 def test_fs_descriptor_too_few_args():
     ''' Tests that an error is raised when there are two few arguments in
@@ -207,9 +230,9 @@ def test_fs_descriptor_too_few_args():
     code = CODE.replace("w1, gh_basis", "w1", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-
+    assert 'meta_func entry must have at least 2 args' in str(excinfo.value)
 
 def test_fs_desc_invalid_fs_type():
     ''' Tests that an error is raised when an invalid function space name
@@ -220,6 +243,9 @@ def test_fs_desc_invalid_fs_type():
     name = "testkern_qr_type"
     with pytest.raises(ParseError):
         _ = DynKernMetadata(ast, name=name)
+    # UP TO HERE
+    print str(excinfo.value)
+    exit(1)
 
 
 def test_fs_desc_replicated_fs_type():
@@ -1910,3 +1936,88 @@ def test_kernel_stub_gen_cmd_line():
 
     print "Output was: ", out
     assert ORIENTATION_OUTPUT in out
+
+
+def test_arg_descriptor_functions_method_error():
+    ''' Tests that an internal error is raised in DynArgDescriptor03
+    when function_spaces is called and the internal type is an
+    unexpected value. It should not be possible to get to here so we
+    need to mess about with internal values to trip this.'''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    field_descriptor = metadata.arg_descriptors[0]
+    field_descriptor._type = "gh_fire_starter"
+    with pytest.raises(RuntimeError) as excinfo:
+        _ = field_descriptor.function_spaces
+    assert 'Internal error, DynArgDescriptor03:function_spaces(), should ' \
+        'not get to here' in str(excinfo.value)
+
+
+def test_arg_descriptor_function_space_tofrom_error():
+    ''' Tests that an internal error is raised in DynArgDescriptor03
+    when function_space_to or function_space_from is called and the
+    internal type is not gh_operator.'''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    field_descriptor = metadata.arg_descriptors[0]
+    with pytest.raises(RuntimeError) as excinfo:
+        _ = field_descriptor.function_space_to
+    assert 'function_space_to only makes sense for a gh_operator' \
+        in str(excinfo.value)
+    with pytest.raises(RuntimeError) as excinfo:
+        _ = field_descriptor.function_space_from
+    assert 'function_space_from only makes sense for a gh_operator' \
+        in str(excinfo.value)
+
+
+def test_arg_descriptor_init_error():
+    ''' Tests that an internal error is raised in DynArgDescriptor03
+    when an invalid type is provided. However this error never gets
+    tripped due to an earlier test so we need to force the error by
+    changing the internal state.'''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    field_descriptor = metadata.arg_descriptors[0]
+    # extract an arg_type object that we can use to create a
+    # DynArgDescriptor03 object
+    arg_type = field_descriptor._arg_type
+    # Now try to trip the error by making the initial test think
+    # that GH_INVALID is actually valid
+    from dynamo0p3 import VALID_ARG_TYPE_NAMES, DynArgDescriptor03
+    keep = []
+    keep.extend(VALID_ARG_TYPE_NAMES)
+    VALID_ARG_TYPE_NAMES.append("GH_INVALID")
+    arg_type.args[0].name = "GH_INVALID"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynArgDescriptor03(arg_type)
+    assert 'Internal error in DynArgDescriptor03.__init__' \
+        in str(excinfo.value)
+    VALID_ARG_TYPE_NAMES = keep
+
+def test_func_descriptor_repr():
+    ''' Tests the __repr__ output of a func_descriptor '''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    func_descriptor = metadata.func_descriptors[0]
+    func_str = repr(func_descriptor)
+    assert "DynFuncDescriptor03(func_type(w1, gh_basis))" in func_str
+
+def test_func_descriptor_str():
+    ''' Tests the __str__ output of a func_descriptor '''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    func_descriptor = metadata.func_descriptors[0]
+    func_str = str(func_descriptor)
+    output = (
+        "DynFuncDescriptor03 object\n"
+        "  name='func_type'\n"
+        "  nargs=2\n"
+        "  function_space_name[0] = 'w1'\n"
+        "  operator_name[1] = 'gh_basis'")
+    assert output in func_str
+    

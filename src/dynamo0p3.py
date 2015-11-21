@@ -124,7 +124,7 @@ class DynArgDescriptor03(Descriptor):
         self._arg_type = arg_type
         if arg_type.name != 'arg_type':
             raise ParseError(
-                "In the dynamo0.3 API aach meta_arg entry must be of type "
+                "In the dynamo0.3 API each meta_arg entry must be of type "
                 "'arg_type', but found '{0}'".format(arg_type.name))
         # we require at least 3 args
         if len(arg_type.args) < 3:
@@ -194,7 +194,7 @@ class DynArgDescriptor03(Descriptor):
                 raise ParseError(
                     "In the dynamo0.3 API each meta_arg entry must have 3 "
                     "arguments if its first argument is gh_field, but found "
-                    "{0} in '{1}'").format(len(arg_type.args), arg_type)
+                    "{0} in '{1}'".format(len(arg_type.args), arg_type))
             if arg_type.args[2].name not in VALID_FUNCTION_SPACE_NAMES:
                 raise ParseError(
                     "In the dynamo0.3 API the 3rd argument of a meta_arg "
