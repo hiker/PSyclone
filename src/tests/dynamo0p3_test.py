@@ -136,7 +136,8 @@ def test_ad_invalid_type():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert '1st argument of a meta_arg entry' in str(excinfo.value)
+    assert '1st argument of a meta_arg entry should be a valid argument type' \
+        in str(excinfo.value)
 
 
 def test_ad_invalid_access_type():
@@ -241,11 +242,10 @@ def test_fs_desc_invalid_fs_type():
     code = CODE.replace("w3, gh_basis", "w4, gh_basis", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    # UP TO HERE
-    print str(excinfo.value)
-    exit(1)
+    assert '1st argument of a meta_func entry should be a valid function ' + \
+        'space name' in str(excinfo.value)
 
 
 def test_fs_desc_replicated_fs_type():
@@ -255,8 +255,10 @@ def test_fs_desc_replicated_fs_type():
     code = CODE.replace("w3, gh_basis", "w1, gh_basis", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert 'function spaces specified in meta_funcs must be unique' \
+        in str(excinfo.value)
 
 
 def test_fs_desc_invalid_op_type():
@@ -266,8 +268,10 @@ def test_fs_desc_invalid_op_type():
     code = CODE.replace("w2, gh_diff_basis", "w2, gh_dif_basis", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert '2nd argument and all subsequent arguments of a meta_func ' + \
+        'entry should be a valid operator name' in str(excinfo.value)
 
 
 def test_fs_desc_replicated_op_type():
@@ -278,8 +282,10 @@ def test_fs_desc_replicated_op_type():
                         "w3, gh_basis, gh_basis", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert 'error to specify an operator name more than once' \
+        in str(excinfo.value)
 
 
 def test_fsdesc_fs_not_in_argdesc():
@@ -289,8 +295,10 @@ def test_fsdesc_fs_not_in_argdesc():
     code = CODE.replace("w3, gh_basis", "w0, gh_basis", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
+    assert 'function spaces specified in meta_funcs must exist in ' + \
+        'meta_args' in str(excinfo)
 
 
 def test_field():
@@ -1072,9 +1080,10 @@ def test_multikern_invoke_any_space():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.5_multikernel_invokes.f90"),
                            api="dynamo0.3")
-    with pytest.raises(GenerationError):
+    with pytest.raises(GenerationError) as excinfo:
         _ = PSyFactory("dynamo0.3").create(invoke_info)
-
+    assert 'multiple kernels within this invoke with kernel arguments ' + \
+        'declared as any_space' in str(excinfo.value)
 
 @pytest.mark.xfail(reason="bug : loop fuse replicates maps in loops")
 def test_loopfuse():
@@ -1117,55 +1126,65 @@ def test_loopfuse():
 # tests for dynamo0.3 stub generator
 
 
-def test_non_existant_filename():
+def test_stub_non_existant_filename():
     ''' fail if the file does not exist '''
-    with pytest.raises(IOError):
+    with pytest.raises(IOError) as excinfo:
         generate("non_existant_file.f90", api="dynamo0.3")
+    assert "file 'non_existant_file.f90' not found" in str(excinfo.value)
 
 
-def test_invalid_api():
+def test_stub_invalid_api():
     ''' fail if the specified api is not supported '''
-    with pytest.raises(GenerationError):
+    with pytest.raises(GenerationError) as excinfo:
         generate("test_files/dynamo0p3/ru_kernel_mod.f90", api="dynamo0.1")
+    assert "Unsupported API 'dynamo0.1' specified" in str(excinfo.value)
 
 
-def test_file_content_not_fortran():
+def test_stub_file_content_not_fortran():
     ''' fail if the kernel file does not contain fortran '''
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         generate("dynamo0p3_test.py", api="dynamo0.3")
+    assert 'the file does not contain a module. Is it a Kernel file?' \
+        in str(excinfo.value)
 
 
-def test_file_fortran_invalid():
+def test_stub_file_fortran_invalid():
     ''' fail if the fortran in the kernel is not valid '''
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         generate("test_files/dynamo0p3/testkern_invalid_fortran.F90",
                  api="dynamo0.3")
+    assert 'invalid Fortran' in str(excinfo.value)
 
 
 def test_file_fortran_not_kernel():
     ''' fail if file is valid fortran but is not a kernel file '''
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         generate("test_files/dynamo0p3/1_single_invoke.f90", api="dynamo0.3")
+    assert 'file does not contain a module. Is it a Kernel file?' \
+        in str(excinfo.value)
 
 
 def test_module_name_too_short():
     ''' fail if length of kernel module name is too short '''
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         generate("test_files/dynamo0p3/testkern_short_name.F90",
                  api="dynamo0.3")
+    assert "too short to have '_mod' as an extension" in str(excinfo.value)
 
 
 def test_module_name_convention():
     ''' fail if kernel module name does not have _mod at end '''
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as excinfo:
         generate("test_files/dynamo0p3/testkern.F90", api="dynamo0.3")
+    assert "does not have '_mod' as an extension" in str(excinfo.value)
 
 
 def test_kernel_datatype_not_found():
     ''' fail if kernel datatype is not found '''
-    with pytest.raises(RuntimeError):
+    with pytest.raises(RuntimeError) as excinfo:
         generate("test_files/dynamo0p3/testkern_no_datatype.F90",
                  api="dynamo0.3")
+    assert 'Kernel type testkern_type does not exist' in str(excinfo.value)
 
 SIMPLE = (
     "  MODULE simple_mod\n"
@@ -1478,8 +1497,10 @@ def test_stub_operator_different_spaces():
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-    with pytest.raises(GenerationError):
+    with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
+    assert 'assumes that operators work on the same function space' \
+        in str(excinfo.value)
 
 # basis function : spaces
 BASIS = '''
@@ -1619,8 +1640,9 @@ def test_basis_unsupported_space():
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-    with pytest.raises(GenerationError):
+    with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
+    assert 'Unsupported space for basis function' in str(excinfo.value)
 
 # diff basis function : spaces
 DIFF_BASIS = '''
@@ -1760,8 +1782,10 @@ def test_diff_basis_unsupp_space():
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-    with pytest.raises(GenerationError):
+    with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
+    assert 'Unsupported space for differential basis function' \
+        in str(excinfo.value)
 
 # orientation : spaces
 

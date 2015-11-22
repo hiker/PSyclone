@@ -382,8 +382,8 @@ class DynKernMetadata(KernelType):
             else:
                 raise ParseError(
                     "In the dynamo0.3 API function spaces specified in "
-                    "meta_funcs must be unique, but '{0}' is replicated in "
-                    "...\n'{1}'.".format(fs_name, self._ktype.content))
+                    "meta_funcs must be unique, but '{0}' is replicated." \
+                        .format(fs_name))
             self._func_descriptors.append(descriptor)
 
     @property
