@@ -661,10 +661,10 @@ def test_operator_different_spaces():
         "      INTEGER, pointer :: orientation_w2(:) => null()\n"
         "      INTEGER, pointer :: map_w0(:) => null()\n"
         "      INTEGER cell\n"
-        "      REAL(KIND=r_def), allocatable :: diff_basis_w2(:,:,:,:), "
-        "basis_w3(:,:,:,:), diff_basis_w0(:,:,:,:)\n"
-        "      INTEGER diff_dim_w2, dim_w3, diff_dim_w0\n"
-        "      INTEGER ndf_w2, ndf_w3, ndf_w0, undf_w0\n"
+        "      REAL(KIND=r_def), allocatable :: basis_w3(:,:,:,:), "
+        "diff_basis_w2(:,:,:,:), diff_basis_w0(:,:,:,:)\n"
+        "      INTEGER dim_w3, diff_dim_w2, diff_dim_w0\n"
+        "      INTEGER ndf_w3, ndf_w2, ndf_w0, undf_w0\n"
         "      REAL(KIND=r_def), pointer :: zp(:) => null(), wh(:) => null(), "
         "wv(:) => null()\n"
         "      REAL(KIND=r_def), pointer :: xp(:,:) => null()\n"
@@ -693,17 +693,17 @@ def test_operator_different_spaces():
         "      nqp_h = qr%get_nqp_h()\n"
         "      nqp_v = qr%get_nqp_v()\n"
         "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for w2\n"
-        "      !\n"
-        "      ndf_w2 = mapping_proxy%fs_from%get_ndf()\n"
-        "      diff_dim_w2 = mapping_proxy%fs_from%get_dim_space_diff()\n"
-        "      ALLOCATE (diff_basis_w2(diff_dim_w2, ndf_w2, nqp_h, nqp_v))\n"
-        "      !\n"
         "      ! Initialise sizes and allocate any basis arrays for w3\n"
         "      !\n"
         "      ndf_w3 = mapping_proxy%fs_to%get_ndf()\n"
         "      dim_w3 = mapping_proxy%fs_to%get_dim_space()\n"
         "      ALLOCATE (basis_w3(dim_w3, ndf_w3, nqp_h, nqp_v))\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for w2\n"
+        "      !\n"
+        "      ndf_w2 = mapping_proxy%fs_from%get_ndf()\n"
+        "      diff_dim_w2 = mapping_proxy%fs_from%get_dim_space_diff()\n"
+        "      ALLOCATE (diff_basis_w2(diff_dim_w2, ndf_w2, nqp_h, nqp_v))\n"
         "      !\n"
         "      ! Initialise sizes and allocate any basis arrays for w0\n"
         "      !\n"
@@ -714,10 +714,10 @@ def test_operator_different_spaces():
         "      !\n"
         "      ! Compute basis arrays\n"
         "      !\n"
-        "      CALL mapping_proxy%fs_from%compute_diff_basis_function("
-        "diff_basis_w2, ndf_w2, nqp_h, nqp_v, xp, zp)\n"
         "      CALL mapping_proxy%fs_to%compute_basis_function(basis_w3, "
         "ndf_w3, nqp_h, nqp_v, xp, zp)\n"
+        "      CALL mapping_proxy%fs_from%compute_diff_basis_function("
+        "diff_basis_w2, ndf_w2, nqp_h, nqp_v, xp, zp)\n"
         "      CALL chi_proxy(1)%vspace%compute_diff_basis_function("
         "diff_basis_w0, ndf_w0, nqp_h, nqp_v, xp, zp)\n"
         "      !\n"
@@ -727,22 +727,24 @@ def test_operator_different_spaces():
         "        !\n"
         "        map_w0 => chi_proxy(1)%vspace%get_cell_dofmap(cell)\n"
         "        !\n"
-        "        orientation_w2 => mapping_proxy%fs_from%"
-        "get_cell_orientation(cell)\n"
+        "        orientation_w2 => mapping_proxy%fs_from%get_cell_orientation("
+        "cell)\n"
         "        !\n"
         "        CALL assemble_weak_derivative_w3_w2_kernel_code(cell, "
         "nlayers, mapping_proxy%ncell_3d, mapping_proxy%local_stencil, "
-        "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, ndf_w2, "
-        "diff_basis_w2, orientation_w2, ndf_w3, basis_w3, ndf_w0, undf_w0, "
+        "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, ndf_w3, "
+        "basis_w3, ndf_w2, diff_basis_w2, orientation_w2, ndf_w0, undf_w0, "
         "map_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)\n"
         "      END DO \n"
         "      !\n"
         "      ! Deallocate basis arrays\n"
         "      !\n"
-        "      DEALLOCATE (diff_basis_w2, basis_w3, diff_basis_w0)\n"
+        "      DEALLOCATE (basis_w3, diff_basis_w2, diff_basis_w0)\n"
         "      !\n"
-        "    END SUBROUTINE invoke_0_assemble_weak_derivative_w3_w2"
-        "_kernel_type")
+        "    END SUBROUTINE invoke_0_assemble_weak_derivative_w3_w2_kernel_"
+        "type")
+    print generated_code
+    print output
     assert output in generated_code
 
 
@@ -1516,17 +1518,17 @@ end module dummy_mod
 
 
 def test_stub_operator_different_spaces():
-    ''' test that an error is raised when an operator has two
-    different spaces as this is not yet supported in the stub
-    generator. '''
+    ''' test that the correct function spaces are provided in the
+    correct order when generating a kernel stub with an operator on
+    different spaces '''
     ast = fpapi.parse(OPERATOR_DIFFERENT_SPACES, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-    with pytest.raises(GenerationError) as excinfo:
-        _ = kernel.gen_stub
-    assert 'assumes that operators work on the same function space' \
-        in str(excinfo.value)
+    result = str(kernel.gen_stub)
+    assert "(cell, nlayers, op_1_ncell_3d, op_1, ndf_w0, ndf_w1)" in result
+    assert "dimension(ndf_w0,ndf_w1,op_1_ncell_3d)" in result
+
 
 # basis function : spaces
 BASIS = '''

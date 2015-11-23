@@ -280,7 +280,8 @@ class DynArgDescriptor03(Descriptor):
         if self._type == "gh_field":
             return [self.function_space]
         elif self._type == "gh_operator":
-            return [self.function_space_from, self.function_space_to]
+            # return to before from to maintain expected ordering
+            return [self.function_space_to, self.function_space_from]
         else:
             raise RuntimeError(
                 "Internal error, DynArgDescriptor03:function_spaces(), should "
@@ -1198,16 +1199,6 @@ class DynKern(Kern):
                     arglist.append(text)
             elif arg.type == "gh_operator":
                 if my_type == "subroutine":
-                    # check whether the operator works on the same space.
-                    if arg.descriptor.function_space_from != \
-                       arg.descriptor.function_space_to:
-                        raise GenerationError(
-                            "Stub gen currently assumes that operators work "
-                            "on the same function space, therefore the "
-                            "declarations will be incorrect. The generator"
-                            "needs to know which dimension is 'from' and "
-                            "which is 'to' before we can generate the "
-                            "correct code.")
                     size = arg.name+"_ncell_3d"
                     arglist.append(size)
                     decl = DeclGen(parent, datatype="integer", intent="in",
@@ -1219,12 +1210,14 @@ class DynKern(Kern):
                     text = arg.name
                     arglist.append(text)
                     intent = arg.intent
-                    ndf_name = self._fs_descriptors.ndf_name(
-                        arg.function_space)
+                    ndf_name_to = self._fs_descriptors.ndf_name(
+                        arg.descriptor.function_space_to)
+                    ndf_name_from = self._fs_descriptors.ndf_name(
+                        arg.descriptor.function_space_from)
                     parent.add(DeclGen(parent, datatype="real",
                                        kind="r_def",
-                                       dimension=ndf_name + "," + ndf_name +
-                                       "," + size,
+                                       dimension=ndf_name_to + "," +
+                                       ndf_name_from + "," + size,
                                        intent=intent, entity_decls=[text]))
                 else:
                     arglist.append(arg.proxy_name_indexed+"%ncell_3d")
