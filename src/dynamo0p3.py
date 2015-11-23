@@ -278,9 +278,9 @@ class DynArgDescriptor03(Descriptor):
         on as a list. In the case of a gh_operator, where there are 2 function
         spaces, we return both. '''
         if self._type == "gh_field":
-            return [ self.function_space ]
+            return [self.function_space]
         elif self._type == "gh_operator":
-            return [ self.function_space_from, self.function_space_to ]
+            return [self.function_space_from, self.function_space_to]
         else:
             raise RuntimeError(
                 "Internal error, DynArgDescriptor03:function_spaces(), should "
@@ -382,8 +382,8 @@ class DynKernMetadata(KernelType):
             else:
                 raise ParseError(
                     "In the dynamo0.3 API function spaces specified in "
-                    "meta_funcs must be unique, but '{0}' is replicated." \
-                        .format(fs_name))
+                    "meta_funcs must be unique, but '{0}' is replicated."
+                    .format(fs_name))
             self._func_descriptors.append(descriptor)
 
     @property
@@ -765,7 +765,9 @@ class DynInvoke(Invoke):
             ndf_name = self.ndf_name(function_space)
             var_list.append(ndf_name)
             invoke_sub.add(AssignGen(invoke_sub, lhs=ndf_name,
-                                     rhs=name+"%"+arg.ref_name(function_space)+"%get_ndf()"))
+                                     rhs=name +
+                                     "%" + arg.ref_name(function_space) +
+                                     "%get_ndf()"))
             # if there is a field on this space then initialise undf
             # for this function space and add name to list to declare
             # later
@@ -773,7 +775,9 @@ class DynInvoke(Invoke):
                 undf_name = self.undf_name(function_space)
                 var_list.append(undf_name)
                 invoke_sub.add(AssignGen(invoke_sub, lhs=undf_name,
-                               rhs=name+"%"+arg.ref_name(function_space)+"%get_undf()"))
+                                         rhs=name + "%" +
+                                         arg.ref_name(function_space) +
+                                         "%get_undf()"))
             if self.basis_required(function_space):
                 # initialise 'dim' variable for this function space
                 # and add name to list to declare later
@@ -792,9 +796,10 @@ class DynInvoke(Invoke):
             if self.diff_basis_required(function_space):
                 # initialise 'diff_dim' variable for this function
                 # space and add name to list to declare later
-                lhs = "diff_dim_"+function_space
+                lhs = "diff_dim_" + function_space
                 var_dim_list.append(lhs)
-                rhs = name+"%"+arg.ref_name(function_space)+"%get_dim_space_diff()"
+                rhs = name+"%" + arg.ref_name(function_space) + \
+                    "%get_dim_space_diff()"
                 invoke_sub.add(AssignGen(invoke_sub, lhs=lhs, rhs=rhs))
                 # allocate the diff basis function variable
                 alloc_args = "diff_dim_" + function_space + ", " + \
@@ -853,8 +858,10 @@ class DynInvoke(Invoke):
                     name = arg.proxy_name_indexed
                     # insert the basis array call
                     invoke_sub.add(CallGen(invoke_sub,
-                                   name=name + "%" + arg.ref_name(function_space) +
-                                   "%compute_basis_function", args=args))
+                                           name=name + "%" +
+                                           arg.ref_name(function_space) +
+                                           "%compute_basis_function",
+                                           args=args))
                 if self.diff_basis_required(function_space):
                     # Create the argument list
                     args = []
@@ -945,9 +952,9 @@ class DynLoop(Loop):
         # Check that we're not within an OpenMP parallel region if
         # we are a loop over colours.
         if self._loop_type == "colours" and self.is_openmp_parallel():
-                    raise GenerationError("Cannot have a loop over "
-                                          "colours within an OpenMP "
-                                          "parallel region.")
+            raise GenerationError("Cannot have a loop over "
+                                  "colours within an OpenMP "
+                                  "parallel region.")
         # Set-up loop bounds
         self._start = "1"
         if self._loop_type == "colours":
@@ -1806,6 +1813,7 @@ class DynKernelArgument(Argument):
 
     @property
     def descriptor(self):
+        ''' Returns the raw parse object used to initialise this class. '''
         return self._arg
 
     def ref_name(self, function_space=None):
@@ -1898,6 +1906,7 @@ class DynKernelArgument(Argument):
 
     @property
     def intent(self):
+        ''' Returns the fortran intent of this argument. '''
         if self.access == "gh_read":
             return "in"
         elif self.access == "gh_write":

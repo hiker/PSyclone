@@ -62,6 +62,7 @@ def test_arg_descriptor_wrong_type():
     assert "each meta_arg entry must be of type 'arg_type'" \
         in str(excinfo.value)
 
+
 def test_ad_field_type_too_few_args():
     ''' Tests that an error is raised when the argument descriptor
     metadata has fewer than 3 args. '''
@@ -75,6 +76,7 @@ def test_ad_field_type_too_few_args():
     assert 'each meta_arg entry must have at least 3 args' \
         in str(excinfo.value)
 
+
 def test_ad_fld_type_too_many_args():
     ''' Tests that an error is raised when the argument descriptor
     metadata has more than 3 args. '''
@@ -87,6 +89,7 @@ def test_ad_fld_type_too_many_args():
         _ = DynKernMetadata(ast, name=name)
     assert 'each meta_arg entry must have 3 arguments' \
         in str(excinfo.value)
+
 
 def test_ad_fld_type_1st_arg():
     ''' Tests that an error is raised when the 1st argument is
@@ -113,6 +116,7 @@ def test_ad_op_type_too_few_args():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert 'meta_arg entry must have 4 arguments' in str(excinfo.value)
+
 
 def test_ad_op_type_too_many_args():
     ''' Tests that an error is raised when the operator descriptor
@@ -151,6 +155,7 @@ def test_ad_invalid_access_type():
         _ = DynKernMetadata(ast, name=name)
     assert '2nd argument of a meta_arg entry' in str(excinfo.value)
 
+
 def test_arg_descriptor_invalid_fs1():
     ''' Tests that an error is raised when an invalid function space
     name is provided as the third argument. '''
@@ -174,6 +179,7 @@ def test_arg_descriptor_invalid_fs2():
         _ = DynKernMetadata(ast, name=name)
     assert '4th argument of a meta_arg entry' in str(excinfo.value)
 
+
 def test_invalid_vector_operator():
     ''' Tests that an error is raised when a vector does not use "*"
     as it's operator. '''
@@ -184,6 +190,7 @@ def test_invalid_vector_operator():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert "must use '*' as the separator" in str(excinfo.value)
+
 
 def test_invalid_vector_value_type():
     ''' Tests that an error is raised when a vector value is not a valid
@@ -224,6 +231,7 @@ def test_fs_descriptor_wrong_type():
     assert "each meta_func entry must be of type 'func_type'" in \
         str(excinfo.value)
 
+
 def test_fs_descriptor_too_few_args():
     ''' Tests that an error is raised when there are two few arguments in
     the function space descriptor metadata (must be at least 2). '''
@@ -234,6 +242,7 @@ def test_fs_descriptor_too_few_args():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     assert 'meta_func entry must have at least 2 args' in str(excinfo.value)
+
 
 def test_fs_desc_invalid_fs_type():
     ''' Tests that an error is raised when an invalid function space name
@@ -770,11 +779,14 @@ def test_operator_nofield_different_space():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen_code_str = str(psy.gen)
     print gen_code_str
-    assert gen_code_str.find("nlayers = my_mapping_proxy%fs_from%get_nlayers()")
+    assert gen_code_str.find(
+        "nlayers = my_mapping_proxy%fs_from%get_nlayers()")
     assert gen_code_str.find("ndf_w3 = my_mapping_proxy%fs_from%get_ndf()")
     assert gen_code_str.find("ndf_w2 = my_mapping_proxy%fs_to%get_ndf()")
     assert gen_code_str.find("DO cell=1,my_mapping_proxy%fs_from%get_ncell()")
-    assert gen_code_str.find("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%local_stencil, ndf_w3, ndf_w2)")
+    assert gen_code_str.find(
+        "(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
+        "local_stencil, ndf_w3, ndf_w2)")
 
 
 def test_operator_orientation():
@@ -802,6 +814,7 @@ def test_operator_orientation():
         " chi_proxy(3)%data, ndf_w1, basis_w1, orientation_w1, ndf_w0, undf_w"
         "0, map_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
 
+
 def test_operator_orientation_different_space():
     '''tests that an operator on different spaces requiring orientation
     information is implemented correctly in the PSy layer. '''
@@ -811,14 +824,26 @@ def test_operator_orientation_different_space():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen_str = str(psy.gen)
-    assert gen_str.find("INTEGER, pointer :: orientation_w1(:) => null(), orientation_w2(:) => null()")
+    assert gen_str.find(
+        "INTEGER, pointer :: orientation_w1(:) => null(), orientation_w2(:)"
+        "=> null()")
     assert gen_str.find("ndf_w2 = my_mapping_proxy%fs_from%get_ndf()")
     assert gen_str.find("ndf_w1 = my_mapping_proxy%fs_to%get_ndf()")
     assert gen_str.find("dim_w1 = my_mapping_proxy%fs_to%get_dim_space()")
-    assert gen_str.find("CALL my_mapping_proxy%fs_to%compute_basis_function(basis_w1, ndf_w1, nqp_h, nqp_v, xp, zp)")
-    assert gen_str.find("orientation_w2 => my_mapping_proxy%fs_from%get_cell_orientation(cell)")
-    assert gen_str.find("orientation_w1 => my_mapping_proxy%fs_to%get_cell_orientation(cell)")
-    assert gen_str.find("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, ndf_w2, orientation_w2, ndf_w1, basis_w1, orientation_w1, ndf_w0, undf_w0, map_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)")
+    assert gen_str.find(
+        "CALL my_mapping_proxy%fs_to%compute_basis_function(basis_w1, ndf_w1,"
+        "nqp_h, nqp_v, xp, zp)")
+    assert gen_str.find(
+        "orientation_w2 => my_mapping_proxy%fs_from%get_cell_orientation("
+        "cell)")
+    assert gen_str.find(
+        "orientation_w1 => my_mapping_proxy%fs_to%get_cell_orientation(cell)")
+    assert gen_str.find(
+        "(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%local_"
+        "stencil, chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, "
+        "ndf_w2, orientation_w2, ndf_w1, basis_w1, orientation_w1, ndf_w0, "
+        "undf_w0, map_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)")
+
 
 def test_any_space_1():
     ''' tests that any_space is implemented correctly in the PSy
@@ -881,7 +906,7 @@ def test_any_space_2():
         ", undf_any_space_1, map_any_space_1)") != -1
 
 
-def test_operator_any_space_different_space():
+def test_operator_any_space_different_space_1():
     ''' tests that any_space is implemented correctly in the PSy
     layer. Includes different spaces for an operator and no other
     fields.'''
@@ -896,7 +921,7 @@ def test_operator_any_space_different_space():
         "ndf_any_space_1 = a_proxy%fs_to%get_ndf()") != -1
 
 
-def test_operator_any_space_different_space():
+def test_operator_any_space_different_space_2():
     ''' tests that any_space is implemented correctly in the PSy
     layer in a more complicated example. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "11.3_any_space.f90"),
@@ -1084,6 +1109,7 @@ def test_multikern_invoke_any_space():
         _ = PSyFactory("dynamo0.3").create(invoke_info)
     assert 'multiple kernels within this invoke with kernel arguments ' + \
         'declared as any_space' in str(excinfo.value)
+
 
 @pytest.mark.xfail(reason="bug : loop fuse replicates maps in loops")
 def test_loopfuse():
@@ -1993,7 +2019,7 @@ def test_arg_ref_name_method_error1():
         _ = first_argument.ref_name("w3")
     assert 'not one of the function spaces associated with this argument' \
         in str(excinfo.value)
-    
+
 
 def test_arg_ref_name_method_error2():
     ''' Tests that an internal error is raised in DynKernelArgument
@@ -2009,7 +2035,7 @@ def test_arg_ref_name_method_error2():
     with pytest.raises(GenerationError) as excinfo:
         _ = first_argument.ref_name()
     assert 'ref_name: Error, unsupported arg type' in str(excinfo)
-    
+
 
 def test_arg_descriptor_function_method_error():
     ''' Tests that an internal error is raised in DynArgDescriptor03
@@ -2057,6 +2083,7 @@ def test_arg_descriptor_str_error():
         _ = str(field_descriptor)
     assert 'Internal error in DynArgDescriptor03.__str__' \
         in str(excinfo.value)
+
 
 def test_arg_descriptor_repr():
     ''' Tests that the repr method for DynArgDescriptor03 works as
@@ -2113,6 +2140,7 @@ def test_arg_descriptor_init_error():
         in str(excinfo.value)
     VALID_ARG_TYPE_NAMES = keep
 
+
 def test_func_descriptor_repr():
     ''' Tests the __repr__ output of a func_descriptor '''
     fparser.logging.disable('CRITICAL')
@@ -2121,6 +2149,7 @@ def test_func_descriptor_repr():
     func_descriptor = metadata.func_descriptors[0]
     func_str = repr(func_descriptor)
     assert "DynFuncDescriptor03(func_type(w1, gh_basis))" in func_str
+
 
 def test_func_descriptor_str():
     ''' Tests the __str__ output of a func_descriptor '''
@@ -2136,4 +2165,3 @@ def test_func_descriptor_str():
         "  function_space_name[0] = 'w1'\n"
         "  operator_name[1] = 'gh_basis'")
     assert output in func_str
-    
