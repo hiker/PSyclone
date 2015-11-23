@@ -1978,6 +1978,65 @@ def test_arg_descriptor_functions_method_error():
         'not get to here' in str(excinfo.value)
 
 
+def test_arg_descriptor_function_method_error():
+    ''' Tests that an internal error is raised in DynArgDescriptor03
+    when function_space is called and the internal type is an
+    unexpected value. It should not be possible to get to here so we
+    need to mess about with internal values to trip this.'''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    field_descriptor = metadata.arg_descriptors[0]
+    field_descriptor._type = "gh_fire_starter"
+    with pytest.raises(RuntimeError) as excinfo:
+        _ = field_descriptor.function_space
+    assert 'Internal error, DynArgDescriptor03:function_space(), should ' \
+        'not get to here' in str(excinfo.value)
+
+
+def test_arg_descriptor_str():
+    ''' Tests that the string method for DynArgDescriptor03 works as
+    expected '''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    field_descriptor = metadata.arg_descriptors[0]
+    result = str(field_descriptor)
+    expected_output = (
+        "DynArgDescriptor03 object\n"
+        "  argument_type[0]='gh_field'\n"
+        "  access_descriptor[1]='gh_write'\n"
+        "  function_space[2]='w1'")
+    assert expected_output in result
+
+
+def test_arg_descriptor_str_error():
+    ''' Tests that an internal error is raised in DynArgDescriptor03
+    when __str__ is called and the internal type is an
+    unexpected value. It should not be possible to get to here so we
+    need to mess about with internal values to trip this.'''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    field_descriptor = metadata.arg_descriptors[0]
+    field_descriptor._type = "gh_fire_starter"
+    with pytest.raises(ParseError) as excinfo:
+        _ = str(field_descriptor)
+    assert 'Internal error in DynArgDescriptor03.__str__' \
+        in str(excinfo.value)
+
+def test_arg_descriptor_repr():
+    ''' Tests that the repr method for DynArgDescriptor03 works as
+    expected '''
+    fparser.logging.disable('CRITICAL')
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    field_descriptor = metadata.arg_descriptors[0]
+    result = repr(field_descriptor)
+    assert 'DynArgDescriptor03(arg_type(gh_field, gh_write, w1))' \
+        in result
+
+
 def test_arg_descriptor_function_space_tofrom_error():
     ''' Tests that an internal error is raised in DynArgDescriptor03
     when function_space_to or function_space_from is called and the
