@@ -1978,6 +1978,39 @@ def test_arg_descriptor_functions_method_error():
         'not get to here' in str(excinfo.value)
 
 
+def test_arg_ref_name_method_error1():
+    ''' Tests that an internal error is raised in DynKernelArgument
+    when ref_name() is called with a function space that is not
+    associated with this field'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.kern_calls()[0]
+    first_argument = first_kernel.arguments.args[0]
+    # the argument is a field and is on "w1"
+    with pytest.raises(GenerationError) as excinfo:
+        _ = first_argument.ref_name("w3")
+    assert 'not one of the function spaces associated with this argument' \
+        in str(excinfo.value)
+    
+
+def test_arg_ref_name_method_error2():
+    ''' Tests that an internal error is raised in DynKernelArgument
+    when ref_name() is called when the argument type is not one of
+    gh_field or gh_operator'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.kern_calls()[0]
+    first_argument = first_kernel.arguments.args[0]
+    first_argument._type = "gh_funky_instigator"
+    with pytest.raises(GenerationError) as excinfo:
+        _ = first_argument.ref_name()
+    assert 'ref_name: Error, unsupported arg type' in str(excinfo)
+    
+
 def test_arg_descriptor_function_method_error():
     ''' Tests that an internal error is raised in DynArgDescriptor03
     when function_space is called and the internal type is an
