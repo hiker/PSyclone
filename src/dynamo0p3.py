@@ -688,23 +688,26 @@ class DynInvoke(Invoke):
         for arg in self.psy_unique_vars:
             if arg.vector_size > 1:
                 for idx in range(1, arg.vector_size+1):
-                    invoke_sub.add(AssignGen(invoke_sub,
-                                   lhs=arg.proxy_name+"("+str(idx)+")",
-                                   rhs=arg.name+"("+str(idx)+")%get_proxy()"))
+                    invoke_sub.add(
+                        AssignGen(invoke_sub,
+                                  lhs=arg.proxy_name+"("+str(idx)+")",
+                                  rhs=arg.name+"("+str(idx)+")%get_proxy()"))
             else:
                 invoke_sub.add(AssignGen(invoke_sub, lhs=arg.proxy_name,
                                          rhs=arg.name+"%get_proxy()"))
 
         field_proxy_decs = self.unique_declarations("gh_field", proxy=True)
         if len(field_proxy_decs) > 0:
-            invoke_sub.add(TypeDeclGen(invoke_sub,
-                           datatype="field_proxy_type",
-                           entity_decls=field_proxy_decs))
+            invoke_sub.add(
+                TypeDeclGen(invoke_sub,
+                            datatype="field_proxy_type",
+                            entity_decls=field_proxy_decs))
         op_proxy_decs = self.unique_declarations("gh_operator", proxy=True)
         if len(op_proxy_decs) > 0:
-            invoke_sub.add(TypeDeclGen(invoke_sub,
-                           datatype="operator_proxy_type",
-                           entity_decls=op_proxy_decs))
+            invoke_sub.add(
+                TypeDeclGen(invoke_sub,
+                            datatype="operator_proxy_type",
+                            entity_decls=op_proxy_decs))
         # Initialise the number of layers
         invoke_sub.add(CommentGen(invoke_sub, ""))
         invoke_sub.add(CommentGen(invoke_sub, " Initialise number of layers"))
@@ -716,9 +719,10 @@ class DynInvoke(Invoke):
         # previous name
         nlayers_name = self._name_space_manager.create_name(
             root_name="nlayers", context="PSyVars", label="nlayers")
-        invoke_sub.add(AssignGen(invoke_sub, lhs=nlayers_name,
-                       rhs=first_var.proxy_name_indexed + "%" +
-                       first_var.ref_name() + "%get_nlayers()"))
+        invoke_sub.add(
+            AssignGen(invoke_sub, lhs=nlayers_name,
+                      rhs=first_var.proxy_name_indexed + "%" +
+                      first_var.ref_name() + "%get_nlayers()"))
         invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                entity_decls=[nlayers_name]))
         if self.qr_required:
@@ -726,14 +730,17 @@ class DynInvoke(Invoke):
             invoke_sub.add(CommentGen(invoke_sub, ""))
             invoke_sub.add(CommentGen(invoke_sub, " Initialise qr values"))
             invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-                           entity_decls=["nqp_h", "nqp_v"]))
-            invoke_sub.add(DeclGen(invoke_sub, datatype="real", pointer=True,
-                           kind="r_def", entity_decls=["xp(:,:) => null()"]))
+            invoke_sub.add(
+                DeclGen(invoke_sub, datatype="integer",
+                        entity_decls=["nqp_h", "nqp_v"]))
+            invoke_sub.add(
+                DeclGen(invoke_sub, datatype="real", pointer=True,
+                        kind="r_def", entity_decls=["xp(:,:) => null()"]))
             decl_list = ["zp(:) => null()", "wh(:) => null()",
                          "wv(:) => null()"]
-            invoke_sub.add(DeclGen(invoke_sub, datatype="real", pointer=True,
-                           kind="r_def", entity_decls=decl_list))
+            invoke_sub.add(
+                DeclGen(invoke_sub, datatype="real", pointer=True,
+                        kind="r_def", entity_decls=decl_list))
             if len(self._psy_unique_qr_vars) > 1:
                 raise GenerationError(
                     "Oops, not yet coded for multiple qr values")
@@ -742,12 +749,14 @@ class DynInvoke(Invoke):
                            "wv": "wqp_v"}
             qr_vars = ["nqp_h", "nqp_v"]
             for qr_var in qr_ptr_vars.keys():
-                invoke_sub.add(AssignGen(invoke_sub, pointer=True, lhs=qr_var,
-                               rhs=qr_var_name + "%get_" +
-                               qr_ptr_vars[qr_var] + "()"))
+                invoke_sub.add(
+                    AssignGen(invoke_sub, pointer=True, lhs=qr_var,
+                              rhs=qr_var_name + "%get_" +
+                              qr_ptr_vars[qr_var] + "()"))
             for qr_var in qr_vars:
-                invoke_sub.add(AssignGen(invoke_sub, lhs=qr_var,
-                               rhs=qr_var_name + "%get_" + qr_var + "()"))
+                invoke_sub.add(
+                    AssignGen(invoke_sub, lhs=qr_var,
+                              rhs=qr_var_name + "%get_" + qr_var + "()"))
         operator_declarations = []
         var_list = []
         var_dim_list = []
@@ -755,7 +764,8 @@ class DynInvoke(Invoke):
         for function_space in self.unique_fss():
             # Initialise information associated with this function space
             invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(CommentGen(invoke_sub, " Initialise sizes and "
+            invoke_sub.add(
+                CommentGen(invoke_sub, " Initialise sizes and "
                            "allocate any basis arrays for "+function_space))
             invoke_sub.add(CommentGen(invoke_sub, ""))
             # Find an argument on this space to use to dereference
@@ -875,9 +885,10 @@ class DynInvoke(Invoke):
                     arg = self.arg_for_funcspace(function_space)
                     name = arg.proxy_name_indexed
                     # insert the diff basis array call
-                    invoke_sub.add(CallGen(invoke_sub, name=name + "%" +
-                                   arg.ref_name(function_space) +
-                                   "%compute_diff_basis_function", args=args))
+                    invoke_sub.add(
+                        CallGen(invoke_sub, name=name + "%" +
+                                arg.ref_name(function_space) +
+                                "%compute_diff_basis_function", args=args))
         invoke_sub.add(CommentGen(invoke_sub, ""))
         invoke_sub.add(CommentGen(invoke_sub, " Call our kernels"))
         invoke_sub.add(CommentGen(invoke_sub, ""))
@@ -1235,8 +1246,9 @@ class DynKern(Kern):
             ndf_name = self._fs_descriptors.ndf_name(unique_fs)
             arglist.append(ndf_name)
             if my_type == "subroutine":
-                parent.add(DeclGen(parent, datatype="integer", intent="in",
-                           entity_decls=[ndf_name]))
+                parent.add(
+                    DeclGen(parent, datatype="integer", intent="in",
+                            entity_decls=[ndf_name]))
             # 3.1.1 Provide additional compulsory arguments if there
             # is a field on this space
             if self.field_on_space(unique_fs):
@@ -1508,12 +1520,13 @@ class DynKern(Kern):
                 fs_descriptor = self._fs_descriptors.get_descriptor(unique_fs)
                 if fs_descriptor.orientation:
                     field = self._arguments.get_field(unique_fs)
-                    parent.add(AssignGen(parent, pointer=True,
-                               lhs=fs_descriptor.orientation_name,
-                               rhs=field.proxy_name_indexed + "%" +
-                                         field.ref_name(unique_fs) +
-                                         "%get_cell_orientation(" +
-                                         dofmap_args + ")"))
+                    parent.add(
+                        AssignGen(parent, pointer=True,
+                                  lhs=fs_descriptor.orientation_name,
+                                  rhs=field.proxy_name_indexed + "%" +
+                                  field.ref_name(unique_fs) +
+                                  "%get_cell_orientation(" +
+                                  dofmap_args + ")"))
         if self._fs_descriptors.orientation:
             orientation_decl_names = []
             for orientation_name in self._fs_descriptors.orientation_names:
