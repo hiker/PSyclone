@@ -1720,3 +1720,26 @@ def test_kernel_stub_gen_cmd_line():
 
     print "Output was: ", out
     assert ORIENTATION_OUTPUT in out
+
+STENCIL_CODE = '''
+module stencil_mod
+  type, extends(kernel_type) :: stencil_type
+     type(arg_type), meta_args(2) =    &
+          (/ arg_type(gh_field,gh_write,w1), &
+             arg_type(gh_field,gh_read, w2, stencil(cross,1)) &
+           /)
+     integer, parameter :: iterates_over = cells
+   contains
+     procedure() :: code => stencil_code
+  end type stencil_type
+contains
+  subroutine stencil_code()
+  end subroutine stencil_code
+end module stencil_mod
+'''
+
+
+def test_stencil_metadata():
+    ''' Check that we can parse Kernels with stencil metadata '''
+    ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
