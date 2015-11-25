@@ -1350,8 +1350,8 @@ class DynKern(Kern):
                     parent.add(DeclGen(parent, datatype="integer",
                                        pointer=True, entity_decls=[
                                            "boundary_dofs(:,:) => null()"]))
-                    proxy_name = self._arguments.get_field("any_space_1").\
-                        proxy_name
+                    proxy_name = self._arguments.get_arg_on_space(
+                        "any_space_1").proxy_name
                     new_parent, position = parent.start_parent_loop()
                     new_parent.add(AssignGen(new_parent, pointer=True,
                                              lhs="boundary_dofs",
@@ -1498,7 +1498,7 @@ class DynKern(Kern):
             if self.field_on_space(unique_fs):
                 # A map is required as there is a field on this space
                 map_name = self._fs_descriptors.map_name(unique_fs)
-                field = self._arguments.get_field(unique_fs)
+                field = self._arguments.get_arg_on_space(unique_fs)
                 parent.add(AssignGen(parent, pointer=True, lhs=map_name,
                                      rhs=field.proxy_name_indexed +
                                      "%" + field.ref_name(unique_fs) +
@@ -1519,7 +1519,7 @@ class DynKern(Kern):
             if self._fs_descriptors.exists(unique_fs):
                 fs_descriptor = self._fs_descriptors.get_descriptor(unique_fs)
                 if fs_descriptor.orientation:
-                    field = self._arguments.get_field(unique_fs)
+                    field = self._arguments.get_arg_on_space(unique_fs)
                     parent.add(
                         AssignGen(parent, pointer=True,
                                   lhs=fs_descriptor.orientation_name,
@@ -1759,16 +1759,16 @@ class DynKernelArguments(Arguments):
                                                 parent_call))
         self._dofs = []
 
-    def get_field(self, func_space):
-        '''Returns the first field or operator found that is on the specified
-        function space. If no field or operator is found an exception
-        is raised. '''
+    def get_arg_on_space(self, func_space):
+        '''Returns the first argument (field or operator) found that
+        is on the specified function space. If no field or operator is
+        found an exception is raised.'''
         for arg in self._args:
             if func_space in arg.function_spaces:
                 return arg
-        raise FieldNotFoundError("DynKernelArguments:get_field: there is no"
-                                 " field or operator with function space {0}".
-                                 format(func_space))
+        raise FieldNotFoundError("DynKernelArguments:get_arg_on_space: there "
+                                 "is no field or operator with function space "
+                                 "{0}".format(func_space))
 
     @property
     def has_operator(self):
