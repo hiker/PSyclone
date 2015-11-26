@@ -39,6 +39,8 @@ VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator"]
 
 VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"]
 
+VALID_STENCIL_TYPES = ["x1d", "y1d", "cross", "region"]
+
 # The mapping from meta-data strings to field-access types
 # used in this API.
 FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
@@ -187,22 +189,90 @@ class DynArgDescriptor03(Descriptor):
                 "'{1}' in '{2}'".format(VALID_ACCESS_DESCRIPTOR_NAMES,
                                         arg_type.args[1].name, arg_type))
         self._access_descriptor = arg_type.args[1]
+        self._stencil = False
         if self._type == "gh_field":
-            # we expect 3 arguments in total with the 3rd being a
-            # function space
-            if len(arg_type.args) != 3:
+            # There must be at most 4 arguments.
+            if len(arg_type.args) > 4:
                 raise ParseError(
-                    "In the dynamo0.3 API each meta_arg entry must have 3 "
-                    "arguments if its first argument is gh_field, but found "
-                    "{0} in '{1}'").format(len(arg_type.args), arg_type)
+                    "In the dynamo0.3 API each meta_arg entry must have at "
+                    "most 4 arguments if its first argument is gh_field, but "
+                    "found {0} in '{1}'".format(len(arg_type.args), arg_type))
+            # The 3rd argument must be a function space name
             if arg_type.args[2].name not in VALID_FUNCTION_SPACE_NAMES:
                 raise ParseError(
                     "In the dynamo0.3 API the 3rd argument of a meta_arg "
-                    "entry must be a valid function space name (one of {0}), "
-                    "but found '{1}' in '{2}".
-                    format(VALID_FUNCTION_SPACE_NAMES, arg_type.args[2].name,
-                           arg_type))
+                    "entry must be a valid function space name if its first "
+                    "argument is gh_field (one of {0}), but found '{1}' in "
+                    "'{2}".format(VALID_FUNCTION_SPACE_NAMES,
+                                  arg_type.args[2].name, arg_type))
             self._function_space1 = arg_type.args[2].name
+            # The 4th argument is an optional stencil specification
+            if len(arg_type.args) == 4:
+                if not isinstance(arg_type.args[3], expr.FunctionVar):
+                    raise ParseError(
+                        "In the dynamo0.3 API the 4th argument of a meta_arg "
+                        "entry must be a valid stencil specification with "
+                        "format stencil(<type>,<extent>) but found the literal {0}".
+                        format(arg_type))
+                if arg_type.args[3].name.lower() != "stencil" or \
+                   not arg_type.args[3].args:
+                    raise ParseError(
+                        "In the dynamo0.3 API the 4th argument of a meta_arg "
+                        "entry must be a valid stencil specification with "
+                        "format stencil(<type>,<extent>) but found {0}".
+                        format(arg_type))
+                if len(arg_type.args[3].args) != 2:
+                    raise ParseError(
+                        "In the dynamo0.3 API the 4th argument of a meta_arg "
+                        "entry must be a valid stencil specification with "
+                        "format stencil(<type>,<extent>) but there are not "
+                        "two arguments inside the brackets {0}".
+                        format(arg_type))
+                if not isinstance(arg_type.args[3].args[0], expr.FunctionVar):
+                    if not isinstance(arg_type.args[3].args[0], str):
+                        raise ParseError(
+                            "internal error, expecting either FunctionVar or "
+                            "str but found {0}".
+                            format(type(arg_type.args[3].args[0])))
+                    raise ParseError(
+                        "In the dynamo0.3 API the 4th argument of a meta_arg "
+                        "entry must be a valid stencil specification with "
+                        "format stencil(<type>,<extent>). However, the "
+                        "specified <type> '{0}' is a literal and therefore is "
+                        "not one of the valid types '{1}'".
+                        format(arg_type.args[3].args[0], VALID_STENCIL_TYPES))
+                if arg_type.args[3].args[0].args:
+                    raise ParseError(
+                        "In the dynamo0.3 API the 4th argument of a meta_arg "
+                        "entry must be a valid stencil specification with "
+                        "format stencil(<type>,<extent>). However, the specified "
+                        "<type> '{0}' includes brackets")
+                stencil_type = arg_type.args[3].args[0].name
+                if stencil_type not in VALID_STENCIL_TYPES:
+                    raise ParseError(
+                        "In the dynamo0.3 API the 4th argument of a meta_arg "
+                        "entry must be a valid stencil specification with "
+                        "format stencil(<type>,<extent>). However, the specified "
+                        "<type> '{0}' is not one of the valid types '{1}'". \
+                        format(stencil_type, VALID_STENCIL_TYPES))
+                if not isinstance(arg_type.args[3].args[1],str):
+                    raise ParseError(
+                        "In the dynamo0.3 API the 4th argument of a meta_arg "
+                        "entry must be a valid stencil specification with "
+                        "format stencil(<type>,<extent>). However, the specified "
+                        "<extent> '{0}' is not an integer". \
+                        format(arg_type.args[3].args[1]))
+                stencil_extent = int(arg_type.args[3].args[1])
+                if stencil_extent < 1:
+                    raise ParseError(
+                        "In the dynamo0.3 API the 4th argument of a meta_arg "
+                        "entry must be a valid stencil specification with "
+                        "format stencil(<type>,<extent>). However, the specified "
+                        "<extent> '{0}' is less than 1". \
+                        format(str(stencil_extent)))
+                self._stencil = True
+                self._stencil_type = stencil_type
+                self._stencil_extent = stencil_extent
         elif self._type == "gh_operator":
             # we expect 4 arguments with the 3rd and 4th each being a
             # function space
