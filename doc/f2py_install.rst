@@ -9,8 +9,8 @@ http://code.google.com/p/f2py/wiki/F2PYDevelopment for more
 information). PSyclone makes use of the fortran parser (fparser)
 contained within.
 
-The source code of f2py (revision 88) is provided with PSyclone in the
-sub-directory ``f2py_88``. If you would prefer to install f2py rather
+The source code of f2py (revision 93) is provided with PSyclone in the
+sub-directory ``f2py_93``. If you would prefer to install f2py rather
 than simply use it as is (see the previous section) then the rest of
 this section explains how to do this.
 
@@ -20,7 +20,8 @@ interactive setup. In this case to install f2py using gfortran and gcc
 (for example) you can perform the following (where "cgcc", "fgfortran", "1"
 and "2" are interactive commands to setup.py)
 ::
-    > cd f2py_88
+
+    > cd f2py_93
     > sudo ./setup.py
     cgcc
     fgfortran
@@ -34,13 +35,15 @@ For later versions of distutils (1.8.0 has been tested) where the
 interactive setup has been disabled you can perform the following
 (using g95 and gcc in this case):
 ::
-    > cd f2py_88
+
+    > cd f2py_93
     > sudo ./setup.py build -fcompiler=g95 -ccompiler=gcc
     > sudo ./setup.py install
  
 For more information about possible build options you can use the
 available help:
 ::
+
     > ./setup.py --help
     > ./setup.py build --help
     > ./setup.py build --help-fcompiler
@@ -49,6 +52,7 @@ In particular, if you do not have root access then the python
 modules can be installed in your user account by specifying 
 --user to the install command:
 ::
+
     > ./setup.py install --user
 
 This causes the software to be installed under ${HOME}/.local/

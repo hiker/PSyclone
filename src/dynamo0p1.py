@@ -38,6 +38,8 @@ class DynamoPSy(PSy):
         psy_module.add(lfric_use)
         # add all invoke specific information
         self.invokes.gen_code(psy_module)
+        # inline kernel subroutines if requested
+        self.inline(psy_module)
         return psy_module.root
 
 class DynamoInvokes(Invokes):
@@ -66,12 +68,12 @@ class DynInvoke(Invoke):
         from f2pygen import SubroutineGen, TypeDeclGen
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name = self.name,
-                                   args = self.unique_args)
+                                   args = self.psy_unique_var_names)
         self.schedule.gen_code(invoke_sub)
         parent.add(invoke_sub)
         # add the subroutine argument declarations
         my_typedecl = TypeDeclGen(invoke_sub, datatype = "field_type",
-                                  entity_decls = self.unique_args,
+                                  entity_decls = self.psy_unique_var_names,
                                   intent = "inout")
         invoke_sub.add(my_typedecl)
 
@@ -87,22 +89,28 @@ class DynLoop(Loop):
         loop information to the base class so it creates the one we require.
         Creates Dynamo specific loop bounds when the code is being generated.
     '''
-    def __init__(self, call = None, parent = None):
-        Loop.__init__(self, DynInf, DynKern, call = call, parent = parent,
-                      valid_loop_types = ["colours", "colour"])
-    def gen_code(self,parent):
-        ''' Work out the appropriate loop bounds and variable name depending
-            on the loop type and then call the base class to generate the
-            code '''
-        self._start = "1"
+    def __init__(self, call=None, parent=None, loop_type=""):
+        Loop.__init__(self, DynInf, DynKern, call=call, parent=parent,
+                      valid_loop_types=["", "colours", "colour"])
+        self.loop_type = loop_type
+
+        # Work out the variable name from  the loop type
         if self._loop_type == "colours":
             self._variable_name = "colour"
-            self._stop = "ncolour"
         elif self._loop_type == "colour":
             self._variable_name = "cell"
-            self._stop = "ncp_ncolour(colour)"
         else:
             self._variable_name = "cell"
+
+    def gen_code(self,parent):
+        ''' Work out the appropriate loop bounds and then call the base
+            class to generate the code '''
+        self._start = "1"
+        if self._loop_type == "colours":
+            self._stop = "ncolour"
+        elif self._loop_type == "colour":
+            self._stop = "ncp_ncolour(colour)"
+        else:
             self._stop = self.field_name+"%get_ncell()"
         Loop.gen_code(self,parent)
 
@@ -120,9 +128,11 @@ class DynKern(Kern):
     ''' Stores information about Dynamo Kernels as specified by the Kernel
         metadata. Uses this information to generate appropriate PSy layer
         code for the Kernel instance. '''
-    def __init__(self, call, parent = None):
+    def __init__(self):
         if False:
             self._arguments = DynKernelArguments(None, None) # for pyreverse
+
+    def load(self, call, parent=None):
         Kern.__init__(self, DynKernelArguments, call, parent)
 
     def local_vars(self):
@@ -185,8 +195,9 @@ class DynKern(Kern):
 
         # generate the kernel call and associated use statement
         parent.add(CallGen(parent, self._name, arglist))
-        parent.parent.add(UseGen(parent.parent, name = self._module_name,
-                                 only = True, funcnames = [self._name]))
+        if not self.module_inline:
+            parent.add(UseGen(parent, name=self._module_name,
+                              only=True, funcnames=[self._name]))
 
         # declare and initialise the number of layers and the number
         # of degrees of freedom. Needs to be generalised.

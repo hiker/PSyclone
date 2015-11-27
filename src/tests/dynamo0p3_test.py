@@ -2176,6 +2176,8 @@ def test_pointwise_set():
                                         "14_single_pointwise_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_invoke.schedule.view()
     code = str(psy.gen)
 
     output = (
