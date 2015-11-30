@@ -19,8 +19,9 @@ import expression as expr
 import fparser
 import os
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
-    Argument, Inf, NameSpaceFactory, GenerationError, FieldNotFoundError, \
-    InfArguments, PointwiseKern
+    Argument, Inf, InfArguments, InfArgument, NameSpaceFactory, \
+    GenerationError, FieldNotFoundError, \
+    PointwiseKern
 
 
 # first section : Parser specialisations and classes
@@ -473,7 +474,7 @@ class DynInvoke(Invoke):
         # the space used by each kernel and at the moment neither of
         # these has been coded for.
         any_space_call_count = 0
-        for call in self.schedule.calls():
+        for call in self.schedule.kern_calls():
             found_any_space = False
             for arg_descriptor in call.arg_descriptors:
                 if arg_descriptor.is_any_space:
@@ -491,7 +492,7 @@ class DynInvoke(Invoke):
         # list. However, the base class currently ignores any qr
         # arguments so we need to add them in.
         self._alg_unique_qr_args = []
-        for call in self.schedule.calls():
+        for call in self.schedule.kern_calls():
             if call.qr_required:
                 if call.qr_text not in self._alg_unique_qr_args:
                     self._alg_unique_qr_args.append(call.qr_text)
@@ -500,7 +501,7 @@ class DynInvoke(Invoke):
         # arguments within the psy layer. These are stored in the
         # _psy_unique_qr_vars list
         self._psy_unique_qr_vars = []
-        for call in self.schedule.calls():
+        for call in self.schedule.kern_calls():
             if call.qr_required:
                 if call.qr_name not in self._psy_unique_qr_vars:
                     self._psy_unique_qr_vars.append(call.qr_name)
@@ -510,7 +511,7 @@ class DynInvoke(Invoke):
         ''' Returns True if at least one of the kernels in this invoke
         requires QR, otherwise returns False. '''
         required = False
-        for call in self.schedule.calls():
+        for call in self.schedule.kern_calls():
             if call.qr_required:
                 required = True
                 break
@@ -982,6 +983,13 @@ class DynLoop(Loop):
             self._stop = "ncolour"
         elif self._loop_type == "colour":
             self._stop = "ncp_colour(colour)"
+        elif self._loop_type == "levels":
+            # TODO work out actual value for number of levels
+            self._stop = "nlevels"
+        elif self._loop_type == "dofs":
+            # TODO work out how to get number of dofs for this field
+            # when we may not know what space it is on (at code-gen time)
+            self._stop = "undf_some_space"
         else:
             self._stop = self.field.proxy_name_indexed + "%" + \
                 self.field.ref_name() + "%get_ncell()"
@@ -1922,7 +1930,9 @@ class DynKernelArgument(Argument):
 
 
 class DynInf(Inf):
-    ''' A Dynamo infrastructure call '''
+    ''' A Creates the necessary framework for a Dynamo infrastructure call,
+    This consists of the pointwise operation itself but also the loops over
+    cells, levels and DoFs. '''
 
     def __str__(self):
         return "Set-up a Dynamo infrastructure call"
@@ -1932,27 +1942,34 @@ class DynInf(Inf):
         access = ["write", None]
         # Loop over cells
         cloop = DynLoop(call=None, parent=parent)
+
         # Loop over levels
         lloop = DynLoop(call=None, parent=cloop,
                         loop_type="levels")
+        cloop.addchild(lloop)
         # Loop over DoFs
         dloop = DynLoop(call=None, parent=lloop,
                         loop_type="dofs")
+        lloop.addchild(dloop)
         # The point-wise operation itself
         pwkern = DynPointwiseKern(dloop, call, call.func_name,
-                                  InfArguments(call, dloop, access))
-        print "pwkern: ",dir(pwkern)
-        for arg in pwkern.arguments.args:
-            print type(arg), dir(arg)
-            print arg
-        #exit(1)
+                                  DynInfArguments(call, dloop, access))
+        # Now that we have the point-wise object, we use it to supply
+        # properties to the loops which contain it
+        dloop.field_name = pwkern.arguments.iteration_space_arg()
+        dloop.addchild(pwkern)
         return cloop
 
 
 class DynPointwiseKern(PointwiseKern):
+    ''' A point-wise kernel in Dynamo '''
 
     def __str__(self):
         return "set infrastructure call"
+
+    def __init__(self, parent, call, name, arguments):
+        PointwiseKern.__init__(self, parent, call, name, arguments)
+        
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
@@ -1962,3 +1979,51 @@ class DynPointwiseKern(PointwiseKern):
         assign_2 = AssignGen(parent, lhs=var_name, rhs=value)
         parent.add(assign_2)
         return
+
+
+class DynInfArguments(InfArguments):
+    ''' arguments associated with a Dynamo infrastructure call '''
+    def __init__(self, call_info, parent_call, access):
+        Arguments.__init__(self, parent_call)
+        if False:
+            self._0_to_n = DynInfArgument(None, None, None)  # pyreverse
+        for idx, arg in enumerate(call_info.args):
+            self._args.append(DynInfArgument(arg, parent_call, access[idx]))
+
+    def iteration_space_arg(self):
+        ''' Returns the first argument that is written to. This can be
+        used to dereference for the iteration space. '''
+        for arg in self._args:
+            if arg.text:
+                return arg.text
+
+
+class DynInfArgument(InfArgument):
+    ''' Dynamo-specifc class to provide information about individual
+    arguments to Dynamo point-wise kernels. Is similar to DynKernelArgument
+    but is not constructed from kernel meta-data because point-wise kernels
+    don't physically exist and therefore dont' have meta-data. '''
+
+    def __init__(self, arg_info, call, access):
+        InfArgument.__init__(self, arg_info, call, access)
+        # All Dynamo point-wise kernels operate on fields
+        self._type = "gh_field"
+
+    @property
+    def type(self):
+        return self._type
+
+    @property
+    def declaration_name(self):
+        return self._name
+
+    @property
+    def proxy_name(self):
+        ''' Returns the proxy name for this argument. '''
+        return self._name+"_proxy"
+
+    @property
+    def proxy_declaration_name(self):
+        ''' Returns the proxy name for this argument with the array
+        dimensions added if required. '''
+        return self.proxy_name
