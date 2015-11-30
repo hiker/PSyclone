@@ -1738,6 +1738,7 @@ contains
 end module stencil_mod
 '''
 
+
 def test_stencil_metadata():
     ''' Check that we can parse Kernels with stencil metadata '''
     ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
@@ -1747,8 +1748,9 @@ def test_stencil_metadata():
 def test_field_metadata_too_many_arguments():
     '''Check that we raise an exception if more than 4 arguments are
     provided in the metadata for a gh_field arg_type.'''
-    result = STENCIL_CODE.replace("gh_field,gh_read, w2, stencil(cross,1)",
-                         "gh_field,gh_read, w2, stencil(cross,1), w1", 1)
+    result = STENCIL_CODE.replace(
+        "gh_field,gh_read, w2, stencil(cross,1)",
+        "gh_field,gh_read, w2, stencil(cross,1), w1", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         metadata = DynKernMetadata(ast)
@@ -1846,6 +1848,7 @@ def test_invalid_stencil_second_arg_1():
         metadata = DynKernMetadata(ast)
     assert "the specified <extent>" in str(excinfo.value)
     assert "is not an integer" in str(excinfo.value)
+
 
 def test_invalid_stencil_second_arg_2():
     '''Check that we raise an exception if the value of the stencil extent in

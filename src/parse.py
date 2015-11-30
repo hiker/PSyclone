@@ -78,22 +78,21 @@ class Descriptor(object):
         if stencil_type not in valid_types:
             raise ParseError(
                 "Expected format stencil(<type>,<extent>). However, the "
-                "specified <type> '{0}' is not one of the valid types '{1}'". \
-                    format(stencil_type, valid_types))
+                "specified <type> '{0}' is not one of the valid types '{1}'".
+                format(stencil_type, valid_types))
 
-        if not isinstance(metadata.args[1],str):
+        if not isinstance(metadata.args[1], str):
             raise ParseError(
                 "Expected format stencil(<type>,<extent>). However, the "
-                "specified <extent> '{0}' is not an integer". \
-                    format(metadata.args[1]))
+                "specified <extent> '{0}' is not an integer".
+                format(metadata.args[1]))
         stencil_extent = int(metadata.args[1])
         if stencil_extent < 1:
             raise ParseError(
                 "Expected format stencil(<type>,<extent>). However, the "
-                "specified <extent> '{0}' is less than 1". \
-                    format(str(stencil_extent)))
-        return {"type":stencil_type, "extent":stencil_extent}
-
+                "specified <extent> '{0}' is less than 1".
+                format(str(stencil_extent)))
+        return {"type": stencil_type, "extent": stencil_extent}
 
     def __repr__(self):
         return 'Descriptor(%s, %s)' % (self.stencil, self.access)

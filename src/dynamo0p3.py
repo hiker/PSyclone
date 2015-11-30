@@ -946,9 +946,9 @@ class DynLoop(Loop):
         # Check that we're not within an OpenMP parallel region if
         # we are a loop over colours.
         if self._loop_type == "colours" and self.is_openmp_parallel():
-                    raise GenerationError("Cannot have a loop over "
-                                          "colours within an OpenMP "
-                                          "parallel region.")
+            raise GenerationError("Cannot have a loop over "
+                                  "colours within an OpenMP "
+                                  "parallel region.")
         # Set-up loop bounds
         self._start = "1"
         if self._loop_type == "colours":
@@ -1805,6 +1805,8 @@ class DynKernelArgument(Argument):
 
     @property
     def descriptor(self):
+        ''' return a descriptor object which contains Kernel
+        metadata about this argument '''
         return self._arg
 
     @property
@@ -1871,6 +1873,7 @@ class DynKernelArgument(Argument):
 
     @property
     def intent(self):
+        ''' Return the fortran intent of the argument '''
         if self.access == "gh_read":
             return "in"
         elif self.access == "gh_write":
