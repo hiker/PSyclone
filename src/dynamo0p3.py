@@ -957,6 +957,21 @@ class DynLoop(Loop):
         else:
             self._variable_name = "cell"
 
+    def load(self, kern):
+        print "kern is a ", type(kern)
+        print dir(kern)
+        print dir(kern.arguments)
+        print type(kern.arguments.iteration_space_arg())
+        for arg in kern.arguments.args:
+            print type(arg)
+            print dir(arg)
+            if arg.text:
+                self._field = arg
+                self._field_name = arg.name
+        self._iterates_over = kern.iterates_over
+        self._field_space = "any_space_1"
+
+
     def has_inc_arg(self, mapping=None):
         ''' Returns True if any of the Kernels called within this loop
         have an argument with INC access. Returns False otherwise. '''
@@ -1955,8 +1970,9 @@ class DynInf(Inf):
         pwkern = DynPointwiseKern(dloop, call, call.func_name,
                                   DynInfArguments(call, dloop, access))
         # Now that we have the point-wise object, we use it to supply
-        # properties to the loops which contain it
-        dloop.field_name = pwkern.arguments.iteration_space_arg()
+        # properties to the Loop which contains it
+        cloop.load(pwkern)
+        dloop.load(pwkern)
         dloop.addchild(pwkern)
         return cloop
 
@@ -1998,6 +2014,8 @@ class DynInfArguments(InfArguments):
                 return arg.text
 
 
+# TODO would it be better to inherit from DynKernelArgument as I'm
+# duplicating some functionality below?
 class DynInfArgument(InfArgument):
     ''' Dynamo-specifc class to provide information about individual
     arguments to Dynamo point-wise kernels. Is similar to DynKernelArgument
@@ -2008,6 +2026,9 @@ class DynInfArgument(InfArgument):
         InfArgument.__init__(self, arg_info, call, access)
         # All Dynamo point-wise kernels operate on fields
         self._type = "gh_field"
+
+    def ref_name(self):
+        return "vspace"
 
     @property
     def type(self):
@@ -2020,6 +2041,13 @@ class DynInfArgument(InfArgument):
     @property
     def proxy_name(self):
         ''' Returns the proxy name for this argument. '''
+        return self._name+"_proxy"
+
+    @property
+    def proxy_name_indexed(self):
+        ''' For compatibility with DynKernelArgument. We don't have
+        vectors of arguments to infrastructure calls so just behaves
+        as the eponomous method of DynKernelArgument with vector_size=1'''
         return self._name+"_proxy"
 
     @property
