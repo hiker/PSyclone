@@ -941,13 +941,13 @@ class Loop(Node):
 
         # TODO replace iterates_over with iteration_space
         self._iterates_over = "unknown"
+        # TODO is this functionality ever used?
+        # Create a Kern object if this Loop constructor has been passed
+        # details of a call
         if call is not None:
             from parse import InfCall, KernelCall
             if isinstance(call, InfCall):
-                my_call = Inf.create(call, parent=self)
-                self._iteration_space = "unknown"
-                self._iterates_over = "unknown"  # needs to inherit this?
-                self._field_space = "any"
+                pass  # TODO remove if unecessary at end of #111
             elif isinstance(call, KernelCall):
                 my_call = Kern()
                 my_call.load(call, parent=self)
@@ -955,11 +955,12 @@ class Loop(Node):
                 self._iteration_space = my_call.iterates_over
                 self._field_space = my_call.arguments.iteration_space_arg().\
                     function_space
+                # self._field is a DynKernelArgument
                 self._field = my_call.arguments.iteration_space_arg()
                 self._field_name = self._field.name
+                children.append(my_call)
             else:
                 raise Exception
-            children.append(my_call)
         Node.__init__(self, children=children, parent=parent)
 
         self._variable_name = variable_name
@@ -1296,6 +1297,7 @@ class Kern(Call):
 
 
 class PointwiseKern(Call):
+    ''' Base class for all pointwise kernels '''
 
     def gen_code(self, parent):
         parent.add(AssignGen(parent, lhs="myfield", rhs="myvalue"))
@@ -1469,7 +1471,6 @@ class InfArgument(Argument):
     ''' infrastructure call argument '''
     def __init__(self, arg_info, call, access):
         Argument.__init__(self, call, arg_info, access)
-
 
 class TransInfo(object):
     '''
