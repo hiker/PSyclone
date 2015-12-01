@@ -999,12 +999,20 @@ class DynLoop(Loop):
         elif self._loop_type == "colour":
             self._stop = "ncp_colour(colour)"
         elif self._loop_type == "levels":
-            # TODO work out actual value for number of levels
-            self._stop = "nlevels"
+            # Get the namespace manager instance so we can look-up
+            # the name of the nlayers variable
+            name_space_manager = NameSpaceFactory().create()
+            self._stop = name_space_manager.create_name(
+                root_name="nlayers", context="PSyVars", label="nlayers")
         elif self._loop_type == "dofs":
             # TODO work out how to get number of dofs for this field
             # when we may not know what space it is on (at code-gen time)
-            self._stop = "undf_some_space"
+            # We've coded so far as though it is on any space - we just
+            # need to make sure we do a look-up for it. A subsequent
+            # optimisation would be to check whether any other kernels
+            # within the invoke use the same field and thus work out
+            # what function space it is.
+            self._stop = "ndf_any_space_1"
         else:
             self._stop = self.field.proxy_name_indexed + "%" + \
                 self.field.ref_name() + "%get_ncell()"
