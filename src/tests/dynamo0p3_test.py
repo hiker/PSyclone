@@ -2181,14 +2181,35 @@ def test_pointwise_set():
     code = str(psy.gen)
     print code
     output = (
-        "  do cell = 1, ncells\n"
-        "     do k = 1, nlayers\n"
-        "        do df = 1, f1_ndf\n"
-        "           idx = ((cell-1)*nlayers + (k-1))*f1_ndf + df\n"
-        "           fld(idx) = value\n"
-        "        end do\n"
-        "     end do\n"
-        "  end do")
+        "    SUBROUTINE invoke_0(f1)\n"
+        "      TYPE(field_type), intent(inout) :: f1\n"
+        "      INTEGER cell\n"
+        "      INTEGER k\n"
+        "      INTEGER df\n"
+        "      INTEGER idx\n"
+        "      INTEGER f1_ndf\n"
+        "      INTEGER nlayers\n"
+        "      TYPE(field_proxy_type) f1_proxy\n"
+        "      !\n"
+        "      ! Initialise field proxies\n"
+        "      !\n"
+        "      f1_proxy = f1%get_proxy()\n"
+        "      !\n"
+        "      ! Initialise number of layers\n"
+        "      !\n"
+        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      f1_ndf = f1_proxy%vspace%get_ndf()\n"
+        "      !\n"
+        "      ! Call our kernels\n"
+        "      !\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "        DO k=1,nlayers\n"
+        "          DO df=1,f1_ndf\n"
+        "            idx = ((cell-1)*nlayers + (k-1))*f1_ndf + df\n"
+        "            f1_proxy%data(idx) = 0.0\n"
+        "          END DO \n"
+        "        END DO \n"
+        "      END DO")
     assert output in code
 
 
@@ -2204,12 +2225,12 @@ def test_pointwise_set_plus_normal():
     code = str(psy.gen)
     print code
     output = (
-        "  do cell = 1, ncells\n"
-        "     do k = 1, nlayers\n"
-        "        do df = 1, ndf_w1\n"
-        "           idx = ((cell-1)*nlayers + (k-1))*ndf_w1 + df\n"
-        "           fld(idx) = value\n"
-        "        end do\n"
-        "     end do\n"
-        "  end do")
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "        DO k=1,nlayers\n"
+        "          DO df=1,ndf_w1\n"
+        "            idx = ((cell-1)*nlayers + (k-1))*ndf_w1 + df\n"
+        "            f1_proxy%data(idx) = 0.0\n"
+        "          END DO \n"
+        "        END DO \n"
+        "      END DO ")
     assert output in code
