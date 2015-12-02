@@ -2179,12 +2179,35 @@ def test_pointwise_set():
     first_invoke = psy.invokes.invoke_list[0]
     first_invoke.schedule.view()
     code = str(psy.gen)
-
+    print code
     output = (
         "  do cell = 1, ncells\n"
         "     do k = 1, nlayers\n"
-        "        do df1 = 1, ndf_w3\n"
-        "           idx = ((cell-1)*nlayers + (k-1))*ndf_w3 + df1\n"
+        "        do df = 1, f1_ndf\n"
+        "           idx = ((cell-1)*nlayers + (k-1))*f1_ndf + df\n"
+        "           fld(idx) = value\n"
+        "        end do\n"
+        "     end do\n"
+        "  end do")
+    assert output in code
+
+
+def test_pointwise_set_plus_normal():
+    ''' Tests that we generate correct code for a pointwise
+    set operation when the invoke also contains a normal kernel '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "14.1_pw_and_normal_kernel_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_invoke.schedule.view()
+    code = str(psy.gen)
+    print code
+    output = (
+        "  do cell = 1, ncells\n"
+        "     do k = 1, nlayers\n"
+        "        do df = 1, ndf_w1\n"
+        "           idx = ((cell-1)*nlayers + (k-1))*ndf_w1 + df\n"
         "           fld(idx) = value\n"
         "        end do\n"
         "     end do\n"

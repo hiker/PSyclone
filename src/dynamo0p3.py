@@ -539,6 +539,16 @@ class DynInvoke(Invoke):
                             declarations.append(test_name)
         return declarations
 
+    def infrastructure_args(self):
+        ''' Returns a list of argument objects which are passed to
+        infrastructure (aka pointwise) kernels '''
+        arg_list = []
+        for call in self.schedule.inf_calls():
+            for arg in call.arguments.args:
+                if arg.text is not None:
+                    arg_list.append(arg)
+        return arg_list
+
     def arg_for_funcspace(self, fs_name):
         ''' Returns an argument object which is on the requested
         function space. Searches through all Kernel calls in this
@@ -657,6 +667,15 @@ class DynInvoke(Invoke):
                 return True
         return False
 
+    def field_with_name(self, name):
+        ''' If there is a kernel field argument of the specified name
+        then return a corresponding kernel argument object '''
+        for call in self.schedule.kern_calls():
+            for arg in call.arguments.args:
+                if arg.name == name:
+                    return arg
+        return None
+    
     def gen_code(self, parent):
         ''' Generates Dynamo specific invocation code (the subroutine
         called by the associated invoke call in the algorithm
@@ -827,6 +846,42 @@ class DynInvoke(Invoke):
                                            op_name+"("+alloc_args+")"))
                 # add diff basis function variable to list to declare later
                 operator_declarations.append(op_name+"(:,:,:,:)")
+        # Loop over the arguments to point-wise kernels. These can be on
+        # any space but if they are also passed to a normal kernel
+        # then we can deduce which space they are on.
+        field_list = []
+        for field in self.infrastructure_args():
+            # If we've already seen this field then skip it
+            if field.name in field_list:
+                continue
+            field_list.append(field.name)
+            # Is a field with this name passed to a normal kernel?
+            arg = self.field_with_name(field.name)
+            if arg:
+                # This field is passed as an argument to a 'normal'
+                # kernel and so we can find out what space it's on
+                ndf_root_name = self.ndf_name(arg.function_space)
+            else:
+                # This field is only ever passed to pointwise kernels
+                # so we don't know what space it is on. Therefore we
+                # must explicitly look up ndf for it.
+                ndf_root_name = field.name + "_ndf"
+            # Add this name to the namespace manager so that we
+            # can look it up when generating the Loop over dofs
+            ndf_name = self._name_space_manager.create_name(
+                root_name=ndf_root_name,
+                context="PSyVars",
+                label=field.name+"_ndf")
+            if not arg:
+                # If this field is not passed to any 'normal' kernels then
+                # We need to declare and assign to the variable that will
+                # hold ndf for this it
+                invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
+                                       entity_decls=[ndf_name]))
+                invoke_sub.add(AssignGen(invoke_sub, lhs=ndf_name,
+                                         rhs=field.proxy_name + "%" +
+                                         field.ref_name() + "%get_ndf()"))
+        
         if not var_list == []:
             # declare ndf and undf for all function spaces
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
@@ -958,14 +1013,13 @@ class DynLoop(Loop):
             self._variable_name = "cell"
 
     def load(self, kern):
-        print "kern is a ", type(kern)
-        print dir(kern)
-        print dir(kern.arguments)
-        print type(kern.arguments.iteration_space_arg())
+        ''' Load the state of this Loop using the supplied Kernel
+        object. This method is provided so that we can set-up 
+        Loops for point-wise kernels (for which we do not have
+        meta-data). '''
+        self._field = None
         for arg in kern.arguments.args:
-            print type(arg)
-            print dir(arg)
-            if arg.text:
+            if arg.text and not self._field:
                 self._field = arg
                 self._field_name = arg.name
         self._iterates_over = kern.iterates_over
@@ -992,6 +1046,11 @@ class DynLoop(Loop):
             raise GenerationError("Cannot have a loop over "
                                   "colours within an OpenMP "
                                   "parallel region.")
+
+        # Get the namespace manager instance so we can look-up
+        # the name of the nlayers and ndf variables
+        name_space_manager = NameSpaceFactory().create()
+        
         # Set-up loop bounds
         self._start = "1"
         if self._loop_type == "colours":
@@ -999,20 +1058,18 @@ class DynLoop(Loop):
         elif self._loop_type == "colour":
             self._stop = "ncp_colour(colour)"
         elif self._loop_type == "levels":
-            # Get the namespace manager instance so we can look-up
-            # the name of the nlayers variable
-            name_space_manager = NameSpaceFactory().create()
             self._stop = name_space_manager.create_name(
                 root_name="nlayers", context="PSyVars", label="nlayers")
         elif self._loop_type == "dofs":
-            # TODO work out how to get number of dofs for this field
-            # when we may not know what space it is on (at code-gen time)
-            # We've coded so far as though it is on any space - we just
-            # need to make sure we do a look-up for it. A subsequent
-            # optimisation would be to check whether any other kernels
-            # within the invoke use the same field and thus work out
-            # what function space it is.
-            self._stop = "ndf_any_space_1"
+            # Use the namespace manager to look-up what name we used
+            # for ndf for this field in DynInvoke.gen_code()
+            self._stop = name_space_manager.create_name(
+                root_name=self.field.name+"_ndf",
+                context="PSyVars",
+                label=self.field_name+"_ndf")
+            from f2pygen import DeclGen
+            parent.add(
+                DeclGen(parent, datatype="integer", entity_decls=[self._stop]))
         else:
             self._stop = self.field.proxy_name_indexed + "%" + \
                 self.field.ref_name() + "%get_ncell()"
@@ -1993,12 +2050,34 @@ class DynPointwiseKern(PointwiseKern):
 
     def __init__(self, parent, call, name, arguments):
         PointwiseKern.__init__(self, parent, call, name, arguments)
-        
 
     def gen_code(self, parent):
-        from f2pygen import AssignGen
-        field_name = self._arguments.arglist[0]
-        var_name = field_name+"%data"
+        from f2pygen import AssignGen, DeclGen
+        # Get hold of the name space manager
+        self._name_space_manager = NameSpaceFactory().create()
+        # Use it to look-up the name previously given to the var holding
+        # the number of levels
+        nlayers_name = self._name_space_manager.create_name(
+                root_name="nlayers", context="PSyVars", label="nlayers")
+        field_name = self._arguments.args[0].name
+        ndf_name = self._name_space_manager.create_name(
+            root_name=field_name+"_ndf",
+            context="PSyVars",
+            label=field_name+"_ndf")
+        # Use it to create a name for the variable to index into the
+        # field array
+        idx_name = self._name_space_manager.create_name(
+            root_name="idx", context="PSyVars", label="pw_index")
+        parent.add(DeclGen(parent,
+                           datatype="integer",
+                           entity_decls=[idx_name]))
+        # Set the value of this indexing variable
+        assign_1 = AssignGen(parent, lhs=idx_name,
+                             rhs="((cell-1)*" + nlayers_name + " + (k-1))*" + ndf_name + " + df")
+        parent.add(assign_1)
+        # Finally, assign the value to this point in the field
+        proxy_name = self._arguments.args[0].proxy_name
+        var_name = proxy_name + "%data(" + idx_name + ")"
         value = self._arguments.arglist[1]
         assign_2 = AssignGen(parent, lhs=var_name, rhs=value)
         parent.add(assign_2)
@@ -2034,10 +2113,15 @@ class DynInfArgument(InfArgument):
         InfArgument.__init__(self, arg_info, call, access)
         # All Dynamo point-wise kernels operate on fields
         self._type = "gh_field"
-
+        self._vector_size = 1
+        
     def ref_name(self):
         return "vspace"
 
+    @property
+    def vector_size(self):
+        return self._vector_size
+    
     @property
     def type(self):
         return self._type
