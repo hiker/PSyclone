@@ -348,28 +348,18 @@ class Invoke(object):
         self._alg_unique_args = []
         self._psy_unique_vars = []
         tmp_arg_names = []
-        # First create a temporary list of all arguments (of both kernel
-        # *and* infrastructure calls)
-        tmp_arg_list = []
         for call in self.schedule.calls():
             for arg in call.arguments.args:
-                tmp_arg_list.append(arg)
-        for pwkern in self.schedule.inf_calls():
-            for arg in pwkern.arguments.args:
-                tmp_arg_list.append(arg)
-        print tmp_arg_list
-        #exit(1)
-        for arg in tmp_arg_list:
-            if arg.text is not None:
-                if arg.text not in self._alg_unique_args:
-                    self._alg_unique_args.append(arg.text)
-                if arg.name not in tmp_arg_names:
-                    tmp_arg_names.append(arg.name)
-                    self._psy_unique_vars.append(arg)
-            else:
-                # literals have no name
-                pass
-                
+                if arg.text is not None:
+                    if arg.text not in self._alg_unique_args:
+                        self._alg_unique_args.append(arg.text)
+                    if arg.name not in tmp_arg_names:
+                        tmp_arg_names.append(arg.name)
+                        self._psy_unique_vars.append(arg)
+                else:
+                    # literals have no name
+                    pass
+
         # work out the unique dofs required in this subroutine
         self._dofs = {}
         for kern_call in self._schedule.kern_calls():
