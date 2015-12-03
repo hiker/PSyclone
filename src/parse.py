@@ -245,6 +245,29 @@ class KernelTypeFactory(object):
                                  format(self._type, supportedTypes))
 
     def create(self, ast, name=None):
+
+        if name in PSYCLONE_INTRINSICS:
+            # The meta-data for these lives in a Fortran module file in
+            # the psyclone src directory - i.e. in the same
+            # location as this python file. The precise name
+            # of this file for this api is specified in
+            # INTRINSIC_DEFINITIONS in config.py
+            if self._type not in INTRINSIC_DEFINITIONS:
+                raise GenerationError(
+                    "Cannot create an infrastructure call"
+                    " ({0}) because no definitions file is listed for the"
+                    " {1} API in config.py".format(argname, self._type))
+            fname = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                INTRINSIC_DEFINITIONS[self._type])
+            # Attempt to parse the meta-data
+            try:
+                ast = fpapi.parse(fname)
+            except:
+                raise ParseError(
+                    "Failed to parse the meta-data for PSyclone "
+                    "infrastructure kernels in {0}".format(fname))
+
         if self._type=="gunghoproto":
             return GHProtoKernelType(ast, name=name)
         elif self._type=="dynamo0.1":
@@ -258,9 +281,10 @@ class KernelTypeFactory(object):
             from gocean1p0 import GOKernelType1p0
             return GOKernelType1p0(ast, name=name)
         else:
-            raise ParseError("KernelTypeFactory: Internal Error: Unsupported "
-                             "kernel type '{0}' found. Should not be possible.".\
-                             format(self._myType))
+            raise ParseError(
+                "KernelTypeFactory: Internal Error: Unsupported "
+                "kernel type '{0}' found. Should not be possible.".
+                format(self._myType))
 
 class KernelType(object):
     """ Kernel Metadata baseclass
@@ -419,35 +443,6 @@ class GHProtoKernelType(KernelType):
                                          str(init.args[1]),
                                          init.args[2].name))
 
-class InfCall(object):
-    """An infrastructure call (appearing in
-    `call invoke(kernel_name(field_name, ...))`"""
-    def __init__(self, func_name, args):
-        # Module name is kept for compatibility with Call but is not
-        # meaningful for an infrastructure call
-        self._module_name = ""
-        self._args = args
-        self._func_name=func_name
-
-    @property
-    def args(self):
-        return self._args
-
-    @property
-    def module_name(self):
-        return self._module_name
-
-    @property
-    def func_name(self):
-        return self._func_name
-
-    @property
-    def type(self):
-        return "InfrastructureCall"
-
-    def __repr__(self):
-        return 'InfrastructureCall(%s, %s)' % (self.module_name, self.args)
-
 
 class KernelCall(object):
     """A kernel call (appearing in
@@ -482,6 +477,25 @@ class KernelCall(object):
 
     def __repr__(self):
         return 'KernelCall(%s, %s)' % (self.ktype, self.args)
+
+
+class InfCall(KernelCall):
+    """An infrastructure call (appearing in
+    `call invoke(kernel_name(field_name, ...))`"""
+    def __init__(self, module_name, ktype, args):
+        KernelCall.__init__(self, module_name, ktype, args)
+        self._func_name = ktype.name
+
+    @property
+    def func_name(self):
+        return self._func_name
+
+    @property
+    def type(self):
+        return "InfrastructureCall"
+
+    def __repr__(self):
+        return 'InfrastructureCall(%s, %s)' % (self.module_name, self.args)
 
 
 class Arg(object):
@@ -658,27 +672,13 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                                                variableName,
                                                variableName))
                 if argname in PSYCLONE_INTRINSICS:
-                    # this is an infrastructure call. The meta-data for
-                    # these lives in a Fortran module file in the
-                    # psyclone src directory - i.e. in the same location
-                    # as this python file. The precise name of this file
-                    # for this api is specified in INTRINSIC_DEFINITIONS in
-                    # config.py
-                    if api not in INTRINSIC_DEFINITIONS:
-                        raise ParseError(
-                            "Found an invoke containing an infrastructure call"
-                            " ({0}) but no definitions file is listed for this"
-                            " API ({1}) in config.py".format(argname))
-                    fname = os.path.join(
-                        os.path.dirname(os.path.abspath(__file__)),
-                        INTRINSIC_DEFINITIONS[api])
-                    try:
-                        ast = fpapi.parse(fname)
-                    except:
-                        raise ParseError(
-                            "Failed to parse the meta-data for PSyclone "
-                            "infrastructure kernels in {0}".format(fname))
-                    statement_kcalls.append(InfCall(argname, argargs))
+                    # this is an infrastructure call. The KernelTypeFactory
+                    # will generate appropriate meta-data
+                    statement_kcalls.append(
+                        InfCall(argname,
+                                KernelTypeFactory(api=api).create(
+                                    None, name=argname),
+                                argargs))
                 else:
                     try:
                         modulename = name_to_module[argname]
