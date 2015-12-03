@@ -422,8 +422,10 @@ class GHProtoKernelType(KernelType):
 class InfCall(object):
     """An infrastructure call (appearing in
     `call invoke(kernel_name(field_name, ...))`"""
-    def __init__(self, module_name,func_name, args):
-        self._module_name = module_name
+    def __init__(self, func_name, args):
+        # Module name is kept for compatibility with Call but is not
+        # meaningful for an infrastructure call
+        self._module_name = ""
         self._args = args
         self._func_name=func_name
 
@@ -638,22 +640,30 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                     else: # assume argument parsed as a FunctionVar
                         variableName = a.name
                         if a.args is not None:
-                            # argument is an indexed array so extract the full text
+                            # arg is an indexed array so extract full text
                             fullText = ""
                             for tok in a.walk_skipping_name():
                                 fullText+=str(tok)
-                            argargs.append(Arg('indexed_variable',fullText,variableName))
+                            argargs.append(Arg('indexed_variable',
+                                               fullText,
+                                               variableName))
                         else:
                             # argument is a standard variable
-                            argargs.append(Arg('variable',variableName,variableName))
+                            argargs.append(Arg('variable',
+                                               variableName,
+                                               variableName))
                 if argname in PSYCLONE_INTRINSICS:
                     # this is an infrastructure call
-                    statement_kcalls.append(InfCall(inf_name,argname,argargs))
+                    statement_kcalls.append(InfCall(argname,argargs))
                 else:
                     try:
                         modulename = name_to_module[argname]
                     except KeyError:
-                        raise ParseError("kernel call '%s' must be named in a use statement" % argname)
+                        raise ParseError(
+                            "kernel call '{0}' must either be named in a use "
+                            "statement or be a recognised pointwise kernel "
+                            "(one of '{1}')".format(argname,
+                                                    PSYCLONE_INTRINSICS))
 
                     # Search for the file containing the kernel source
                     import fnmatch
