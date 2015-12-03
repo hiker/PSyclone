@@ -18,8 +18,10 @@ from parse import Descriptor, KernelType, ParseError
 import expression as expr
 import fparser
 import os
+from config import INTRINSIC_DEFINITIONS
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
-    Argument, Inf, InfArguments, InfArgument, NameSpaceFactory, \
+    Argument, KernelArgument, Inf, InfArguments, InfArgument, \
+    NameSpaceFactory, \
     GenerationError, FieldNotFoundError, \
     PointwiseKern
 
@@ -37,7 +39,7 @@ VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + VALID_ANY_SPACE_NAMES
 
 VALID_OPERATOR_NAMES = ["gh_basis", "gh_diff_basis", "gh_orientation"]
 
-VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator"]
+VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator", "gh_rscalar"]
 
 VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"]
 
@@ -132,11 +134,11 @@ class DynArgDescriptor03(Descriptor):
             raise ParseError(
                 "In the dynamo0.3 API each meta_arg entry must be of type "
                 "'arg_type', but found '{0}'".format(arg_type.name))
-        # we require at least 3 args
-        if len(arg_type.args) < 3:
+        # we require at least 2 args
+        if len(arg_type.args) < 2:
             raise ParseError(
                 "In the dynamo0.3 API each meta_arg entry must have at least "
-                "3 args, but found '{0}'".format(len(arg_type.args)))
+                "2 args, but found '{0}'".format(len(arg_type.args)))
         # the first arg is the type of field, possibly with a *n appended
         self._vector_size = 1
         if isinstance(arg_type.args[0], expr.BinaryOperator):
@@ -233,6 +235,14 @@ class DynArgDescriptor03(Descriptor):
                     format(VALID_FUNCTION_SPACE_NAMES, arg_type.args[2].name,
                            arg_type))
             self._function_space2 = arg_type.args[3].name
+        elif self._type == "gh_rscalar":
+            if len(arg_type.args) != 2:
+                raise ParseError(
+                    "In the dynamo0.3 API each meta_arg entry must have 2 "
+                    "arguments if its first argument is gh_rscalar, but "
+                    "found {0} in '{1}'".format(len(arg_type.args), arg_type))
+            # Scalars don't have a function space
+            self._function_space1 = None
         else:  # we should never get to here
             raise ParseError(
                 "Internal error in DynArgDescriptor03.__init__, (2) should "
@@ -273,6 +283,8 @@ class DynArgDescriptor03(Descriptor):
             return self._function_space1
         elif self._type == "gh_operator":
             return self._function_space2
+        elif self._type == "gh_rscalar":
+            return None
         else:
             raise RuntimeError(
                 "Internal error, DynArgDescriptor03:function_space(), should "
@@ -288,6 +300,8 @@ class DynArgDescriptor03(Descriptor):
         elif self._type == "gh_operator":
             # return to before from to maintain expected ordering
             return [self.function_space_to, self.function_space_from]
+        elif self._type == "gh_rscalar":
+            return []
         else:
             raise RuntimeError(
                 "Internal error, DynArgDescriptor03:function_spaces(), should "
@@ -1891,15 +1905,15 @@ class DynKernelArguments(Arguments):
         return self._dofs
 
 
-class DynKernelArgument(Argument):
+class DynKernelArgument(KernelArgument):
     ''' Provides information about individual Dynamo kernel call
     arguments as specified by the kernel argument metadata. '''
 
-    def __init__(self, arg, arg_info, call):
-        self._arg = arg
-        Argument.__init__(self, call, arg_info, arg.access)
-        self._vector_size = arg.vector_size
-        self._type = arg.type
+    def __init__(self, arg_meta_data, arg_info, call):
+        self._arg = arg_meta_data
+        Argument.__init__(self, call, arg_info, arg_meta_data.access)
+        self._vector_size = arg_meta_data.vector_size
+        self._type = arg_meta_data.type
 
     @property
     def descriptor(self):
@@ -2019,7 +2033,8 @@ class DynInf(Inf):
 
     @staticmethod
     def create(call, parent=None):
-        access = ["write", None]
+        ''' Create the objects needed for a call to the intrinsic
+        described in the call (InfCall) object '''
         # Loop over cells
         cloop = DynLoop(call=None, parent=parent)
 
@@ -2034,19 +2049,26 @@ class DynInf(Inf):
 
         # The point-wise operation itself
         if call.func_name == "set_field_scalar":
-            pwkern = DynSetFieldScalarKern(dloop, call, call.func_name,
-                                           DynInfArguments(call,
-                                                           dloop,
-                                                           access))
+            access = ["write", None]
+            pwkern = DynSetFieldScalarKern()
+#dloop, call, call.func_name,
+#                                           DynInfArguments(call,
+#                                                           dloop,
+#                                                           access))
         elif call.func_name == "copy_field":
-            pwkern = DynCopyFieldKern(dloop, call, call.func_name,
-                                      DynInfArguments(call,
-                                                      dloop,
-                                                      access))
+            access = ["read", "write"]
+            pwkern = DynCopyFieldKern()
+#dloop, call, call.func_name,
+#                                      DynInfArguments(call,
+#                                                      dloop,
+#                                                      access))
         else:
             raise GenerationError(
                 "Unrecognised infrastructure call: {0}".format(call.func_name))
         
+        pwkern.load(call, dloop)
+        #pwkern.load_meta(dkm)
+
         # Now that we have the point-wise object, we use it to supply
         # properties to the Loop which contains it
         cloop.load(pwkern)
@@ -2055,7 +2077,7 @@ class DynInf(Inf):
         return cloop
 
 
-class DynPointwiseKern(PointwiseKern):
+class DynPointwiseKern(DynKern):
     ''' Base class for a Dynamo Infrastructure/Pointwise call '''
 
     def __str__(self):
@@ -2094,9 +2116,6 @@ class DynSetFieldScalarKern(DynPointwiseKern):
     def __str__(self):
         return "set infrastructure call"
 
-    def __init__(self, parent, call, name, arguments):
-        PointwiseKern.__init__(self, parent, call, name, arguments)
-
     def gen_code(self, parent):
         from f2pygen import AssignGen
         # Generate the generic part of this pointwise kernel
@@ -2112,7 +2131,7 @@ class DynSetFieldScalarKern(DynPointwiseKern):
                                                         context="PSyVars",
                                                         label="pw_index")
         var_name = proxy_name + "%data(" + idx_name + ")"
-        value = self._arguments.arglist[1]
+        value = self._arguments.args[1]
         assign = AssignGen(parent, lhs=var_name, rhs=value)
         parent.add(assign)
         return
@@ -2153,7 +2172,7 @@ class DynInfArguments(InfArguments):
             self._args.append(DynInfArgument(arg, parent_call, access[idx]))
 
     def iteration_space_arg(self):
-        ''' Returns the first argument that is written to. This can be
+        ''' Returns the first argument that is a field. This can be
         used to dereference for the iteration space. '''
         for arg in self._args:
             if arg.text:
@@ -2162,14 +2181,19 @@ class DynInfArguments(InfArguments):
 
 # TODO would it be better to inherit from DynKernelArgument as I'm
 # duplicating some functionality below?
-class DynInfArgument(InfArgument):
+class DynInfArgument(DynKernelArgument):
     ''' Dynamo-specifc class to provide information about individual
     arguments to Dynamo point-wise kernels. Is similar to DynKernelArgument
     but is not constructed from kernel meta-data because point-wise kernels
-    don't physically exist and therefore dont' have meta-data. '''
+    don't physically exist and therefore don't have meta-data. '''
 
     def __init__(self, arg_info, call, access):
-        InfArgument.__init__(self, arg_info, call, access)
+        '''Constructor. arg_info is the information about the argument
+        obtained by parsing the Fortran code containing the Invoke
+
+        '''
+        from psyGen import KernelArgument
+        Argument.__init__(self, call, arg_info, access)
         # All Dynamo point-wise kernels operate on fields
         self._type = "gh_field"
         self._vector_size = 1
