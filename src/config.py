@@ -10,4 +10,4 @@ SUPPORTEDAPIS=["gunghoproto","dynamo0.1","dynamo0.3","gocean0.1","gocean1.0"]
 DEFAULTAPI="dynamo0.3"
 SUPPORTEDSTUBAPIS=["dynamo0.3"]
 DEFAULTSTUBAPI="dynamo0.3"
-PSYCLONE_INTRINSICS=["set_field_scalar"]
+PSYCLONE_INTRINSICS=["set_field_scalar","copy_field"]

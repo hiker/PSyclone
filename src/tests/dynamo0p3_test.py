@@ -2234,3 +2234,50 @@ def test_pointwise_set_plus_normal():
         "        END DO \n"
         "      END DO ")
     assert output in code
+
+
+def test_pointwise_copy():
+    ''' Tests that we generate correct code for a pointwise
+    copy field operation '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "14.2_single_pw_fld_copy_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_invoke.schedule.view()
+    code = str(psy.gen)
+    print code
+    output = (
+        "    SUBROUTINE invoke_0(f1, f2)\n"
+        "      TYPE(field_type), intent(inout) :: f1, f2\n"
+        "      INTEGER cell\n"
+        "      INTEGER k\n"
+        "      INTEGER df\n"
+        "      INTEGER idx\n"
+        "      INTEGER f2_ndf\n"
+        "      INTEGER f1_ndf\n"
+        "      INTEGER nlayers\n"
+        "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
+        "      !\n"
+        "      ! Initialise field proxies\n"
+        "      !\n"
+        "      f1_proxy = f1%get_proxy()\n"
+        "      f2_proxy = f2%get_proxy()\n"
+        "      !\n"
+        "      ! Initialise number of layers\n"
+        "      !\n"
+        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      f1_ndf = f1_proxy%vspace%get_ndf()\n"
+        "      f2_ndf = f2_proxy%vspace%get_ndf()\n"
+        "      !\n"
+        "      ! Call our kernels\n"
+        "      !\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "        DO k=1,nlayers\n"
+        "          DO df=1,f1_ndf\n"
+        "            idx = ((cell-1)*nlayers + (k-1))*f1_ndf + df\n"
+        "            f2_proxy%data(idx) = f1_proxy%data(idx)\n"
+        "          END DO \n"
+        "        END DO \n"
+        "      END DO")
+    assert output in code

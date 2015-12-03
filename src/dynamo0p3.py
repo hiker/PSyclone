@@ -2010,7 +2010,7 @@ class DynKernelArgument(Argument):
 
 
 class DynInf(Inf):
-    ''' A Creates the necessary framework for a Dynamo infrastructure call,
+    ''' Creates the necessary framework for a Dynamo infrastructure call,
     This consists of the pointwise operation itself but also the loops over
     cells, levels and DoFs. '''
 
@@ -2031,9 +2031,22 @@ class DynInf(Inf):
         dloop = DynLoop(call=None, parent=lloop,
                         loop_type="dofs")
         lloop.addchild(dloop)
+
         # The point-wise operation itself
-        pwkern = DynPointwiseKern(dloop, call, call.func_name,
-                                  DynInfArguments(call, dloop, access))
+        if call.func_name == "set_field_scalar":
+            pwkern = DynSetFieldScalarKern(dloop, call, call.func_name,
+                                           DynInfArguments(call,
+                                                           dloop,
+                                                           access))
+        elif call.func_name == "copy_field":
+            pwkern = DynCopyFieldKern(dloop, call, call.func_name,
+                                      DynInfArguments(call,
+                                                      dloop,
+                                                      access))
+        else:
+            raise GenerationError(
+                "Unrecognised infrastructure call: {0}".format(call.func_name))
+        
         # Now that we have the point-wise object, we use it to supply
         # properties to the Loop which contains it
         cloop.load(pwkern)
@@ -2043,19 +2056,16 @@ class DynInf(Inf):
 
 
 class DynPointwiseKern(PointwiseKern):
-    ''' A point-wise kernel in Dynamo '''
+    ''' Base class for a Dynamo Infrastructure/Pointwise call '''
 
     def __str__(self):
-        return "set infrastructure call"
-
-    def __init__(self, parent, call, name, arguments):
-        PointwiseKern.__init__(self, parent, call, name, arguments)
+        return "Dynamo Infrastructure call"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen, DeclGen
         # Get hold of the name space manager
         self._name_space_manager = NameSpaceFactory().create()
-        # Use it to look-up the name previously given to the var holding
+        # Look-up the name previously given to the var holding
         # the number of levels
         nlayers_name = self._name_space_manager.create_name(
                 root_name="nlayers", context="PSyVars", label="nlayers")
@@ -2072,15 +2082,64 @@ class DynPointwiseKern(PointwiseKern):
                            datatype="integer",
                            entity_decls=[idx_name]))
         # Set the value of this indexing variable
-        assign_1 = AssignGen(parent, lhs=idx_name,
-                             rhs="((cell-1)*" + nlayers_name + " + (k-1))*" + ndf_name + " + df")
+        idx_val = (
+            "((cell-1)*" + nlayers_name + " + (k-1))*" + ndf_name + " + df")
+        assign_1 = AssignGen(parent, lhs=idx_name, rhs=idx_val)
         parent.add(assign_1)
-        # Finally, assign the value to this point in the field
+
+
+class DynSetFieldScalarKern(DynPointwiseKern):
+    ''' Set a field equal to a scalar value '''
+
+    def __str__(self):
+        return "set infrastructure call"
+
+    def __init__(self, parent, call, name, arguments):
+        PointwiseKern.__init__(self, parent, call, name, arguments)
+
+    def gen_code(self, parent):
+        from f2pygen import AssignGen
+        # Generate the generic part of this pointwise kernel
+        DynPointwiseKern.gen_code(self, parent)
+        # Get hold of the name space manager
+        self._name_space_manager = NameSpaceFactory().create()
+        # and now the specific part. In this case we're assigning
+        # a single scalar value to all elements of a field.
         proxy_name = self._arguments.args[0].proxy_name
+        # Look-up the name given to our indexing variable
+        # (in DynPointWise.gen_code)
+        idx_name = self._name_space_manager.create_name(root_name="idx",
+                                                        context="PSyVars",
+                                                        label="pw_index")
         var_name = proxy_name + "%data(" + idx_name + ")"
         value = self._arguments.arglist[1]
-        assign_2 = AssignGen(parent, lhs=var_name, rhs=value)
-        parent.add(assign_2)
+        assign = AssignGen(parent, lhs=var_name, rhs=value)
+        parent.add(assign)
+        return
+
+
+class DynCopyFieldKern(DynPointwiseKern):
+    ''' Set a field equal to another field '''
+
+    def __str__(self):
+        return "Field copy infrastructure call"
+
+    def gen_code(self, parent):
+        from f2pygen import AssignGen
+        # Generate the generic part of this pointwise kernel
+        DynPointwiseKern.gen_code(self, parent)
+        self._name_space_manager = NameSpaceFactory().create()
+        # and now the specific part - we copy one element of field A (first
+        # arg) to the corresponding element of field B (second arg).
+        idx_name = self._name_space_manager.create_name(root_name="idx",
+                                                        context="PSyVars",
+                                                        label="pw_index")
+        inproxy_name = self._arguments.args[0].proxy_name
+        outproxy_name = self._arguments.args[1].proxy_name
+        invar_name = inproxy_name + "%data(" + idx_name + ")"
+        outvar_name = outproxy_name + "%data(" + idx_name + ")"
+        assign = AssignGen(parent, lhs=outvar_name, rhs=invar_name)
+        parent.add(assign)
         return
 
 
