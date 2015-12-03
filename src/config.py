@@ -11,3 +11,6 @@ DEFAULTAPI="dynamo0.3"
 SUPPORTEDSTUBAPIS=["dynamo0.3"]
 DEFAULTSTUBAPI="dynamo0.3"
 PSYCLONE_INTRINSICS=["set_field_scalar","copy_field"]
+# Dictionary giving the name of the file containing the meta-data
+# describing the intrinsics for each supported API
+INTRINSIC_DEFINITIONS={"dynamo0.3": "dynamo0p3_intrinsics_mod.f90"}

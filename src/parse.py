@@ -15,7 +15,7 @@ import expression as expr
 import logging
 import os
 from line_length import FortLineLength
-from config import PSYCLONE_INTRINSICS
+from config import PSYCLONE_INTRINSICS, INTRINSIC_DEFINITIONS
 
 
 class ParseError(Exception):
@@ -482,9 +482,11 @@ class KernelCall(object):
 
     def __repr__(self):
         return 'KernelCall(%s, %s)' % (self.ktype, self.args)
-        
+
+
 class Arg(object):
-    ''' Descriptions of an argument '''
+    ''' Description of an argument as obtained from parsing the Fortran code
+        where a kernel is invoke'd '''
     def __init__(self,form,text,varName=None):
         formOptions=["literal","variable","indexed_variable"]
         self._form=form
@@ -507,6 +509,7 @@ class Arg(object):
         if self._form=="literal":
             return True
         return False
+
 
 class InvokeCall(object):
     def __init__(self, kcalls, name=None, myid=1, invoke_name="invoke"):
@@ -566,7 +569,9 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
     else:
         from config import SUPPORTEDAPIS
         if api not in SUPPORTEDAPIS:
-            raise ParseError("parse: Unsupported API '{0}' specified. Supported types are {1}.".format(api, SUPPORTEDAPIS))
+            raise ParseError("parse: Unsupported API '{0}' specified. "
+                             "Supported types are {1}.".format(api,
+                                                               SUPPORTEDAPIS))
 
     from pyparsing import ParseException
 
@@ -653,8 +658,27 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                                                variableName,
                                                variableName))
                 if argname in PSYCLONE_INTRINSICS:
-                    # this is an infrastructure call
-                    statement_kcalls.append(InfCall(argname,argargs))
+                    # this is an infrastructure call. The meta-data for
+                    # these lives in a Fortran module file in the
+                    # psyclone src directory - i.e. in the same location
+                    # as this python file. The precise name of this file
+                    # for this api is specified in INTRINSIC_DEFINITIONS in
+                    # config.py
+                    if api not in INTRINSIC_DEFINITIONS:
+                        raise ParseError(
+                            "Found an invoke containing an infrastructure call"
+                            " ({0}) but no definitions file is listed for this"
+                            " API ({1}) in config.py".format(argname))
+                    fname = os.path.join(
+                        os.path.dirname(os.path.abspath(__file__)),
+                        INTRINSIC_DEFINITIONS[api])
+                    try:
+                        ast = fpapi.parse(fname)
+                    except:
+                        raise ParseError(
+                            "Failed to parse the meta-data for PSyclone "
+                            "infrastructure kernels in {0}".format(fname))
+                    statement_kcalls.append(InfCall(argname, argargs))
                 else:
                     try:
                         modulename = name_to_module[argname]
