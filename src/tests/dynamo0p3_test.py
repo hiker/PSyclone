@@ -2010,7 +2010,7 @@ end module stencil_mod
 def test_stencil_metadata():
     ''' Check that we can parse Kernels with stencil metadata '''
     ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    _ = DynKernMetadata(ast)
 
 
 def test_field_metadata_too_many_arguments():
@@ -2021,7 +2021,7 @@ def test_field_metadata_too_many_arguments():
         "gh_field,gh_read, w2, stencil(cross,1), w1", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        metadata = DynKernMetadata(ast)
+        _ = DynKernMetadata(ast)
     assert "each meta_arg entry must have at most 4 arguments" \
         in str(excinfo.value)
 
@@ -2032,7 +2032,7 @@ def test_invalid_stencil_form_1():
     result = STENCIL_CODE.replace("stencil(cross,1)", "1", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        metadata = DynKernMetadata(ast)
+        _ = DynKernMetadata(ast)
     assert "entry must be a valid stencil specification" \
         in str(excinfo.value)
     assert "but found the literal" \
@@ -2045,7 +2045,7 @@ def test_invalid_stencil_form_2():
     result = STENCIL_CODE.replace("stencil(cross,1)", "stenci(cross,1)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        metadata = DynKernMetadata(ast)
+        _ = DynKernMetadata(ast)
     assert "entry must be a valid stencil specification" \
         in str(excinfo.value)
 
@@ -2056,7 +2056,7 @@ def test_invalid_stencil_form_3():
     result = STENCIL_CODE.replace("stencil(cross,1)", "stencil", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        metadata = DynKernMetadata(ast)
+        _ = DynKernMetadata(ast)
     assert "entry must be a valid stencil specification" \
         in str(excinfo.value)
 
@@ -2068,7 +2068,7 @@ def test_invalid_stencil_form_4():
     result = STENCIL_CODE.replace("stencil(cross,1)", "stencil(cross)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        metadata = DynKernMetadata(ast)
+        _ = DynKernMetadata(ast)
     assert "entry must be a valid stencil specification" \
         in str(excinfo.value)
     assert "there are not two arguments inside the brackets" \
@@ -2081,7 +2081,7 @@ def test_invalid_stencil_first_arg_1():
     result = STENCIL_CODE.replace("stencil(cross,1)", "stencil(1,1)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        metadata = DynKernMetadata(ast)
+        _ = DynKernMetadata(ast)
     assert "not one of the valid types" in str(excinfo.value)
     assert "is a literal" in str(excinfo.value)
 
@@ -2092,7 +2092,7 @@ def test_invalid_stencil_first_arg_2():
     result = STENCIL_CODE.replace("stencil(cross,1)", "stencil(cros,1)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        metadata = DynKernMetadata(ast)
+        _ = DynKernMetadata(ast)
     assert "not one of the valid types" in str(excinfo.value)
 
 
@@ -2102,7 +2102,7 @@ def test_invalid_stencil_first_arg_3():
     result = STENCIL_CODE.replace("stencil(cross,1)", "stencil(x1d(xx),1)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        metadata = DynKernMetadata(ast)
+        _ = DynKernMetadata(ast)
     assert "the specified <type>" in str(excinfo.value)
     assert "includes brackets" in str(excinfo.value)
 
@@ -2113,7 +2113,7 @@ def test_invalid_stencil_second_arg_1():
     result = STENCIL_CODE.replace("stencil(cross,1)", "stencil(x1d,x1d)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        metadata = DynKernMetadata(ast)
+        _ = DynKernMetadata(ast)
     assert "the specified <extent>" in str(excinfo.value)
     assert "is not an integer" in str(excinfo.value)
 
@@ -2124,7 +2124,7 @@ def test_invalid_stencil_second_arg_2():
     result = STENCIL_CODE.replace("stencil(cross,1)", "stencil(x1d,0)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        metadata = DynKernMetadata(ast)
+        _ = DynKernMetadata(ast)
     assert "the specified <extent>" in str(excinfo.value)
     assert "is less than 1" in str(excinfo.value)
 
