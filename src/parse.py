@@ -60,16 +60,17 @@ class Descriptor(object):
                 "Expecting format stencil(<type>,<extent>) but there are not "
                 "two arguments inside the brackets {0}".format(metadata))
         if not isinstance(metadata.args[0], expr.FunctionVar):
-            if not isinstance(metadata.args[0], str):
+            if isinstance(metadata.args[0], str):
                 raise ParseError(
-                    "internal error, expecting either FunctionVar or "
+                    "Expecting format stencil(<type>,<extent>). However, the "
+                    "specified <type> '{0}' is a literal and therefore is "
+                    "not one of the valid types '{1}'".
+                    format(metadata.args[0], valid_types))
+            else:
+                raise ParseError(
+                    "Internal error, expecting either FunctionVar or "
                     "str but found {0}".
                     format(type(metadata.args[0])))
-            raise ParseError(
-                "Expecting format stencil(<type>,<extent>). However, the "
-                "specified <type> '{0}' is a literal and therefore is "
-                "not one of the valid types '{1}'".
-                format(metadata.args[0], valid_types))
         if metadata.args[0].args:
             raise ParseError(
                 "Expected format stencil(<type>,<extent>). However, the "

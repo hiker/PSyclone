@@ -2010,7 +2010,12 @@ end module stencil_mod
 def test_stencil_metadata():
     ''' Check that we can parse Kernels with stencil metadata '''
     ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
-    _ = DynKernMetadata(ast)
+    metadata = DynKernMetadata(ast)
+    stencil_descriptor_0 = metadata.arg_descriptors[0]
+    assert  stencil_descriptor_0.stencil == None
+    stencil_descriptor_1 = metadata.arg_descriptors[1]
+    assert stencil_descriptor_1.stencil['type'] == 'cross'
+    assert stencil_descriptor_1.stencil['extent'] == 1
 
 
 def test_field_metadata_too_many_arguments():
