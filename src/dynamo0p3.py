@@ -2105,7 +2105,7 @@ class DynSetFieldScalarKern(DynInfKern):
     ''' Set a field equal to a scalar value '''
 
     def __str__(self):
-        return "set infrastructure call"
+        return "Set infrastructure call"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
@@ -2151,73 +2151,3 @@ class DynCopyFieldKern(DynInfKern):
         assign = AssignGen(parent, lhs=outvar_name, rhs=invar_name)
         parent.add(assign)
         return
-
-
-class DynInfArguments(InfArguments):
-    ''' arguments associated with a Dynamo infrastructure call '''
-    def __init__(self, call_info, parent_call, access):
-        Arguments.__init__(self, parent_call)
-        if False:
-            self._0_to_n = DynInfArgument(None, None, None)  # pyreverse
-        for idx, arg in enumerate(call_info.args):
-            self._args.append(DynInfArgument(arg, parent_call, access[idx]))
-
-    def iteration_space_arg(self):
-        ''' Returns the first argument that is a field. This can be
-        used to dereference for the iteration space. '''
-        for arg in self._args:
-            if arg.text:
-                return arg.text
-
-
-# TODO would it be better to inherit from DynKernelArgument as I'm
-# duplicating some functionality below?
-class DynInfArgument(DynKernelArgument):
-    ''' Dynamo-specifc class to provide information about individual
-    arguments to Dynamo point-wise kernels. Is similar to DynKernelArgument
-    but is not constructed from kernel meta-data because point-wise kernels
-    don't physically exist and therefore don't have meta-data. '''
-
-    def __init__(self, arg_info, call, access):
-        '''Constructor. arg_info is the information about the argument
-        obtained by parsing the Fortran code containing the Invoke
-
-        '''
-        from psyGen import KernelArgument
-        Argument.__init__(self, call, arg_info, access)
-        # All Dynamo point-wise kernels operate on fields
-        self._type = "gh_field"
-        self._vector_size = 1
-        
-    def ref_name(self):
-        return "vspace"
-
-    @property
-    def vector_size(self):
-        return self._vector_size
-    
-    @property
-    def type(self):
-        return self._type
-
-    @property
-    def declaration_name(self):
-        return self._name
-
-    @property
-    def proxy_name(self):
-        ''' Returns the proxy name for this argument. '''
-        return self._name+"_proxy"
-
-    @property
-    def proxy_name_indexed(self):
-        ''' For compatibility with DynKernelArgument. We don't have
-        vectors of arguments to infrastructure calls so just behaves
-        as the eponomous method of DynKernelArgument with vector_size=1'''
-        return self._name+"_proxy"
-
-    @property
-    def proxy_declaration_name(self):
-        ''' Returns the proxy name for this argument with the array
-        dimensions added if required. '''
-        return self.proxy_name

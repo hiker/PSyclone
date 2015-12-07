@@ -2264,7 +2264,6 @@ def test_pointwise_copy():
                                         "14.2_single_pw_fld_copy_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    first_invoke = psy.invokes.invoke_list[0]
     code = str(psy.gen)
     print code
     output = (
@@ -2304,3 +2303,28 @@ def test_pointwise_copy():
         "        END DO \n"
         "      END DO")
     assert output in code
+
+
+def test_pointwise_copy_str():
+    ''' Check that the str method of DynCopyFieldKern returns the
+    expected string '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "14.2_single_pw_fld_copy_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].children[0].children[0].children[0]
+    assert str(kern) == "Field copy infrastructure call"
+
+
+def test_pointwise_set_str():
+    ''' Check that the str method of DynCopyFieldKern returns the
+    expected string '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "14_single_pointwise_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].children[0].children[0].children[0]
+    assert str(kern) == "Set infrastructure call"
