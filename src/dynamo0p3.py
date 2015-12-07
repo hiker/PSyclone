@@ -19,11 +19,9 @@ import expression as expr
 import fparser
 import os
 from config import INTRINSIC_DEFINITIONS
-from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
-    Argument, KernelArgument, Inf, InfArguments, InfArgument, \
-    NameSpaceFactory, \
-    GenerationError, FieldNotFoundError, \
-    PointwiseKern
+from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, InfKern, \
+    Arguments, Argument, KernelArgument, Inf, InfArguments, InfArgument, \
+    NameSpaceFactory, GenerationError, FieldNotFoundError
 
 
 # first section : Parser specialisations and classes
@@ -812,6 +810,11 @@ class DynInvoke(Invoke):
             name = arg.proxy_name_indexed
             # initialise ndf for this function space and add name to
             # list to declare later
+            # TODO check whether this function space is associated with
+            # a field that is passed to an infrastructure kernel as well as
+            # being passed to a normal kernel. If it is then we don't need to
+            # declare ndf and undf as we will use the values associated with
+            # the space specified in the 'normal' kernel.
             ndf_name = self.ndf_name(function_space)
             var_list.append(ndf_name)
             invoke_sub.add(AssignGen(invoke_sub, lhs=ndf_name,
@@ -876,26 +879,19 @@ class DynInvoke(Invoke):
                 # kernel and so we can find out what space it's on
                 ndf_root_name = self.ndf_name(arg.function_space)
             else:
-                # This field is only ever passed to pointwise kernels
-                # so we don't know what space it is on. Therefore we
-                # must explicitly look up ndf for it.
-                ndf_root_name = field.name + "_ndf"
+                # This arg is only ever passed to pointwise kernels
+                # and therefore we use the 'standard' ndf variable
+                # created earlier (will be "ANY_SPACE_1" because
+                # that's what is specified in the meta-data for
+                # pointwise kernels)
+                ndf_root_name = self.ndf_name(field.function_space)
             # Add this name to the namespace manager so that we
             # can look it up when generating the Loop over dofs
             ndf_name = self._name_space_manager.create_name(
                 root_name=ndf_root_name,
                 context="PSyVars",
                 label=field.name+"_ndf")
-            if not arg:
-                # If this field is not passed to any 'normal' kernels then
-                # We need to declare and assign to the variable that will
-                # hold ndf for this it
-                invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-                                       entity_decls=[ndf_name]))
-                invoke_sub.add(AssignGen(invoke_sub, lhs=ndf_name,
-                                         rhs=field.proxy_name + "%" +
-                                         field.ref_name() + "%get_ndf()"))
-        
+
         if not var_list == []:
             # declare ndf and undf for all function spaces
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
@@ -2051,34 +2047,29 @@ class DynInf(Inf):
         if call.func_name == "set_field_scalar":
             access = ["write", None]
             pwkern = DynSetFieldScalarKern()
-#dloop, call, call.func_name,
-#                                           DynInfArguments(call,
-#                                                           dloop,
-#                                                           access))
         elif call.func_name == "copy_field":
             access = ["read", "write"]
             pwkern = DynCopyFieldKern()
-#dloop, call, call.func_name,
-#                                      DynInfArguments(call,
-#                                                      dloop,
-#                                                      access))
         else:
             raise GenerationError(
                 "Unrecognised infrastructure call: {0}".format(call.func_name))
         
         pwkern.load(call, dloop)
-        #pwkern.load_meta(dkm)
 
         # Now that we have the point-wise object, we use it to supply
-        # properties to the Loop which contains it
+        # properties to the Loops which contain it
         cloop.load(pwkern)
         dloop.load(pwkern)
         dloop.addchild(pwkern)
+        # Return the outermost loop
         return cloop
 
 
-class DynPointwiseKern(DynKern):
-    ''' Base class for a Dynamo Infrastructure/Pointwise call '''
+class DynInfKern(DynKern, InfKern):
+    ''' Base class for a Dynamo Infrastructure/Pointwise call. Has the
+    (abstract) InfKern as a base class to enable us to identify it as
+    an Infrastructure kernel (because it is otherwise identical to a
+    normal kernel). '''
 
     def __str__(self):
         return "Dynamo Infrastructure call"
@@ -2110,7 +2101,7 @@ class DynPointwiseKern(DynKern):
         parent.add(assign_1)
 
 
-class DynSetFieldScalarKern(DynPointwiseKern):
+class DynSetFieldScalarKern(DynInfKern):
     ''' Set a field equal to a scalar value '''
 
     def __str__(self):
@@ -2119,14 +2110,14 @@ class DynSetFieldScalarKern(DynPointwiseKern):
     def gen_code(self, parent):
         from f2pygen import AssignGen
         # Generate the generic part of this pointwise kernel
-        DynPointwiseKern.gen_code(self, parent)
+        DynInfKern.gen_code(self, parent)
         # Get hold of the name space manager
         self._name_space_manager = NameSpaceFactory().create()
         # and now the specific part. In this case we're assigning
         # a single scalar value to all elements of a field.
         proxy_name = self._arguments.args[0].proxy_name
         # Look-up the name given to our indexing variable
-        # (in DynPointWise.gen_code)
+        # (in DynInfKern.gen_code)
         idx_name = self._name_space_manager.create_name(root_name="idx",
                                                         context="PSyVars",
                                                         label="pw_index")
@@ -2137,7 +2128,7 @@ class DynSetFieldScalarKern(DynPointwiseKern):
         return
 
 
-class DynCopyFieldKern(DynPointwiseKern):
+class DynCopyFieldKern(DynInfKern):
     ''' Set a field equal to another field '''
 
     def __str__(self):
@@ -2146,7 +2137,7 @@ class DynCopyFieldKern(DynPointwiseKern):
     def gen_code(self, parent):
         from f2pygen import AssignGen
         # Generate the generic part of this pointwise kernel
-        DynPointwiseKern.gen_code(self, parent)
+        DynInfKern.gen_code(self, parent)
         self._name_space_manager = NameSpaceFactory().create()
         # and now the specific part - we copy one element of field A (first
         # arg) to the corresponding element of field B (second arg).

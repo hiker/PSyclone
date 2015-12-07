@@ -627,7 +627,7 @@ class Node(object):
 
     def inf_calls(self):
         ''' return all infrastructure calls in this schedule '''
-        return self.walk(self._children, PointwiseKern)
+        return self.walk(self._children, InfKern)
 
     def loops(self):
         ''' return all loops currently in this schedule '''
@@ -1286,12 +1286,8 @@ class Kern(Call):
         return self.parent.loop_type == "colour"
 
 
-class PointwiseKern(Call):
-    ''' Base class for all pointwise kernels '''
-
-    def gen_code(self, parent):
-        parent.add(AssignGen(parent, lhs="myfield", rhs="myvalue"))
-        return
+class InfKern(object):
+    ''' Abstract base class for all infrastructure kernels '''
 
     def __str__(self):
         return "Pointwise infrastructure call"

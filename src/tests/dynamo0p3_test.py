@@ -2177,7 +2177,6 @@ def test_pointwise_set():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
-    first_invoke.schedule.view()
     code = str(psy.gen)
     print code
     output = (
@@ -2187,7 +2186,7 @@ def test_pointwise_set():
         "      INTEGER k\n"
         "      INTEGER df\n"
         "      INTEGER idx\n"
-        "      INTEGER f1_ndf\n"
+        "      INTEGER ndf_any_space_1, undf_any_space_1\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy\n"
         "      !\n"
@@ -2198,14 +2197,19 @@ def test_pointwise_set():
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-        "      f1_ndf = f1_proxy%vspace%get_ndf()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for "
+        "any_space_1\n"
+        "      !\n"
+        "      ndf_any_space_1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_any_space_1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
         "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
         "        DO k=1,nlayers\n"
-        "          DO df=1,f1_ndf\n"
-        "            idx = ((cell-1)*nlayers + (k-1))*f1_ndf + df\n"
+        "          DO df=1,ndf_any_space_1\n"
+        "            idx = ((cell-1)*nlayers + (k-1))*ndf_any_space_1 + df\n"
         "            f1_proxy%data(idx) = 0.0\n"
         "          END DO \n"
         "        END DO \n"
@@ -2221,10 +2225,27 @@ def test_pointwise_set_plus_normal():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
-    first_invoke.schedule.view()
     code = str(psy.gen)
     print code
     output = (
+        "      ! Initialise sizes and allocate any basis arrays for "
+        "any_space_1\n"
+        "      !\n"
+        "      ndf_any_space_1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_any_space_1 = f1_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Call our kernels\n"
+        "      !\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "        !\n"
+        "        map_w1 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        map_w2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        map_w3 => m2_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        !\n"
+        "        CALL testkern_code(nlayers, f1_proxy%data, f2_proxy%data, "
+        "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, "
+        "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)\n"
+        "      END DO \n"
         "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
         "        DO k=1,nlayers\n"
         "          DO df=1,ndf_w1\n"
@@ -2244,7 +2265,6 @@ def test_pointwise_copy():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
-    first_invoke.schedule.view()
     code = str(psy.gen)
     print code
     output = (
@@ -2254,8 +2274,7 @@ def test_pointwise_copy():
         "      INTEGER k\n"
         "      INTEGER df\n"
         "      INTEGER idx\n"
-        "      INTEGER f2_ndf\n"
-        "      INTEGER f1_ndf\n"
+        "      INTEGER ndf_any_space_1, undf_any_space_1\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
         "      !\n"
@@ -2267,15 +2286,19 @@ def test_pointwise_copy():
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-        "      f1_ndf = f1_proxy%vspace%get_ndf()\n"
-        "      f2_ndf = f2_proxy%vspace%get_ndf()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for "
+        "any_space_1\n"
+        "      !\n"
+        "      ndf_any_space_1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_any_space_1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
         "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
         "        DO k=1,nlayers\n"
-        "          DO df=1,f1_ndf\n"
-        "            idx = ((cell-1)*nlayers + (k-1))*f1_ndf + df\n"
+        "          DO df=1,ndf_any_space_1\n"
+        "            idx = ((cell-1)*nlayers + (k-1))*ndf_any_space_1 + df\n"
         "            f2_proxy%data(idx) = f1_proxy%data(idx)\n"
         "          END DO \n"
         "        END DO \n"
