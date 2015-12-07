@@ -20,7 +20,7 @@ import fparser
 import os
 from config import INTRINSIC_DEFINITIONS
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, InfKern, \
-    Arguments, Argument, KernelArgument, Inf, InfArguments, InfArgument, \
+    Arguments, Argument, KernelArgument, Inf, \
     NameSpaceFactory, GenerationError, FieldNotFoundError
 
 
@@ -2066,13 +2066,12 @@ class DynInf(Inf):
 
 
 class DynInfKern(DynKern, InfKern):
-    ''' Base class for a Dynamo Infrastructure/Pointwise call. Has the
+    '''Base class for a Dynamo Infrastructure/Pointwise call. Has the
     (abstract) InfKern as a base class to enable us to identify it as
-    an Infrastructure kernel (because it is otherwise identical to a
-    normal kernel). '''
+    an Infrastructure kernel in the psyGen base classes (because it is
+    otherwise identical to a normal kernel).
 
-    def __str__(self):
-        return "Dynamo Infrastructure call"
+    '''
 
     def gen_code(self, parent):
         from f2pygen import AssignGen, DeclGen

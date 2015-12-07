@@ -1287,10 +1287,11 @@ class Kern(Call):
 
 
 class InfKern(object):
-    ''' Abstract base class for all infrastructure kernels '''
+    '''Abstract base class for all infrastructure kernels. Uses the abc
+       module so it cannot be instantiated.
 
-    def __str__(self):
-        return "Pointwise infrastructure call"
+    '''
+    __metaclass__ = abc.ABCMeta
 
 
 class Arguments(object):
@@ -1330,28 +1331,6 @@ class Arguments(object):
         for argument in self._args:
             argument.set_dependencies()
         # TODO create a summary of dependencies
-
-
-class InfArguments(Arguments):
-    ''' arguments associated with an infrastructure call '''
-    def __init__(self, call_info, parent_call, access):
-        Arguments.__init__(self, parent_call)
-        if False:
-            # only here for pyreverse!
-            self._0_to_n = InfArgument(None, None, None)
-        for idx, arg in enumerate(call_info.args):
-            self._args.append(InfArgument(arg, parent_call, access[idx]))
-
-    @property
-    def args(self):
-        return self._args
-
-    @property
-    def arglist(self):
-        my_arg_list = []
-        for arg in self._args:
-            my_arg_list.append(arg.name)
-        return my_arg_list
 
 
 class Argument(object):
@@ -1452,11 +1431,6 @@ class KernelArgument(Argument):
     def stencil(self):
         return self._arg.stencil
 
-
-class InfArgument(Argument):
-    ''' infrastructure call argument '''
-    def __init__(self, arg_info, call, access):
-        Argument.__init__(self, call, arg_info, access)
 
 class TransInfo(object):
     '''
