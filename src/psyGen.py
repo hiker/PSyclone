@@ -1178,24 +1178,13 @@ class Call(Node):
 
 
 class Inf(Factory):
-    ''' infrastructure call factory, Used to create a call specific class '''
-    @staticmethod
+    ''' Abstract infrastructure call factory. Uses the abc module so it
+        cannot be instantiated.  '''
+    __metaclass__ = abc.ABCMeta
+
+    @abc.abstractmethod
     def create(call, parent=None):
-        if call.func_name not in PSYCLONE_INTRINSICS:
-            raise GenerationError("Unknown infrastructure call. Supported "
-                                  "calls are {0} but found {1}".
-                                  format(str(PSYCLONE_INTRINSICS),
-                                         call.func_name))
-        if self._type == "dynamo0.3":
-            from dynamo0p3 import DynInf
-            return DynInf.create(call, parent)
-        elif self._type == "gocean1.0":
-            from gocean1p0 import GOInf
-            return GOInf(call, parent)
-        else:
-            raise GenerationError(
-                "Inf: Internal Error: Unsupported api type '{0}' found.".
-                format(self._type))
+        return None
 
 
 class Kern(Call):

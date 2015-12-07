@@ -2039,6 +2039,24 @@ def test_arg_ref_name_method_error2():
     assert 'ref_name: Error, unsupported arg type' in str(excinfo)
 
 
+def test_arg_intent_error():
+    ''' Tests that an internal error is raised in DynKernelArgument
+    when intent() is called and the argument access property is not one of
+    gh_{read,write,inc} '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    first_kernel = first_invoke.schedule.kern_calls()[0]
+    first_argument = first_kernel.arguments.args[0]
+    # Mess with the internal state of this argument object
+    first_argument._access = "gh_not_an_intent"
+    with pytest.raises(GenerationError) as excinfo:
+        _ = first_argument.intent()
+    assert "Expecting argument access to be one of 'gh_read, gh_write, "
+    "gh_inc' but found 'gh_not_an_intent'" in str(excinfo)
+
+
 def test_arg_descriptor_function_method_error():
     ''' Tests that an internal error is raised in DynArgDescriptor03
     when function_space is called and the internal type is an
@@ -2167,6 +2185,13 @@ def test_func_descriptor_str():
         "  function_space_name[0] = 'w1'\n"
         "  operator_name[1] = 'gh_basis'")
     assert output in func_str
+
+
+def test_dyninf_str():
+    ''' Check that the str method of DynInf works as expected '''
+    from dynamo0p3 import DynInf
+    dyninf = DynInf()
+    assert str(dyninf) == "Set-up a Dynamo infrastructure call"
 
 
 def test_pointwise_set():
