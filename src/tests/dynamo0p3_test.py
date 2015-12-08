@@ -2253,11 +2253,10 @@ def test_pointwise_set_plus_normal():
     code = str(psy.gen)
     print code
     output = (
-        "      ! Initialise sizes and allocate any basis arrays for "
-        "any_space_1\n"
+        "      ! Initialise sizes and allocate any basis arrays for w3\n"
         "      !\n"
-        "      ndf_any_space_1 = f1_proxy%vspace%get_ndf()\n"
-        "      undf_any_space_1 = f1_proxy%vspace%get_undf()\n"
+        "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
+        "      undf_w3 = m2_proxy%vspace%get_undf()\n"
         "      !\n"
         "      ! Call our kernels\n"
         "      !\n"

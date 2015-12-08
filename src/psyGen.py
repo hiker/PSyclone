@@ -390,6 +390,25 @@ class Invoke(object):
             names.append(var.name)
         return names
 
+    def infrastructure_args(self):
+        ''' Returns a list of all argument objects which are passed to
+        infrastructure (aka pointwise) kernels '''
+        arg_list = []
+        for call in self.schedule.inf_calls():
+            for arg in call.arguments.args:
+                if arg.text is not None:
+                    arg_list.append(arg)
+        return arg_list
+
+    def infrastructure_iteration_space_args(self):
+        ''' Returns a list of argument objects which
+        define the iteration space of any 
+        infrastructure (aka pointwise) kernels '''
+        arg_list = []
+        for call in self.schedule.inf_calls():
+            arg_list.append(call.arguments.iteration_space_arg())
+        return arg_list
+
     @property
     def schedule(self):
         return self._schedule
@@ -622,7 +641,8 @@ class Node(object):
         return all_calls[:position-1]
 
     def kern_calls(self):
-        ''' return all kernel calls in this schedule '''
+        '''return all (both user-supplied and infrastructure) 
+        kernel calls in this schedule'''
         return self.walk(self._children, Kern)
 
     def inf_calls(self):
@@ -690,10 +710,11 @@ class Schedule(Node):
         sequence = []
         from parse import InfCall
         for call in alg_calls:
+            print "Arg in Schedule():", str(call)
             if isinstance(call, InfCall):
                 sequence.append(Inf.create(call, parent=self))
             else:
-                sequence.append(Loop(call, parent=self))
+                sequence.append(Loop(call=call, parent=self))
         Node.__init__(self, children=sequence)
         self._invoke = None
 
@@ -914,6 +935,8 @@ class Loop(Node):
             "Error, loop_type value is invalid"
         self._loop_type = value
 
+    # TODO decide in 111 whether we can drop Inf from this list
+    # of arguments
     def __init__(self, Inf, Kern, call=None, parent=None,
                  variable_name="", topology_name="topology",
                  valid_loop_types=[]):
@@ -931,14 +954,11 @@ class Loop(Node):
 
         # TODO replace iterates_over with iteration_space
         self._iterates_over = "unknown"
-        # TODO is this functionality ever used?
         # Create a Kern object if this Loop constructor has been passed
         # details of a call
         if call is not None:
-            from parse import InfCall, KernelCall
-            if isinstance(call, InfCall):
-                pass  # TODO remove if unecessary at end of #111
-            elif isinstance(call, KernelCall):
+            from parse import KernelCall
+            if isinstance(call, KernelCall):
                 my_call = Kern()
                 my_call.load(call, parent=self)
                 self._iterates_over = my_call.iterates_over
@@ -950,7 +970,9 @@ class Loop(Node):
                 self._field_name = self._field.name
                 children.append(my_call)
             else:
-                raise Exception
+                raise GenerationError(
+                    "Expected a KernelCall object but got a {0}".
+                    format(type(call)))
         Node.__init__(self, children=children, parent=parent)
 
         self._variable_name = variable_name

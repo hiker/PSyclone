@@ -18,7 +18,6 @@ from parse import Descriptor, KernelType, ParseError
 import expression as expr
 import fparser
 import os
-from config import INTRINSIC_DEFINITIONS
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, InfKern, \
     Arguments, Argument, KernelArgument, Inf, \
     NameSpaceFactory, GenerationError, FieldNotFoundError
@@ -288,6 +287,21 @@ class DynArgDescriptor03(Descriptor):
                 "Internal error, DynArgDescriptor03:function_space(), should "
                 "not get to here.")
 
+    @function_space.setter
+    def function_space(self, value):
+        if value not in VALID_FUNCTION_SPACE_NAMES:
+            raise RuntimeError(
+                "Invalid function space '{0}': must be one of {1}.".
+                format(value, VALID_FUNCTION_SPACE_NAMES))
+        # This setter only works for a gh_field as an operator has both
+        # a 'to' and a 'from' space and a scalar has no space at all.
+        if self._type == "gh_field":
+            self._function_space1 = value
+        else:
+            raise RuntimeError(
+                "Can only set the function space of a gh_field but I am "
+                "a {0}".format(self._type))
+
     @property
     def function_spaces(self):
         ''' Return the function space names that this instance operates
@@ -551,16 +565,6 @@ class DynInvoke(Invoke):
                             declarations.append(test_name)
         return declarations
 
-    def infrastructure_args(self):
-        ''' Returns a list of argument objects which are passed to
-        infrastructure (aka pointwise) kernels '''
-        arg_list = []
-        for call in self.schedule.inf_calls():
-            for arg in call.arguments.args:
-                if arg.text is not None:
-                    arg_list.append(arg)
-        return arg_list
-
     def arg_for_funcspace(self, fs_name):
         ''' Returns an argument object which is on the requested
         function space. Searches through all Kernel calls in this
@@ -680,14 +684,18 @@ class DynInvoke(Invoke):
         return False
 
     def field_with_name(self, name):
-        ''' If there is a kernel field argument of the specified name
-        then return a corresponding kernel argument object '''
+        '''If there is a field argument to a user-supplied kernel of the
+        specified name then return a corresponding kernel argument
+        object
+
+        '''
         for call in self.schedule.kern_calls():
-            for arg in call.arguments.args:
-                if arg.name == name:
-                    return arg
+            if not isinstance(call, InfKern):
+                for arg in call.arguments.args:
+                    if arg.name == name:
+                        return arg
         return None
-    
+
     def gen_code(self, parent):
         ''' Generates Dynamo specific invocation code (the subroutine
         called by the associated invoke call in the algorithm
@@ -697,6 +705,35 @@ class DynInvoke(Invoke):
             AllocateGen, DeallocateGen, CallGen, CommentGen
         # create a namespace manager so we can avoid name clashes
         self._name_space_manager = NameSpaceFactory().create()
+
+        # Loop over the arguments to point-wise kernels. These can be on
+        # any space but if they are also passed to a normal kernel
+        # then we can deduce which space they are on. If this is the case
+        # then we change the function space in the object created by
+        # the parser when it read the meta-data.
+        field_list = []
+        for field in self.infrastructure_iteration_space_args():
+            # If we've already seen this field then skip it
+            if field.name in field_list:
+                continue
+            field_list.append(field.name)
+            # Is a field with this name passed to a normal kernel?
+            arg = self.field_with_name(field.name)
+            if arg:
+                # This field is passed as an argument to a 'normal'
+                # kernel and so we can find out what space it's on.
+                # Use this value to correct the value that was
+                # obtained by parsing the meta-data
+                field.function_space = arg.function_space
+
+            ndf_root_name = self.ndf_name(field.function_space)
+            # Add this name to the namespace manager so that we
+            # can look it up when generating the Loop over dofs
+            ndf_name = self._name_space_manager.create_name(
+                root_name=ndf_root_name,
+                context="PSyVars",
+                label=field.name+"_ndf")
+
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
                                    args=self.psy_unique_var_names +
@@ -863,34 +900,6 @@ class DynInvoke(Invoke):
                                            op_name+"("+alloc_args+")"))
                 # add diff basis function variable to list to declare later
                 operator_declarations.append(op_name+"(:,:,:,:)")
-        # Loop over the arguments to point-wise kernels. These can be on
-        # any space but if they are also passed to a normal kernel
-        # then we can deduce which space they are on.
-        field_list = []
-        for field in self.infrastructure_args():
-            # If we've already seen this field then skip it
-            if field.name in field_list:
-                continue
-            field_list.append(field.name)
-            # Is a field with this name passed to a normal kernel?
-            arg = self.field_with_name(field.name)
-            if arg:
-                # This field is passed as an argument to a 'normal'
-                # kernel and so we can find out what space it's on
-                ndf_root_name = self.ndf_name(arg.function_space)
-            else:
-                # This arg is only ever passed to pointwise kernels
-                # and therefore we use the 'standard' ndf variable
-                # created earlier (will be "ANY_SPACE_1" because
-                # that's what is specified in the meta-data for
-                # pointwise kernels)
-                ndf_root_name = self.ndf_name(field.function_space)
-            # Add this name to the namespace manager so that we
-            # can look it up when generating the Loop over dofs
-            ndf_name = self._name_space_manager.create_name(
-                root_name=ndf_root_name,
-                context="PSyVars",
-                label=field.name+"_ndf")
 
         if not var_list == []:
             # declare ndf and undf for all function spaces
@@ -997,93 +1006,6 @@ class DynSchedule(Schedule):
 
     def __init__(self, arg):
         Schedule.__init__(self, DynLoop, DynInf, arg)
-
-
-class DynLoop(Loop):
-    ''' The Dynamo specific Loop class. This passes the Dynamo
-    specific loop information to the base class so it creates the one
-    we require.  Creates Dynamo specific loop bounds when the code is
-    being generated. '''
-
-    def __init__(self, call=None, parent=None,
-                 loop_type=""):
-        Loop.__init__(self, DynInf, DynKern, call=call, parent=parent,
-                      valid_loop_types=VALID_LOOP_TYPES)
-        self.loop_type = loop_type
-
-        if self._loop_type == "colours":
-            self._variable_name = "colour"
-        elif self._loop_type == "colour":
-            self._variable_name = "cell"
-        elif self._loop_type == "levels":
-            self._variable_name = "k"
-        elif self._loop_type == "dofs":
-            self._variable_name = "df"
-        else:
-            self._variable_name = "cell"
-
-    def load(self, kern):
-        ''' Load the state of this Loop using the supplied Kernel
-        object. This method is provided so that we can set-up 
-        Loops for point-wise kernels (for which we do not have
-        meta-data). '''
-        self._field = None
-        for arg in kern.arguments.args:
-            if arg.text and not self._field:
-                self._field = arg
-                self._field_name = arg.name
-        self._iterates_over = kern.iterates_over
-        self._field_space = "any_space_1"
-
-
-    def has_inc_arg(self, mapping=None):
-        ''' Returns True if any of the Kernels called within this loop
-        have an argument with INC access. Returns False otherwise. '''
-        if mapping is not None:
-            my_mapping = mapping
-        else:
-            my_mapping = FIELD_ACCESS_MAP
-        return Loop.has_inc_arg(self, my_mapping)
-
-    def gen_code(self, parent):
-        ''' Work out the appropriate loop bounds and variable name
-        depending on the loop type and then call the base class to
-        generate the code. '''
-
-        # Check that we're not within an OpenMP parallel region if
-        # we are a loop over colours.
-        if self._loop_type == "colours" and self.is_openmp_parallel():
-            raise GenerationError("Cannot have a loop over "
-                                  "colours within an OpenMP "
-                                  "parallel region.")
-
-        # Get the namespace manager instance so we can look-up
-        # the name of the nlayers and ndf variables
-        name_space_manager = NameSpaceFactory().create()
-        
-        # Set-up loop bounds
-        self._start = "1"
-        if self._loop_type == "colours":
-            self._stop = "ncolour"
-        elif self._loop_type == "colour":
-            self._stop = "ncp_colour(colour)"
-        elif self._loop_type == "levels":
-            self._stop = name_space_manager.create_name(
-                root_name="nlayers", context="PSyVars", label="nlayers")
-        elif self._loop_type == "dofs":
-            # Use the namespace manager to look-up what name we used
-            # for ndf for this field in DynInvoke.gen_code()
-            self._stop = name_space_manager.create_name(
-                root_name=self.field.name+"_ndf",
-                context="PSyVars",
-                label=self.field_name+"_ndf")
-            from f2pygen import DeclGen
-            parent.add(
-                DeclGen(parent, datatype="integer", entity_decls=[self._stop]))
-        else:
-            self._stop = self.field.proxy_name_indexed + "%" + \
-                self.field.ref_name() + "%get_ncell()"
-        Loop.gen_code(self, parent)
 
 
 class DynKern(Kern):
@@ -1688,6 +1610,94 @@ class DynKern(Kern):
             parent.add(CommentGen(parent, ""))
 
 
+class DynLoop(Loop):
+    ''' The Dynamo specific Loop class. This passes the Dynamo
+    specific loop information to the base class so it creates the one
+    we require.  Creates Dynamo specific loop bounds when the code is
+    being generated. '''
+
+    def __init__(self, kern=DynKern, call=None, parent=None,
+                 loop_type=""):
+        Loop.__init__(self, DynInf, kern, call=call, parent=parent,
+                      valid_loop_types=VALID_LOOP_TYPES)
+        self.loop_type = loop_type
+
+        if self._loop_type == "colours":
+            self._variable_name = "colour"
+        elif self._loop_type == "colour":
+            self._variable_name = "cell"
+        elif self._loop_type == "levels":
+            self._variable_name = "k"
+        elif self._loop_type == "dofs":
+            self._variable_name = "df"
+        else:
+            self._variable_name = "cell"
+
+    def load(self, kern):
+        ''' Load the state of this Loop using the supplied Kernel
+        object. This method is provided so that we can set-up
+        Loops for point-wise kernels (for which we do not have
+        meta-data). '''
+        self._field = None
+        for arg in kern.arguments.args:
+            if arg.text:
+                self._field = arg
+                self._field_name = arg.name
+                self._field_space = arg.function_space
+                break
+        self._iterates_over = kern.iterates_over
+        print " my field is ", str(self._field)
+
+    def has_inc_arg(self, mapping=None):
+        ''' Returns True if any of the Kernels called within this loop
+        have an argument with INC access. Returns False otherwise. '''
+        if mapping is not None:
+            my_mapping = mapping
+        else:
+            my_mapping = FIELD_ACCESS_MAP
+        return Loop.has_inc_arg(self, my_mapping)
+
+    def gen_code(self, parent):
+        ''' Work out the appropriate loop bounds and variable name
+        depending on the loop type and then call the base class to
+        generate the code. '''
+
+        # Check that we're not within an OpenMP parallel region if
+        # we are a loop over colours.
+        if self._loop_type == "colours" and self.is_openmp_parallel():
+            raise GenerationError("Cannot have a loop over "
+                                  "colours within an OpenMP "
+                                  "parallel region.")
+
+        # Get the namespace manager instance so we can look-up
+        # the name of the nlayers and ndf variables
+        name_space_manager = NameSpaceFactory().create()
+
+        # Set-up loop bounds
+        self._start = "1"
+        if self._loop_type == "colours":
+            self._stop = "ncolour"
+        elif self._loop_type == "colour":
+            self._stop = "ncp_colour(colour)"
+        elif self._loop_type == "levels":
+            self._stop = name_space_manager.create_name(
+                root_name="nlayers", context="PSyVars", label="nlayers")
+        elif self._loop_type == "dofs":
+            # Use the namespace manager to look-up what name we used
+            # for ndf for this field in DynInvoke.gen_code()
+            self._stop = name_space_manager.create_name(
+                root_name=self.field.name+"_ndf",
+                context="PSyVars",
+                label=self.field_name+"_ndf")
+            from f2pygen import DeclGen
+            parent.add(
+                DeclGen(parent, datatype="integer", entity_decls=[self._stop]))
+        else:
+            self._stop = self.field.proxy_name_indexed + "%" + \
+                self.field.ref_name() + "%get_ncell()"
+        Loop.gen_code(self, parent)
+
+
 class FSDescriptor(object):
     ''' Provides information about a particular function space. '''
 
@@ -1997,6 +2007,18 @@ class DynKernelArgument(KernelArgument):
             argument as specified by the kernel argument metadata. '''
         return self._arg.function_space
 
+    @function_space.setter
+    def function_space(self, space):
+        '''Sets the expected finite element function space for this
+        argument. Permits the value specified in the kernel argument
+        metadata to be overwritten. This is used for pointwise kernels
+        where the space of the argument(s) can often be inferred (by
+        looking at other kernels that act on the same argument) when
+        psyclone is run.
+
+        '''
+        self._arg.function_space = space
+
     @property
     def function_spaces(self):
         '''Returns the expected finite element function spaces for this
@@ -2038,29 +2060,31 @@ class DynInf(Inf):
         lloop = DynLoop(call=None, parent=cloop,
                         loop_type="levels")
         cloop.addchild(lloop)
-        # Loop over DoFs
-        dloop = DynLoop(call=None, parent=lloop,
-                        loop_type="dofs")
-        lloop.addchild(dloop)
 
-        # The point-wise operation itself
+        # The point-wise operation itself is passed in to the loop over DoFs
         if call.func_name == "set_field_scalar":
-            access = ["write", None]
-            pwkern = DynSetFieldScalarKern()
+            pwkern = DynSetFieldScalarKern
         elif call.func_name == "copy_field":
-            access = ["read", "write"]
-            pwkern = DynCopyFieldKern()
+            pwkern = DynCopyFieldKern
         else:
             raise GenerationError(
                 "Unrecognised infrastructure call: {0}".format(call.func_name))
-        
-        pwkern.load(call, dloop)
+
+        dloop = DynLoop(kern=pwkern, call=call, parent=lloop,
+                        loop_type="dofs")
+        lloop.addchild(dloop)
 
         # Now that we have the point-wise object, we use it to supply
-        # properties to the Loops which contain it
-        cloop.load(pwkern)
-        dloop.load(pwkern)
-        dloop.addchild(pwkern)
+        # properties to the outermost Loop that contains it
+        # TODO ARPDBG this is not nice. Should I change the Loop constructor
+        # so that it never creates the kernel object that it calls?
+        # This would require changing Schedule.__init__ so that it does
+        # something like:
+        #   sequence.append(KernCall.create(call, parent=self))
+        # c.f. the way we do Inf.create(...)
+        # Each API would then need a KernCall.create static method.
+        cloop.load(dloop.children[0])
+
         # Return the outermost loop
         return cloop
 
@@ -2081,7 +2105,7 @@ class DynInfKern(DynKern, InfKern):
         # the number of levels
         nlayers_name = self._name_space_manager.create_name(
                 root_name="nlayers", context="PSyVars", label="nlayers")
-        field_name = self._arguments.args[0].name
+        field_name = self._arguments.iteration_space_arg().name
         ndf_name = self._name_space_manager.create_name(
             root_name=field_name+"_ndf",
             context="PSyVars",
