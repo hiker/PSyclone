@@ -710,7 +710,6 @@ class Schedule(Node):
         sequence = []
         from parse import InfCall
         for call in alg_calls:
-            print "Arg in Schedule():", str(call)
             if isinstance(call, InfCall):
                 sequence.append(Inf.create(call, parent=self))
             else:
