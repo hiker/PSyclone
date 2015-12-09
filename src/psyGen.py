@@ -1264,12 +1264,14 @@ class Kern(Call):
         WRITE access '''
         assert mapping != {}, "psyGen:Kern:written_field: Error - a "\
             "mapping must be provided"
-        for arg in self.arguments.args:
-            if arg.access.lower() == mapping["write"]:
-                return arg
+        for access in ["write", "readwrite"]:
+            for arg in self.arguments.args:
+                if arg.access.lower() == mapping[access]:
+                    return arg
         raise FieldNotFoundError("Kernel {0} does not have an argument with "
-                                 "{1} access".
-                                 format(self.name, mapping["write"]))
+                                 "{1} or {2} access".
+                                 format(self.name, mapping["write"],
+                                        mapping["readwrite"]))
 
     def is_coloured(self):
         ''' Returns true if this kernel is being called from within a
