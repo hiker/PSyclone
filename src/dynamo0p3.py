@@ -19,7 +19,7 @@ import expression as expr
 import fparser
 import os
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, InfKern, \
-    Arguments, Argument, KernelArgument, Inf, \
+    Arguments, Argument, KernelArgument, \
     NameSpaceFactory, GenerationError, FieldNotFoundError
 
 
@@ -712,7 +712,7 @@ class DynInvoke(Invoke):
         # then we change the function space in the object created by
         # the parser when it read the meta-data.
         field_list = []
-        for field in self.infrastructure_iteration_space_args():
+        for field in self.infrastructure_args():
             # If we've already seen this field then skip it
             if field.name in field_list:
                 continue
@@ -733,6 +733,7 @@ class DynInvoke(Invoke):
                 root_name=ndf_root_name,
                 context="PSyVars",
                 label=field.name+"_ndf")
+            print "created ndf name with label: ",field.name+"_ndf"
 
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
@@ -1000,12 +1001,12 @@ class DynInvoke(Invoke):
 
 
 class DynSchedule(Schedule):
-    ''' The Dynamo specific schedule class. This passes the Dynamo
-    specific loop and infrastructure classes to the base class so it
-    creates the ones we require. '''
+    ''' The Dynamo specific schedule class. This passes the Dynamo-
+    specific factories for creating kernel and infrastructure calls
+    to the base class so it creates the ones we require. '''
 
     def __init__(self, arg):
-        Schedule.__init__(self, DynLoop, DynInf, arg)
+        Schedule.__init__(self, DynKernCallFactory, DynInfCallFactory, arg)
 
 
 class DynKern(Kern):
@@ -1616,9 +1617,8 @@ class DynLoop(Loop):
     we require.  Creates Dynamo specific loop bounds when the code is
     being generated. '''
 
-    def __init__(self, kern=DynKern, call=None, parent=None,
-                 loop_type=""):
-        Loop.__init__(self, DynInf, kern, call=call, parent=parent,
+    def __init__(self, parent=None, loop_type=""):
+        Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
         self.loop_type = loop_type
 
@@ -1646,8 +1646,10 @@ class DynLoop(Loop):
                 self._field_space = arg.function_space
                 break
         self._iterates_over = kern.iterates_over
-        print " my field is ", str(self._field)
-
+        # TODO what's the difference between iterates_over and
+        # iteration_space?
+        self._iteration_space = kern.iterates_over
+        
     def has_inc_arg(self, mapping=None):
         ''' Returns True if any of the Kernels called within this loop
         have an argument with INC access. Returns False otherwise. '''
@@ -1685,6 +1687,7 @@ class DynLoop(Loop):
         elif self._loop_type == "dofs":
             # Use the namespace manager to look-up what name we used
             # for ndf for this field in DynInvoke.gen_code()
+            print "Looking up ndf name with label: ",self.field_name+"_ndf"
             self._stop = name_space_manager.create_name(
                 root_name=self.field.name+"_ndf",
                 context="PSyVars",
@@ -2041,54 +2044,82 @@ class DynKernelArgument(KernelArgument):
                 "gh_inc' but found '{0}'".format(self.access))
 
 
-class DynInf(Inf):
+class DynInfCallFactory(object):
     ''' Creates the necessary framework for a Dynamo infrastructure call,
     This consists of the pointwise operation itself but also the loops over
     cells, levels and DoFs. '''
 
     def __str__(self):
-        return "Set-up a Dynamo infrastructure call"
+        return "Factory for a Dynamo infrastructure call"
 
     @staticmethod
     def create(call, parent=None):
         ''' Create the objects needed for a call to the intrinsic
         described in the call (InfCall) object '''
         # Loop over cells
-        cloop = DynLoop(call=None, parent=parent)
+        cloop = DynLoop(parent=parent)
 
         # Loop over levels
-        lloop = DynLoop(call=None, parent=cloop,
+        lloop = DynLoop(parent=cloop,
                         loop_type="levels")
         cloop.addchild(lloop)
 
-        # The point-wise operation itself is passed in to the loop over DoFs
+        # The infrastructure operation itself
         if call.func_name == "set_field_scalar":
-            pwkern = DynSetFieldScalarKern
+            pwkern = DynSetFieldScalarKern()
         elif call.func_name == "copy_field":
-            pwkern = DynCopyFieldKern
+            pwkern = DynCopyFieldKern()
         else:
             raise GenerationError(
                 "Unrecognised infrastructure call: {0}".format(call.func_name))
+        # Use the call object (created by the parser) to set-up the state
+        # of the infrastructure kernel
+        pwkern.load(call)
 
-        dloop = DynLoop(kern=pwkern, call=call, parent=lloop,
-                        loop_type="dofs")
-        lloop.addchild(dloop)
+        # Create the loop over DoFs
+        dofloop = DynLoop(parent=lloop,
+                          loop_type="dofs")
+        # Set-up its state
+        dofloop.load(pwkern)
+        # As it is the innermost loop it has the kernel as a child
+        dofloop.addchild(pwkern)
+        
+        lloop.addchild(dofloop)
 
         # Now that we have the point-wise object, we use it to supply
-        # properties to the outermost Loop that contains it
-        # TODO ARPDBG this is not nice. Should I change the Loop constructor
-        # so that it never creates the kernel object that it calls?
-        # This would require changing Schedule.__init__ so that it does
-        # something like:
-        #   sequence.append(KernCall.create(call, parent=self))
-        # c.f. the way we do Inf.create(...)
-        # Each API would then need a KernCall.create static method.
-        cloop.load(dloop.children[0])
+        # the properties of the outermost loop over cells
+        cloop.load(pwkern)
 
         # Return the outermost loop
         return cloop
 
 
+class DynKernCallFactory(object):
+    ''' Create the necessary framework for a Dynamo kernel call.
+    This consists of a Loop over cells containing a call to the 
+    user-supplied kernel routine. '''
+    @staticmethod
+    def create(call, parent=None):
+        ''' Create the objects needed for a call to the kernel
+        described in the call object '''
+
+        # Loop over cells
+        cloop = DynLoop(parent=parent)
+
+        # The kernel itself
+        kern = DynKern()
+        kern.load(call, cloop)
+
+        # Add the kernel as a child of the loop
+        cloop.addchild(kern)
+        
+        # Set-up the loop now we have the kernel object
+        cloop.load(kern)
+
+        # Return the outermost loop
+        return cloop
+
+    
 class DynInfKern(DynKern, InfKern):
     '''Base class for a Dynamo Infrastructure/Pointwise call. Has the
     (abstract) InfKern as a base class to enable us to identify it as
@@ -2105,11 +2136,9 @@ class DynInfKern(DynKern, InfKern):
         # the number of levels
         nlayers_name = self._name_space_manager.create_name(
                 root_name="nlayers", context="PSyVars", label="nlayers")
-        field_name = self._arguments.iteration_space_arg().name
-        ndf_name = self._name_space_manager.create_name(
-            root_name=field_name+"_ndf",
-            context="PSyVars",
-            label=field_name+"_ndf")
+        # Look-up the ndf name
+        field = self._arguments.iteration_space_arg()
+        ndf_name = self.fs_descriptors.ndf_name(field.function_space)
         # Use it to create a name for the variable to index into the
         # field array
         idx_name = self._name_space_manager.create_name(

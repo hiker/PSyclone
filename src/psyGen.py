@@ -702,7 +702,7 @@ class Schedule(Node):
     def invoke(self, my_invoke):
         self._invoke = my_invoke
 
-    def __init__(self, Loop, Inf, alg_calls=[]):
+    def __init__(self, Kern, Inf, alg_calls=[]):
 
         # we need to separate calls into loops (an iteration space really)
         # and calls so that we can perform optimisations separately on the
@@ -713,7 +713,7 @@ class Schedule(Node):
             if isinstance(call, InfCall):
                 sequence.append(Inf.create(call, parent=self))
             else:
-                sequence.append(Loop(call=call, parent=self))
+                sequence.append(Kern.create(call, parent=self))
         Node.__init__(self, children=sequence)
         self._invoke = None
 
@@ -934,10 +934,9 @@ class Loop(Node):
             "Error, loop_type value is invalid"
         self._loop_type = value
 
-    # TODO decide in 111 whether we can drop Inf from this list
-    # of arguments
-    def __init__(self, Inf, Kern, call=None, parent=None,
-                 variable_name="", topology_name="topology",
+    def __init__(self, parent=None,
+                 variable_name="",
+                 topology_name="topology",
                  valid_loop_types=[]):
 
         children = []
@@ -953,25 +952,7 @@ class Loop(Node):
 
         # TODO replace iterates_over with iteration_space
         self._iterates_over = "unknown"
-        # Create a Kern object if this Loop constructor has been passed
-        # details of a call
-        if call is not None:
-            from parse import KernelCall
-            if isinstance(call, KernelCall):
-                my_call = Kern()
-                my_call.load(call, parent=self)
-                self._iterates_over = my_call.iterates_over
-                self._iteration_space = my_call.iterates_over
-                self._field_space = my_call.arguments.iteration_space_arg().\
-                    function_space
-                # self._field is a DynKernelArgument
-                self._field = my_call.arguments.iteration_space_arg()
-                self._field_name = self._field.name
-                children.append(my_call)
-            else:
-                raise GenerationError(
-                    "Expected a KernelCall object but got a {0}".
-                    format(type(call)))
+
         Node.__init__(self, children=children, parent=parent)
 
         self._variable_name = variable_name
@@ -1198,14 +1179,14 @@ class Call(Node):
         raise NotImplementedError("Call.gen_code should be implemented")
 
 
-class Inf(Factory):
-    ''' Abstract infrastructure call factory. Uses the abc module so it
-        cannot be instantiated.  '''
-    __metaclass__ = abc.ABCMeta
-
-    @abc.abstractmethod
-    def create(call, parent=None):
-        return None
+#class Inf(Factory):
+#    ''' Abstract infrastructure call factory. Uses the abc module so it
+#        cannot be instantiated.  '''
+#    __metaclass__ = abc.ABCMeta
+#
+#    @abc.abstractmethod
+#    def create(call, parent=None):
+#        return None
 
 
 class Kern(Call):
