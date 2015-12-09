@@ -69,7 +69,7 @@ class Descriptor(object):
             else:
                 raise ParseError(
                     "Internal error, expecting either FunctionVar or "
-                    "str but found {0}".
+                    "str from the expression analyser but found {0}".
                     format(type(metadata.args[0])))
         if metadata.args[0].args:
             raise ParseError(
