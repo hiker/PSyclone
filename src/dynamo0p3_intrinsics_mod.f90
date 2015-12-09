@@ -36,6 +36,18 @@ module dynamo0p3_intrinsics_mod
      procedure, nopass :: copy_field_code
   end type copy_field
 
+  type, public, extends(kernel_type) :: multiply_field
+     private
+     type(arg_type) :: meta_args(3) = (/                                &
+          arg_type(GH_RSCALAR, GH_READ             ),                   &
+          arg_type(GH_FIELD,   GH_READ, ANY_SPACE_1),                   &
+          arg_type(GH_FIELD,  GH_WRITE, ANY_SPACE_1)                    &
+          /)
+     integer :: iterates_over = CELLS
+   contains
+     procedure, nopass :: multiply_field_code
+  end type multiply_field
+
 contains
 
   subroutine set_field_scalar_code()
@@ -43,5 +55,8 @@ contains
 
   subroutine copy_field_code()
   end subroutine copy_field_code
+
+  subroutine multiply_field_code()
+  end subroutine multiply_field_code
   
 end module dynamo0p3_intrinsics_mod
