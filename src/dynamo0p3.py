@@ -492,6 +492,29 @@ class DynInvoke(Invoke):
         if False:
             self._schedule = DynSchedule(None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, DynSchedule)
+
+        # Loop over the arguments to point-wise kernels. These can be on
+        # any space but if they are also passed to a normal kernel
+        # then we can deduce which space they are on. If this is the case
+        # then we change the function space in the object created by
+        # the parser when it read the meta-data.
+        field_list = []
+        for field in self.infrastructure_args():
+            if field.type != "gh_field":
+                continue
+            # If we've already seen this field then skip it
+            if field.name in field_list:
+                continue
+            field_list.append(field.name)
+            # Is a field with this name passed to a normal kernel?
+            arg = self.field_with_name(field.name)
+            if arg:
+                # This field is passed as an argument to a 'normal'
+                # kernel and so we can find out what space it's on.
+                # Use this value to correct the value that was
+                # obtained by parsing the meta-data
+                field.function_space = arg.function_space
+
         # check whether we have more than one kernel call within this
         # invoke which specifies any_space. This is not supported at
         # the moment so we raise an error.  any_space with different
@@ -692,6 +715,7 @@ class DynInvoke(Invoke):
         for call in self.schedule.kern_calls():
             if not isinstance(call, InfKern):
                 for arg in call.arguments.args:
+                    print "arg name = ", arg.name
                     if arg.name == name:
                         return arg
         return None
@@ -705,35 +729,6 @@ class DynInvoke(Invoke):
             AllocateGen, DeallocateGen, CallGen, CommentGen
         # create a namespace manager so we can avoid name clashes
         self._name_space_manager = NameSpaceFactory().create()
-
-        # Loop over the arguments to point-wise kernels. These can be on
-        # any space but if they are also passed to a normal kernel
-        # then we can deduce which space they are on. If this is the case
-        # then we change the function space in the object created by
-        # the parser when it read the meta-data.
-        field_list = []
-        for field in self.infrastructure_args():
-            # If we've already seen this field then skip it
-            if field.name in field_list:
-                continue
-            field_list.append(field.name)
-            # Is a field with this name passed to a normal kernel?
-            arg = self.field_with_name(field.name)
-            if arg:
-                # This field is passed as an argument to a 'normal'
-                # kernel and so we can find out what space it's on.
-                # Use this value to correct the value that was
-                # obtained by parsing the meta-data
-                field.function_space = arg.function_space
-
-            ndf_root_name = self.ndf_name(field.function_space)
-            # Add this name to the namespace manager so that we
-            # can look it up when generating the Loop over dofs
-            ndf_name = self._name_space_manager.create_name(
-                root_name=ndf_root_name,
-                context="PSyVars",
-                label=field.name+"_ndf")
-            print "created ndf name with label: ",field.name+"_ndf"
 
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
@@ -848,11 +843,6 @@ class DynInvoke(Invoke):
             name = arg.proxy_name_indexed
             # initialise ndf for this function space and add name to
             # list to declare later
-            # TODO check whether this function space is associated with
-            # a field that is passed to an infrastructure kernel as well as
-            # being passed to a normal kernel. If it is then we don't need to
-            # declare ndf and undf as we will use the values associated with
-            # the space specified in the 'normal' kernel.
             ndf_name = self.ndf_name(function_space)
             var_list.append(ndf_name)
             invoke_sub.add(AssignGen(invoke_sub, lhs=ndf_name,
@@ -1621,7 +1611,8 @@ class DynLoop(Loop):
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
         self.loop_type = loop_type
-
+        self._kern = None
+        
         if self._loop_type == "colours":
             self._variable_name = "colour"
         elif self._loop_type == "colour":
@@ -1637,13 +1628,23 @@ class DynLoop(Loop):
         ''' Load the state of this Loop using the supplied Kernel
         object. This method is provided so that we can individually
         construct Loop objects for a given kernel call. '''
-        self._field = None
-        for arg in kern.arguments.args:
-            if arg.text:
-                self._field = arg
-                self._field_name = arg.name
-                self._field_space = arg.function_space
-                break
+        self._kern = kern
+
+        # Look-up a field argument that the supplied kernel writes to
+        # (i.e. has INC, WRITE or READWRITE access)
+        try:
+            arg = kern.incremented_field
+        except FieldNotFoundError:
+            try:
+                arg = kern.written_field
+            except FieldNotFoundError:
+                raise GenerationError(
+                    "Cannot set the state of a DynLoop because the "
+                    "supplied kernel has no arguments that are written to")
+            
+        self._field = arg
+        self._field_name = arg.name
+
         self._iterates_over = kern.iterates_over
         # TODO what's the difference between iterates_over and
         # iteration_space?
@@ -1684,16 +1685,12 @@ class DynLoop(Loop):
             self._stop = name_space_manager.create_name(
                 root_name="nlayers", context="PSyVars", label="nlayers")
         elif self._loop_type == "dofs":
-            # Use the namespace manager to look-up what name we used
-            # for ndf for this field in DynInvoke.gen_code()
-            print "Looking up ndf name with label: ",self.field_name+"_ndf"
-            self._stop = name_space_manager.create_name(
-                root_name=self.field.name+"_ndf",
-                context="PSyVars",
-                label=self.field_name+"_ndf")
-            from f2pygen import DeclGen
-            parent.add(
-                DeclGen(parent, datatype="integer", entity_decls=[self._stop]))
+            # Use the kernel that this loop contains to work out what
+            # the name of our ndf variable is. This has to be done
+            # dynamically because we may have changed the function space
+            # of the kernel argument from that which was read from
+            # meta-data. (This is only done for pointwise kernels.)
+            self._stop = self._kern.ndf_name
         else:
             self._stop = self.field.proxy_name_indexed + "%" + \
                 self.field.ref_name() + "%get_ncell()"
@@ -2068,6 +2065,8 @@ class DynInfCallFactory(object):
             pwkern = DynSetFieldScalarKern()
         elif call.func_name == "copy_field":
             pwkern = DynCopyFieldKern()
+        elif call.func_name == "multiply_field":
+            pwkern = DynMultiplyFieldKern()
         else:
             raise GenerationError(
                 "Unrecognised infrastructure call: {0}".format(call.func_name))
@@ -2137,7 +2136,7 @@ class DynInfKern(DynKern, InfKern):
                 root_name="nlayers", context="PSyVars", label="nlayers")
         # Look-up the ndf name
         field = self._arguments.iteration_space_arg()
-        ndf_name = self.fs_descriptors.ndf_name(field.function_space)
+        ndf_name = self.ndf_name#fs_descriptors.ndf_name(field.function_space)
         # Use it to create a name for the variable to index into the
         # field array
         idx_name = self._name_space_manager.create_name(
@@ -2150,6 +2149,13 @@ class DynInfKern(DynKern, InfKern):
             "((cell-1)*" + nlayers_name + " + (k-1))*" + ndf_name + " + df")
         assign_1 = AssignGen(parent, lhs=idx_name, rhs=idx_val)
         parent.add(assign_1)
+
+    @property
+    def ndf_name(self):
+        ''' Dynamically looks up the name of the ndf variable for the
+        space that this kernel updates '''
+        field = self._arguments.iteration_space_arg()
+        return self.fs_descriptors.ndf_name(field.function_space)
 
 
 class DynSetFieldScalarKern(DynInfKern):
@@ -2202,3 +2208,29 @@ class DynCopyFieldKern(DynInfKern):
         assign = AssignGen(parent, lhs=outvar_name, rhs=invar_name)
         parent.add(assign)
         return
+
+
+class DynMultiplyFieldKern(DynInfKern):
+    ''' Set a field equal to another field multiplied by a scalar '''
+
+    def __str__(self):
+        return "Field multiply infrastructure call"
+
+    def gen_code(self, parent):
+        from f2pygen import AssignGen
+        # Generate the generic part of this pointwise kernel
+        DynInfKern.gen_code(self, parent)
+        
+        self._name_space_manager = NameSpaceFactory().create()
+        # and now the specific part - we multiply one element of field
+        # A (2nd arg) by a scalar (1st arg) and write the value to the
+        # corresponding element of field B (3rd arg).
+        idx_name = self._name_space_manager.create_name(root_name="idx",
+                                                        context="PSyVars",
+                                                        label="pw_index")
+        inproxy_name = self._arguments.args[1].proxy_name
+        outproxy_name = self._arguments.args[2].proxy_name
+        invar_name = inproxy_name + "%data(" + idx_name + ")"
+        outvar_name = outproxy_name + "%data(" + idx_name + ")"
+        print dir(self._arguments.args[0])
+
