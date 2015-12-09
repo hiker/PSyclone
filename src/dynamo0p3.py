@@ -1635,9 +1635,8 @@ class DynLoop(Loop):
 
     def load(self, kern):
         ''' Load the state of this Loop using the supplied Kernel
-        object. This method is provided so that we can set-up
-        Loops for point-wise kernels (for which we do not have
-        meta-data). '''
+        object. This method is provided so that we can individually
+        construct Loop objects for a given kernel call. '''
         self._field = None
         for arg in kern.arguments.args:
             if arg.text:

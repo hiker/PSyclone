@@ -11,7 +11,7 @@
     Inf, Arguments and Argument). '''
 
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
-                   Argument, GenerationError, Inf
+                   Argument, GenerationError
 
 class DynamoPSy(PSy):
     ''' The Dynamo specific PSy class. This creates a Dynamo specific
@@ -77,20 +77,22 @@ class DynInvoke(Invoke):
                                   intent = "inout")
         invoke_sub.add(my_typedecl)
 
+
 class DynSchedule(Schedule):
     ''' The Dynamo specific schedule class. This passes the Dynamo specific
         loop and infrastructure classes to the base class so it creates the
         ones we require. '''
     def __init__(self, arg):
-        Schedule.__init__(self, DynLoop, DynInf, arg)
+        Schedule.__init__(self, DynKernCallFactory, DynInfCallFactory, arg)
+
 
 class DynLoop(Loop):
     ''' The Dynamo specific Loop class. This passes the Dynamo specific
         loop information to the base class so it creates the one we require.
         Creates Dynamo specific loop bounds when the code is being generated.
     '''
-    def __init__(self, call=None, parent=None, loop_type=""):
-        Loop.__init__(self, DynInf, DynKern, call=call, parent=parent,
+    def __init__(self, parent=None, loop_type=""):
+        Loop.__init__(self, parent=parent,
                       valid_loop_types=["", "colours", "colour"])
         self.loop_type = loop_type
 
@@ -101,6 +103,20 @@ class DynLoop(Loop):
             self._variable_name = "cell"
         else:
             self._variable_name = "cell"
+
+
+    def load(self, kern):
+        ''' Load the state of this Loop using the supplied Kernel
+        object. This method is provided so that we can individually
+        construct Loop objects for a given kernel call. '''
+        self._field = None
+        for arg in kern.arguments.args:
+            if arg.text:
+                self._field = arg
+                self._field_name = arg.name
+                self._field_space = arg.function_space
+                break
+
 
     def gen_code(self,parent):
         ''' Work out the appropriate loop bounds and then call the base
@@ -114,15 +130,38 @@ class DynLoop(Loop):
             self._stop = self.field_name+"%get_ncell()"
         Loop.gen_code(self,parent)
 
-class DynInf(Inf):
+
+class DynInfCallFactory(object):
     ''' A Dynamo 0.1 specific infrastructure call factory. No infrastructure
-        calls are supported in Dynamo at the moment so we just call the base
-        class (which currently recognises the set() infrastructure call). '''
+        calls are supported in Dynamo at the moment so we do nothing. '''
     @staticmethod
-    def create(call, parent = None):
-        ''' Creates a specific infrastructure call. Currently just calls
-            the base class method. '''
-        return(Inf.create(call, parent))
+    def create(call, parent=None):
+        ''' Creates a specific infrastructure call. Currently does
+        nothing '''
+        return None
+
+
+class DynKernCallFactory(object):
+    ''' A Dynamo 0.1 specific kernel call factory. '''
+    @staticmethod
+    def create(call, parent=None):
+        
+        # Loop over cells
+        cloop = DynLoop(parent=parent)
+
+        # The kernel itself
+        kern = DynKern()
+        kern.load(call, cloop)
+
+        # Add the kernel as a child of the loop
+        cloop.addchild(kern)
+        
+        # Set-up the loop now we have the kernel object
+        cloop.load(kern)
+
+        # Return the outermost loop
+        return cloop
+
 
 class DynKern(Kern):
     ''' Stores information about Dynamo Kernels as specified by the Kernel

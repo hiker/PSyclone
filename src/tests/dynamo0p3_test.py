@@ -2188,10 +2188,10 @@ def test_func_descriptor_str():
 
 
 def test_dyninf_str():
-    ''' Check that the str method of DynInf works as expected '''
-    from dynamo0p3 import DynInf
-    dyninf = DynInf()
-    assert str(dyninf) == "Set-up a Dynamo infrastructure call"
+    ''' Check that the str method of DynInfCallFactory works as expected '''
+    from dynamo0p3 import DynInfCallFactory
+    dyninf = DynInfCallFactory()
+    assert str(dyninf) == "Factory for a Dynamo infrastructure call"
 
 
 def test_pointwise_set():
@@ -2350,7 +2350,67 @@ def test_pointwise_set_str():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
-    first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0].children[0].\
            children[0]
     assert str(kern) == "Set infrastructure call"
+
+
+def test_pw_multiply_field_str():
+    ''' Test that the str method of DynMultiplyFieldKern returns the
+    expected string '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "14.3_multiply_field_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].children[0].children[0].\
+           children[0]
+    assert str(kern) == "Field multiply infrastructure call"
+ 
+
+def test_pw_multiply_field():
+    ''' Test that we generate correct code for the pointwise
+    operation y = a*x '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "14.3_multiply_field_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    code = str(psy.gen)
+    output = (
+        "    x_proxy = x%get_proxy()\n"
+        "    y_proxy = y%get_proxy()\n"
+        "\n"
+        "    undf = x_proxy%vspace%get_undf()\n"
+        "\n"
+        "    do i = 1,undf\n"
+        "      y_proxy%data(i) = a*x_proxy%data(i)\n"
+        "    end do \n"
+        )
+    assert output in code
+
+
+def test_pw_multiply_fields_on_different_spaces():
+    ''' Test that we raise an error if multiply_fields() is called for
+    two fields that are on different spaces '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "14.3.0_multiply_fields_different_spaces.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    code = str(psy.gen)
+
+
+def test_pw_multiply_fields_on_different_spaces():
+    ''' Test that we generate correct code if multiply_fields() is called
+    in an invoke containing another kernel that allows the space of the
+    fields to be deduced '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "14.3.1_multiply_fields_deduce_space.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    code = str(psy.gen)
+    output = (
+        "some fortran\n"
+    )
+    assert output in code

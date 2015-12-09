@@ -9,10 +9,10 @@
 
 ''' This module implements the emerging PSyclone GOcean API by specialising
     the required base classes (PSy, Invokes, Invoke, Schedule, Loop, Kern,
-    Inf, Arguments and KernelArgument). '''
+    Arguments and KernelArgument). '''
 
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
-                   KernelArgument, Inf, Node
+                   KernelArgument, Node
 
 class GOPSy(PSy):
     ''' The GOcean specific PSy class. This creates a GOcean specific
@@ -123,41 +123,12 @@ class GOInvoke(Invoke):
 
 class GOSchedule(Schedule):
 
-    ''' The GOcean specific schedule class. The PSyclone schedule class assumes
-        that a call has one parent loop. Therefore we override the _init_ method
-        and add in our two loops. '''
+    ''' The GOcean specific schedule class. All we have to do is supply our
+    API-specific factories to the base Schedule class constructor. '''
 
     def __init__(self, alg_calls):
-        sequence = []
-        from parse import InfCall
-        for call in alg_calls:
-            if isinstance(call, InfCall):
-                sequence.append(GOInf.create(call, parent = self))
-            else:
-                outer_loop = GOLoop(call=None,
-                                    parent=self, 
-                                    loop_type="outer")
-                sequence.append(outer_loop)
-                inner_loop = GOLoop(call=None,
-                                    parent=outer_loop, 
-                                    loop_type="inner")
-                outer_loop.addchild(inner_loop)
-                gocall = GOKern()
-                gocall.load(call, parent=inner_loop)
-                inner_loop.addchild(gocall)
-                # determine inner and outer loops space information from the
-                # child kernel call. This is only picked up automatically (by
-                # the inner loop) if the kernel call is passed into the inner
-                # loop.
-                inner_loop.iteration_space = gocall.iterates_over
-                outer_loop.iteration_space = inner_loop.iteration_space
-                inner_loop.field_space = gocall.arguments.\
-                                         iteration_space_arg().function_space
-                outer_loop.field_space = inner_loop.field_space
-                inner_loop.field_name = gocall.arguments.\
-                                        iteration_space_arg().name
-                outer_loop.field_name = inner_loop.field_name
-        Node.__init__(self, children = sequence)
+        Schedule.__init__(self, GOKernCallFactory, GOInfCallFactory, alg_calls)
+
 
 class GOLoop(Loop):
     ''' The GOcean specific Loop class. This passes the GOcean specific
@@ -165,10 +136,10 @@ class GOLoop(Loop):
         require. Adds a GOcean specific setBounds method which tells the loop
         what to iterate over. Need to harmonise with the topology_name method
         in the Dynamo api. '''
-    def __init__(self, call = None, parent = None,
+    def __init__(self, parent=None,
                  topology_name = "", loop_type=""):
-        Loop.__init__(self, GOInf, GOKern, call = call, parent = parent,
-                      valid_loop_types = ["inner", "outer"])
+        Loop.__init__(self, parent=parent,
+                      valid_loop_types=["inner", "outer"])
         self.loop_type = loop_type
 
         if self._loop_type == "inner":
@@ -214,16 +185,44 @@ class GOLoop(Loop):
         Loop.gen_code(self, parent)
         
 
-class GOInf(Inf):
+class GOInfCallFactory(object):
     ''' A GOcean specific infrastructure call factory. No infrastructure
-        calls are supported in GOcean at the moment so we just call the base
-        class (which currently recognises the set() infrastructure call). '''
+        calls are supported in GOcean 0.1 so we do nothing. '''
     @staticmethod
-    def create(call, parent = None):
+    def create(call, parent=None):
         ''' Creates a specific infrastructure call. Currently just calls
             the base class method. '''
-        return(Inf.create(call, parent))
-        
+        return None
+
+
+class GOKernCallFactory(object):
+    ''' A GOcean-specific kernel call factory. '''
+    @staticmethod
+    def create(call, parent=None):
+        ''' Creates a kernel call and associated Loop structure '''
+        outer_loop = GOLoop(parent=parent, 
+                            loop_type="outer")
+        inner_loop = GOLoop(parent=outer_loop, 
+                            loop_type="inner")
+        outer_loop.addchild(inner_loop)
+        gocall = GOKern()
+        gocall.load(call, parent=inner_loop)
+        inner_loop.addchild(gocall)
+        # determine inner and outer loops space information from the
+        # child kernel call. This is only picked up automatically (by
+        # the inner loop) if the kernel call is passed into the inner
+        # loop.
+        inner_loop.iteration_space = gocall.iterates_over
+        outer_loop.iteration_space = inner_loop.iteration_space
+        inner_loop.field_space = gocall.arguments.\
+                                 iteration_space_arg().function_space
+        outer_loop.field_space = inner_loop.field_space
+        inner_loop.field_name = gocall.arguments.\
+                                        iteration_space_arg().name
+        outer_loop.field_name = inner_loop.field_name
+        return outer_loop
+
+
 class GOKern(Kern):
     ''' Stores information about GOcean Kernels as specified by the Kernel
         metadata. Uses this information to generate appropriate PSy layer
