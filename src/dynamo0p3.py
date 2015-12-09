@@ -1430,6 +1430,19 @@ class DynKern(Kern):
             my_mapping = mapping
         return Kern.written_field(self, my_mapping)
 
+    @property
+    def updated_field(self, mapping=None):
+        '''Returns the kernel argument corresponding to a field that is
+        written to in any fashion (i.e. has inc, write or readwrite
+        access)
+
+        '''
+        if mapping is None:
+            my_mapping = FIELD_ACCESS_MAP
+        else:
+            my_mapping = mapping
+        return (Kern.updated_field(self, my_mapping))
+
     def gen_code(self, parent):
         ''' Generates dynamo version 0.3 specific psy code for a call to
             the dynamo kernel instance. '''
@@ -1633,22 +1646,16 @@ class DynLoop(Loop):
         # Look-up a field argument that the supplied kernel writes to
         # (i.e. has INC, WRITE or READWRITE access)
         try:
-            arg = kern.incremented_field
+            arg = kern.updated_field
         except FieldNotFoundError:
-            try:
-                arg = kern.written_field
-            except FieldNotFoundError:
-                raise GenerationError(
-                    "Cannot set the state of a DynLoop because the "
-                    "supplied kernel has no arguments that are written to")
-            
+            raise GenerationError(
+                "Cannot set the state of a DynLoop because the "
+                "supplied kernel has no arguments that are written to")
         self._field = arg
         self._field_name = arg.name
 
-        self._iterates_over = kern.iterates_over
-        # TODO what's the difference between iterates_over and
-        # iteration_space?
-        self._iteration_space = kern.iterates_over
+        self._iterates_over = kern.iterates_over  # cells etc.
+        self._iteration_space = arg.function_space  # W1, W2 etc.
         
     def has_inc_arg(self, mapping=None):
         ''' Returns True if any of the Kernels called within this loop
@@ -1658,6 +1665,16 @@ class DynLoop(Loop):
         else:
             my_mapping = FIELD_ACCESS_MAP
         return Loop.has_inc_arg(self, my_mapping)
+
+    @property
+    def field_space(self):
+        '''Return the function space of the field that is updated within this
+        loop. This is made more complicated by the fact that this
+        space can be changed *after* the meta-data is read (but only
+        for pointwise kernels)
+
+        '''
+        return self._iteration_space
 
     def gen_code(self, parent):
         ''' Work out the appropriate loop bounds and variable name
@@ -2135,8 +2152,7 @@ class DynInfKern(DynKern, InfKern):
         nlayers_name = self._name_space_manager.create_name(
                 root_name="nlayers", context="PSyVars", label="nlayers")
         # Look-up the ndf name
-        field = self._arguments.iteration_space_arg()
-        ndf_name = self.ndf_name#fs_descriptors.ndf_name(field.function_space)
+        ndf_name = self.ndf_name
         # Use it to create a name for the variable to index into the
         # field array
         idx_name = self._name_space_manager.create_name(
