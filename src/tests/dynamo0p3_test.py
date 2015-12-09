@@ -2318,7 +2318,7 @@ def test_pointwise_copy():
         "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "      DO cell=1,f2_proxy%vspace%get_ncell()\n"
         "        DO k=1,nlayers\n"
         "          DO df=1,ndf_any_space_1\n"
         "            idx = ((cell-1)*nlayers + (k-1))*ndf_any_space_1 + df\n"
