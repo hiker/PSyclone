@@ -19,7 +19,7 @@
 
 from parse import Descriptor, KernelType, ParseError
 from psyGen import PSy, Invokes, Invoke, Schedule, \
-    Loop, Kern, Arguments, KernelArgument, GenerationError, Inf, Node
+    Loop, Kern, InfKern, Arguments, KernelArgument, GenerationError, Node
 
 # The different grid-point types that a field can live on
 VALID_FIELD_GRID_TYPES = ["cu", "cv", "ct", "cf", "every"]
@@ -253,40 +253,12 @@ class GOInvoke(Invoke):
 
 class GOSchedule(Schedule):
 
-    ''' The GOcean specific schedule class. The PSyclone schedule class assumes
-        that a call has one parent loop. Therefore we override the _init_ method
-        and add in our two loops. '''
+    ''' The GOcean specific schedule class. We call the base class
+    constructor and pass it factories to create GO-specific calls to both
+    user-supplied and infrastructure kernels. '''
 
     def __init__(self, alg_calls):
-        sequence = []
-        from parse import InfCall
-        for call in alg_calls:
-            if isinstance(call, InfCall):
-                sequence.append(GOInf.create(call, parent=self))
-            else:
-                outer_loop = GOLoop(call=None, parent=self,
-                                    loop_type="outer")
-                sequence.append(outer_loop)
-                inner_loop = GOLoop(call=None, parent=outer_loop,
-                                    loop_type="inner")
-                outer_loop.addchild(inner_loop)
-                gocall = GOKern()
-                gocall.load(call, parent=inner_loop)
-                inner_loop.addchild(gocall)
-                # determine inner and outer loops space information from the
-                # child kernel call. This is only picked up automatically (by
-                # the inner loop) if the kernel call is passed into the inner
-                # loop.
-                inner_loop.iteration_space = gocall.iterates_over
-                outer_loop.iteration_space = inner_loop.iteration_space
-                inner_loop.field_space = gocall.arguments.iteration_space_arg().\
-                                         function_space
-                outer_loop.field_space = inner_loop.field_space
-                inner_loop.field_name = gocall.arguments.iteration_space_arg().\
-                                        name
-                outer_loop.field_name = inner_loop.field_name
-
-        Node.__init__(self, children=sequence)
+        Schedule.__init__(self, GOKernCallFactory, GOInfCallFactory, alg_calls)
 
         # Configuration of this Schedule - we default to having
         # constant loop bounds. If we end up having a long list
@@ -354,9 +326,9 @@ class GOLoop(Loop):
         require. Adds a GOcean specific setBounds method which tells the loop
         what to iterate over. Need to harmonise with the topology_name method
         in the Dynamo api. '''
-    def __init__(self, call=None, parent=None,
+    def __init__(self, parent=None,
                  topology_name="", loop_type=""):
-        Loop.__init__(self, GOInf, GOKern, call=call, parent=parent,
+        Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
         self.loop_type = loop_type
 
@@ -591,15 +563,73 @@ class GOLoop(Loop):
         Loop.gen_code(self, parent)
 
 
-class GOInf(Inf):
+class GOInfCallFactory(object):
     ''' A GOcean specific infrastructure call factory. No infrastructure
         calls are supported in GOcean at the moment so we just call the base
         class (which currently recognises the set() infrastructure call). '''
     @staticmethod
     def create(call, parent=None):
-        ''' Creates a specific infrastructure call. Currently just calls
-            the base class method. '''
-        return Inf.create(call, parent)
+        ''' Creates a GOocean-specific infrastructure call. This requires
+        us to create a doubly-nested loop and then create the body of
+        the particular infrastructure kernel '''
+        # Loop over j
+        jloop = GOLoop(parent=parent,
+                       loop_type="outer")
+        # Loop over i
+        iloop = GOLoop(parent=cloop,
+                       loop_type="inner")
+        jloop.addchild(iloop)
+
+        # The infrastructure call itself
+        if call.func_name == "set_field_scalar":
+            # TODO implement infrastructure kernels for GOcean
+            # pwkern = GOSetFieldScalarKern(parent=iloop)
+            pass
+        elif call.func_name == "copy_field":
+            # pwkern = GOFieldCopyKern(parent=iloop)
+            pass
+        else:
+            raise GenerationError(
+                "Unrecognised infrastructure call: {0}".format(call.func_name))
+        # Create the state of the kernel using the call object which was
+        # created by the parser
+        pwkern.load(call)
+
+        # Use this kernel to set-up the state of the two loops
+        jloop.load(pwkern)
+        iloop.load(pwkern)
+        
+        # Add the infrastructure-call object as a child of the inner loop
+        iloop.addchild(pwkern)
+
+
+class GOKernCallFactory(object):
+    ''' A GOcean-specific kernel-call factory. A standard kernel call in
+    GOcean consists of a doubly-nested loop (over i and j) and a call to
+    the user-supplied kernel routine. '''
+    @staticmethod
+    def create(call, parent=None):
+        outer_loop = GOLoop(parent=parent,
+                            loop_type="outer")
+        inner_loop = GOLoop(parent=outer_loop,
+                            loop_type="inner")
+        outer_loop.addchild(inner_loop)
+        gocall = GOKern()
+        gocall.load(call, parent=inner_loop)
+        inner_loop.addchild(gocall)
+        # determine inner and outer loops space information from the
+        # child kernel call. This is only picked up automatically (by
+        # the inner loop) if the kernel call is passed into the inner
+        # loop.
+        inner_loop.iteration_space = gocall.iterates_over
+        outer_loop.iteration_space = inner_loop.iteration_space
+        inner_loop.field_space = gocall.arguments.iteration_space_arg().\
+                                         function_space
+        outer_loop.field_space = inner_loop.field_space
+        inner_loop.field_name = gocall.arguments.iteration_space_arg().\
+                                name
+        outer_loop.field_name = inner_loop.field_name
+        return outer_loop
 
 
 class GOKern(Kern):
