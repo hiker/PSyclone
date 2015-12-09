@@ -1653,10 +1653,9 @@ class DynLoop(Loop):
                 "supplied kernel has no arguments that are written to")
         self._field = arg
         self._field_name = arg.name
+        self._field_space = arg.function_space # W1, W2 etc.
+        self._iteration_space = kern.iterates_over  # cells etc.
 
-        self._iterates_over = kern.iterates_over  # cells etc.
-        self._iteration_space = arg.function_space  # W1, W2 etc.
-        
     def has_inc_arg(self, mapping=None):
         ''' Returns True if any of the Kernels called within this loop
         have an argument with INC access. Returns False otherwise. '''
@@ -1674,7 +1673,12 @@ class DynLoop(Loop):
         for pointwise kernels)
 
         '''
-        return self._iteration_space
+        # ARPDBG working here
+        return self._field_space # self._field.function_space
+
+    @field_space.setter
+    def field_space(self, my_space):
+        self._iteration_space = my_space
 
     def gen_code(self, parent):
         ''' Work out the appropriate loop bounds and variable name
