@@ -760,8 +760,17 @@ class DynInvoke(Invoke):
         invoke_sub.add(CommentGen(invoke_sub, ""))
         invoke_sub.add(CommentGen(invoke_sub, " Initialise number of layers"))
         invoke_sub.add(CommentGen(invoke_sub, ""))
-        # use the first argument
-        first_var = self.psy_unique_vars[0]
+
+        # Use the first argument that is not a scalar
+        first_var = None
+        for var in self.psy_unique_vars:
+            if var.type == "gh_field" or var.type == "gh_operator":
+                first_var = var
+                break
+        if not first_var:
+            raise GenerationError(
+                "Cannot create an Invoke with no field/operator arguments")
+
         # use our namespace manager to create a unique name unless
         # the context and label match and in this case return the
         # previous name
