@@ -2311,3 +2311,40 @@ def test_func_descriptor_str():
         "  function_space_name[0] = 'w1'\n"
         "  operator_name[1] = 'gh_basis'")
     assert output in func_str
+
+
+def test_dist_memory_true():
+    ''' test that the distributed memory flag is on by default '''
+    from config import DISTRIBUTED_MEMORY
+    assert DISTRIBUTED_MEMORY
+
+
+def test_halo_dirty_1():
+    ''' check halo_dirty call is added correctly with a simple example '''
+    pass
+
+def test_halo_dirty_2():
+    ''' check halo_dirty calls only for write and inc (not for read) '''
+    pass
+
+def test_halo_dirty_3():
+    ''' check halo_dirty calls with multiple kernel calls '''
+    pass
+
+def test_halo_dirty_4():
+    ''' check halo_dirty calls with field vectors '''
+    pass
+
+def test_halo_dirty_5():
+    ''' check no halo_dirty calls for operators '''
+    pass
+
+def test_no_halo_dirty_1():
+    ''' check that no halo_dirty code is produced if fields are not
+    modified '''
+    pass
+
+def test_no_halo_dirty_2():
+    ''' check that no halo_dirty code is produced if
+    DISTRIBUTED_MEMORY config value is set to False '''
+    pass

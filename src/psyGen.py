@@ -1061,6 +1061,22 @@ class Loop(Node):
                     return True
         return False
 
+    def unique_modified_fields(self, mapping, field_name):
+        ''' Return all fields from Kernels in this subroutine that are
+        modified '''
+        field_names=[]
+        fields=[]
+        for kern_call in self.kern_calls():
+            for arg in kern_call.arguments.args:
+                if arg.type.lower() == field_name:
+                    field = arg
+                    if field.access.lower() != mapping["read"]:
+                        if field.name not in field_names:
+                            field_names.append(field.name)
+                            fields.append(field)
+        return fields
+
+
     def gen_code(self, parent):
         if self._start == "1" and self._stop == "1":  # no need for a loop
             for child in self.children:
