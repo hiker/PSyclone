@@ -493,28 +493,6 @@ class DynInvoke(Invoke):
             self._schedule = DynSchedule(None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, DynSchedule)
 
-        # Loop over the arguments to point-wise kernels. These can be on
-        # any space but if they are also passed to a normal kernel
-        # then we can deduce which space they are on. If this is the case
-        # then we change the function space in the object created by
-        # the parser when it read the meta-data.
-        field_list = []
-        for field in self.infrastructure_args():
-            if field.type != "gh_field":
-                continue
-            # If we've already seen this field then skip it
-            if field.name in field_list:
-                continue
-            field_list.append(field.name)
-            # Is a field with this name passed to a normal kernel?
-            arg = self.field_with_name(field.name)
-            if arg:
-                # This field is passed as an argument to a 'normal'
-                # kernel and so we can find out what space it's on.
-                # Use this value to correct the value that was
-                # obtained by parsing the meta-data
-                field.function_space = arg.function_space
-
         # check whether we have more than one kernel call within this
         # invoke which specifies any_space. This is not supported at
         # the moment so we raise an error.  any_space with different

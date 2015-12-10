@@ -2242,6 +2242,9 @@ def test_pointwise_set():
     assert output in code
 
 
+@pytest.mark.xfail(
+    reason="Requires kernel-argument dependency analysis to deduce the "
+    "space of the field passed to the pointwise kernel")
 def test_pointwise_set_plus_normal():
     ''' Tests that we generate correct code for a pointwise
     set operation when the invoke also contains a normal kernel '''
