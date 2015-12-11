@@ -311,8 +311,10 @@ def test_fsdesc_fs_not_in_argdesc():
 
 
 def test_field():
-    ''' Tests that a call with a set of fields and no basis
-    functions produces correct code. '''
+    ''' Tests that a call with a set of fields, no basis functions and
+    no distributed memory, produces correct code.'''
+    import config
+    config.DISTRIBUTED_MEMORY = False
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
@@ -377,6 +379,8 @@ def test_field():
         "    END SUBROUTINE invoke_0_testkern_type\n"
         "  END MODULE psy_single_invoke")
     assert str(generated_code).find(output) != -1
+    # reset variable so we don't affect other tests
+    config.DISTRIBUTED_MEMORY = True
 
 
 def test_field_fs():
@@ -470,6 +474,11 @@ def test_field_fs():
         "ndf_w2h, undf_w2h, map_w2h, ndf_w2v, undf_w2v, map_w2v)\n"
         "      END DO \n"
         "      !\n"
+        "      ! Set halos dirty for fields modified in the above loop\n"
+        "      !\n"
+        "      CALL f1_proxy%set_dirty()\n"
+        "      CALL f3_proxy%set_dirty()\n"
+        "      !\n"
         "    END SUBROUTINE invoke_0_testkern_fs_type\n"
         "  END MODULE psy_single_invoke_fs")
     print str(generated_code)
@@ -485,6 +494,7 @@ def test_field_qr():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = psy.gen
+    print generated_code
     output = (
         "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, m2, qr)\n"
         "      USE testkern_qr, ONLY: testkern_qr_code\n"
@@ -572,6 +582,10 @@ def test_field_qr():
         "basis_w3, diff_basis_w3, nqp_h, nqp_v, wh, wv)\n"
         "      END DO \n"
         "      !\n"
+        "      ! Set halos dirty for fields modified in the above loop\n"
+        "      !\n"
+        "      CALL f1_proxy%set_dirty()\n"
+        "      !\n"
         "      ! Deallocate basis arrays\n"
         "      !\n"
         "      DEALLOCATE (basis_w1, diff_basis_w2, basis_w3, diff_basis_w3)\n"
@@ -599,6 +613,7 @@ def test_vector_field_2():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = psy.gen
+    print generated_code
     # all references to chi_proxy should be chi_proxy(1)
     assert str(generated_code).find("chi_proxy%") == -1
     assert str(generated_code).count("chi_proxy(1)%vspace") == 5
@@ -2315,36 +2330,79 @@ def test_func_descriptor_str():
 
 def test_dist_memory_true():
     ''' test that the distributed memory flag is on by default '''
-    from config import DISTRIBUTED_MEMORY
-    assert DISTRIBUTED_MEMORY
+    import config
+    assert config.DISTRIBUTED_MEMORY
 
 
 def test_halo_dirty_1():
     ''' check halo_dirty call is added correctly with a simple example '''
-    pass
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = str(psy.gen)
+    print generated_code
+    expected = (
+        "     END DO \n"
+        "      !\n"
+        "      ! Set halos dirty for fields modified in the above loop\n"
+        "      !\n"
+        "      CALL f1_proxy%set_dirty()\n")
+    assert expected in generated_code
 
-def test_halo_dirty_2():
-    ''' check halo_dirty calls only for write and inc (not for read) '''
-    pass
 
-def test_halo_dirty_3():
-    ''' check halo_dirty calls with multiple kernel calls '''
-    pass
+#def test_halo_dirty_2():
+#    ''' check halo_dirty calls only for write and inc (not for read) '''
+#    pass
+
+#def test_halo_dirty_3():
+#    ''' check halo_dirty calls with multiple kernel calls '''
+#    pass
+
 
 def test_halo_dirty_4():
     ''' check halo_dirty calls with field vectors '''
-    pass
+    _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field_2.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = str(psy.gen)
+    print generated_code
+    expected = (
+        "      END DO \n"
+        "      !\n"
+        "      ! Set halos dirty for fields modified in the above loop\n"
+        "      !\n"
+        "      CALL chi_proxy(1)%set_dirty()\n"
+        "      CALL chi_proxy(2)%set_dirty()\n"
+        "      CALL chi_proxy(3)%set_dirty()\n"
+        "      CALL f1_proxy%set_dirty()\n")
+    assert expected in generated_code
 
-def test_halo_dirty_5():
-    ''' check no halo_dirty calls for operators '''
-    pass
 
-def test_no_halo_dirty_1():
-    ''' check that no halo_dirty code is produced if fields are not
-    modified '''
-    pass
+#def test_halo_dirty_5():
+#    ''' check no halo_dirty calls for operators '''
+#    pass
+
+#def test_halo_dirty_6():
+#    ''' check halo_dirty calls with fused kernel calls '''
+#    pass
+
+
+#def test_no_halo_dirty_1():
+#    ''' check that no halo_dirty code is produced if fields are not
+#    modified '''
+#    pass
 
 def test_no_halo_dirty_2():
-    ''' check that no halo_dirty code is produced if
+    ''' check that no halo_dirty code is produced if the
     DISTRIBUTED_MEMORY config value is set to False '''
-    pass
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    import config
+    config.DISTRIBUTED_MEMORY = False
+    generated_code = str(psy.gen)
+    print generated_code
+    assert "set_dirty()" not in generated_code
+    assert "! Set halos dirty" not in generated_code
+    # reset global value so we don't affect any other tests
+    config.DISTRIBUTED_MEMORY=True

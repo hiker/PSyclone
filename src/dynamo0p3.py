@@ -993,8 +993,8 @@ class DynLoop(Loop):
                 self.field.ref_name() + "%get_ncell()"
         Loop.gen_code(self, parent)
 
-        from config import DISTRIBUTED_MEMORY
-        if DISTRIBUTED_MEMORY:
+        import config
+        if config.DISTRIBUTED_MEMORY:
             # Set halo dirty for all fields that are modified        
             from f2pygen import CallGen, CommentGen
             fields = self.unique_modified_fields(FIELD_ACCESS_MAP, "gh_field")
@@ -1003,7 +1003,13 @@ class DynLoop(Loop):
                 parent.add(CommentGen(parent, " Set halos dirty for fields modified in the above loop"))
                 parent.add(CommentGen(parent, ""))
             for field in fields:
-                parent.add(CallGen(parent, name=field.proxy_name+"%set_dirty()"))
+                if field.vector_size > 1:
+                    for index in range(field.vector_size):
+                        parent.add(CallGen(parent, name=field.proxy_name+
+                                           "("+str(index+1)+")%set_dirty()"))
+                else:
+                    parent.add(CallGen(parent, name=field.proxy_name+
+                                       "%set_dirty()"))
 
 class DynInf(Inf):
     ''' A Dynamo 0.3 specific infrastructure call factory. No
