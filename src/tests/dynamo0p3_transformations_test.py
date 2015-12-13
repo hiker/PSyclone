@@ -80,7 +80,9 @@ def test_colour_trans():
     gen = str(psy.gen)
     # Fortran is not case sensitive
     gen = gen.lower()
+    print "**************************"
     print gen
+    print "**************************"
 
     # Check that we're calling the API to get the no. of colours
     assert "f1_proxy%vspace%get_colours(" in gen
@@ -97,6 +99,17 @@ def test_colour_trans():
 
     # Check that we're using the colour map when getting the cell dof maps
     assert "get_cell_dofmap(cmap(colour, cell))" in gen
+
+    # Check that we get the right number of set_dirty halo calls in
+    # the correct location
+    dirty_str = (
+        "      !\n"
+        "      ! set halos dirty for fields modified in the above loop\n"
+        "      !\n"
+        "      call f1_proxy%set_dirty()")
+
+    assert dirty_str in gen
+    assert gen.count("set_dirty()") == 1
 
 
 def test_colouring_not_a_loop():
@@ -607,6 +620,34 @@ def test_loop_fuse():
     assert call_idx2 < end_loop_idx
 
 
+def test_loop_fuse_set_dirty():
+    ''' Test that we are able to fuse two loops together and produce
+    the expected set_dirty() calls '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "4_multikernel_invokes.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.get('invoke_0')
+    schedule = invoke.schedule
+
+    ftrans = DynamoLoopFuseTrans()
+
+    # Fuse the loops
+    nchildren = len(schedule.children)
+    idx = 1
+    fschedule = schedule
+    while idx < nchildren:
+        fschedule, _ = ftrans.apply(fschedule.children[idx-1],
+                                    fschedule.children[idx])
+        idx += 1
+
+    invoke.schedule = fschedule
+    gen = str(psy.gen)
+
+    assert gen.count("set_dirty()") == 1
+
+
 def test_loop_fuse_omp():
     '''Test that we can loop-fuse two loop nests and enclose them in an
        OpenMP parallel region'''
@@ -634,6 +675,8 @@ def test_loop_fuse_omp():
 
     invoke.schedule = fschedule
     code = str(psy.gen)
+    print code
+    exit(1)
 
     # Check generated code
     omp_para_idx = -1
@@ -705,6 +748,7 @@ def test_fuse_colour_loops():
     # generate the code
     invoke.schedule = newsched
     code = str(psy.gen)
+    print code
 
     # Test that the generated code is as expected
     omp_para_idx = -1
@@ -754,6 +798,14 @@ def test_fuse_colour_loops():
     assert call_idx2 > call_idx1
     assert call_idx1 < end_loop_idx1
     assert call_idx2 < end_loop_idx2
+
+    set_dirty_str = (
+        "      ! Set halos dirty for fields modified in the above loop\n"
+        "      !\n"
+        "      CALL a_proxy%set_dirty()\n"
+        "      CALL f_proxy%set_dirty()\n")
+    assert set_dirty_str in code
+    assert code.count("set_dirty()") == 2
 
 
 def test_module_inline():

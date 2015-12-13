@@ -479,6 +479,7 @@ def test_field_fs():
         "      CALL f1_proxy%set_dirty()\n"
         "      CALL f3_proxy%set_dirty()\n"
         "      !\n"
+        "      !\n"
         "    END SUBROUTINE invoke_0_testkern_fs_type\n"
         "  END MODULE psy_single_invoke_fs")
     print str(generated_code)
@@ -585,6 +586,7 @@ def test_field_qr():
         "      ! Set halos dirty for fields modified in the above loop\n"
         "      !\n"
         "      CALL f1_proxy%set_dirty()\n"
+        "      !\n"
         "      !\n"
         "      ! Deallocate basis arrays\n"
         "      !\n"
@@ -2350,13 +2352,36 @@ def test_halo_dirty_1():
     assert expected in generated_code
 
 
-#def test_halo_dirty_2():
-#    ''' check halo_dirty calls only for write and inc (not for read) '''
-#    pass
+def test_halo_dirty_2():
+    ''' check halo_dirty calls only for write and inc (not for read) '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "14.1_halo_writers.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = str(psy.gen)
+    print generated_code
+    expected = (
+        "      END DO \n"
+        "      !\n"
+        "      ! Set halos dirty for fields modified in the above loop\n"
+        "      !\n"
+        "      CALL f1_proxy%set_dirty()\n"
+        "      CALL f3_proxy%set_dirty()\n"
+        "      CALL f5_proxy%set_dirty()\n"
+        "      CALL f6_proxy%set_dirty()\n"
+        "      CALL f7_proxy%set_dirty()\n"
+        "      CALL f8_proxy%set_dirty()\n")
 
-#def test_halo_dirty_3():
-#    ''' check halo_dirty calls with multiple kernel calls '''
-#    pass
+    assert expected in generated_code
+
+def test_halo_dirty_3():
+    ''' check halo_dirty calls with multiple kernel calls '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4_multikernel_invokes.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = psy.gen
+    print generated_code
+    assert str(generated_code).count("CALL f1_proxy%set_dirty()") == 2
 
 
 def test_halo_dirty_4():
@@ -2378,19 +2403,17 @@ def test_halo_dirty_4():
     assert expected in generated_code
 
 
-#def test_halo_dirty_5():
-#    ''' check no halo_dirty calls for operators '''
-#    pass
+def test_halo_dirty_5():
+    ''' check no halo_dirty calls for operators '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "10.1_operator_nofield.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = str(psy.gen)
+    print generated_code
+    assert "set_dirty()" not in generated_code
+    assert "! Set halos dirty" not in generated_code
 
-#def test_halo_dirty_6():
-#    ''' check halo_dirty calls with fused kernel calls '''
-#    pass
-
-
-#def test_no_halo_dirty_1():
-#    ''' check that no halo_dirty code is produced if fields are not
-#    modified '''
-#    pass
 
 def test_no_halo_dirty_2():
     ''' check that no halo_dirty code is produced if the
@@ -2405,4 +2428,4 @@ def test_no_halo_dirty_2():
     assert "set_dirty()" not in generated_code
     assert "! Set halos dirty" not in generated_code
     # reset global value so we don't affect any other tests
-    config.DISTRIBUTED_MEMORY=True
+    config.DISTRIBUTED_MEMORY = True
