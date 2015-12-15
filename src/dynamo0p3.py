@@ -19,7 +19,8 @@ import expression as expr
 import fparser
 import os
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
-    Argument, Inf, NameSpaceFactory, GenerationError, FieldNotFoundError
+    Argument, Inf, NameSpaceFactory, GenerationError, FieldNotFoundError, \
+    HaloExchange
 
 
 # first section : Parser specialisations and classes
@@ -515,6 +516,15 @@ class DynInvoke(Invoke):
                 if call.qr_name not in self._psy_unique_qr_vars:
                     self._psy_unique_qr_vars.append(call.qr_name)
 
+        # lastly, add in halo exchange calls if required
+        from config import DISTRIBUTED_MEMORY
+        if DISTRIBUTED_MEMORY:
+            # for the moment just add them before each loop as required
+            for loop in self.schedule.loops():
+                for halo_field in loop.halo_fields("gh_field"):
+                    exchange = DynHaloExchange(halo_field, parent=loop)
+                    loop.parent.children.insert(loop.position, exchange)
+
     @property
     def qr_required(self):
         ''' Returns True if at least one of the kernels in this invoke
@@ -672,7 +682,7 @@ class DynInvoke(Invoke):
         layer). This consists of the PSy invocation subroutine and the
         declaration of its arguments. '''
         from f2pygen import SubroutineGen, TypeDeclGen, AssignGen, DeclGen, \
-            AllocateGen, DeallocateGen, CallGen, CommentGen
+            AllocateGen, DeallocateGen, CallGen, CommentGen, IfThenGen
         # create a namespace manager so we can avoid name clashes
         self._name_space_manager = NameSpaceFactory().create()
         # create the subroutine
@@ -941,6 +951,37 @@ class DynSchedule(Schedule):
 
     def __init__(self, arg):
         Schedule.__init__(self, DynLoop, DynInf, arg)
+
+class DynHaloExchange(HaloExchange):
+
+    ''' Dynamo specific halo exchange class which can be added to and
+    manipulated in, a schedule '''
+
+    def __init__(self, field, check_dirty=True, parent=None):
+
+        halo_type = field.descriptor.stencil['type']
+        halo_depth = field.descriptor.stencil['extent']
+        HaloExchange.__init__(self, field, halo_type, halo_depth,
+                              check_dirty, parent=parent)
+
+    def gen_code(self, parent):
+        ''' Dynamo specific code generation for this class '''
+        from f2pygen import IfThenGen, CallGen, CommentGen
+        if self._check_dirty:
+            if_then = IfThenGen(parent, self._field.proxy_name +
+                                "%is_dirty(depth=" + str(self._halo_depth)
+                                + ")")
+            parent.add(if_then)
+            halo_parent = if_then
+        else:
+            halo_parent = parent
+        halo_parent.add(CallGen(halo_parent, name=self._field.proxy_name +
+                                "%halo_exchange(depth=" +
+                                str(self._halo_depth) + ")"))
+        halo_parent.add(CallGen(halo_parent, name=self._field.proxy_name +
+                                "%set_clean(depth=" +
+                                str(self._halo_depth) + ")"))
+        parent.add(CommentGen(parent,""))
 
 
 class DynLoop(Loop):

@@ -895,6 +895,23 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
         parent.add(DirectiveGen(parent, "omp", "end", "parallel do", ""))
 
+class HaloExchange(Node):
+
+    ''' Generic Halo Exchange class which can be added to and
+    manipulated in, a schedule. '''
+
+    def __init__(self, field, halo_type, halo_depth, check_dirty, parent=None):
+        Node.__init__(self, children=[], parent=parent)
+        self._field = field
+        self._halo_type = halo_type
+        self._halo_depth = halo_depth
+        self._check_dirty = check_dirty
+        
+    def view(self, indent):
+        ''' Class specific view  '''
+        print self.indent(indent) + "HaloExchange[field={0}, type={1}, " + \
+        "depth={2}, check_dirty={3}]".format(
+            self._field, self._halo_type, self._halo_depth, self._check_dirty)
 
 class Loop(Node):
 
@@ -1060,6 +1077,18 @@ class Loop(Node):
                 if arg.access.lower() == mapping["inc"]:
                     return True
         return False
+
+    def halo_fields(self, field_name):
+        ''' xxx '''
+        fields=[]
+        for kern_call in self.kern_calls():
+            for arg in kern_call.arguments.args:
+                if arg.type.lower() == field_name:
+                    field = arg
+                    if field.descriptor.stencil:
+                        fields.append(field)
+        return fields
+
 
     def unique_modified_fields(self, mapping, field_name):
         ''' Return all fields from Kernels in this subroutine that are

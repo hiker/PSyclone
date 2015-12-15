@@ -2429,3 +2429,21 @@ def test_no_halo_dirty_2():
     assert "! Set halos dirty" not in generated_code
     # reset global value so we don't affect any other tests
     config.DISTRIBUTED_MEMORY = True
+
+
+def test_halo_exchange():
+    ''' test that a halo_exchange call is added for a loop with a
+    stencil operation '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    generated_code = str(psy.gen)
+    print generated_code
+    output = (
+        "     IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=1)\n"
+        "        CALL f2_proxy%set_clean(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
+    assert output in generated_code
