@@ -1085,7 +1085,8 @@ class Loop(Node):
             for arg in kern_call.arguments.args:
                 if arg.type.lower() == field_name:
                     field = arg
-                    if field.descriptor.stencil:
+                    if field.descriptor.stencil or (field.access.lower() == "gh_inc" and
+                                                    field.function_space.lower() != "w3"):
                         fields.append(field)
         return fields
 

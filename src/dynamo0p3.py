@@ -959,8 +959,13 @@ class DynHaloExchange(HaloExchange):
 
     def __init__(self, field, check_dirty=True, parent=None):
 
-        halo_type = field.descriptor.stencil['type']
-        halo_depth = field.descriptor.stencil['extent']
+        if field.descriptor.stencil:
+            halo_type = field.descriptor.stencil['type']
+            halo_depth = field.descriptor.stencil['extent']
+        else:
+            # check this is an inc and not w3
+            halo_type = 'region'
+            halo_depth = 1
         HaloExchange.__init__(self, field, halo_type, halo_depth,
                               check_dirty, parent=parent)
 
@@ -977,9 +982,6 @@ class DynHaloExchange(HaloExchange):
             halo_parent = parent
         halo_parent.add(CallGen(halo_parent, name=self._field.proxy_name +
                                 "%halo_exchange(depth=" +
-                                str(self._halo_depth) + ")"))
-        halo_parent.add(CallGen(halo_parent, name=self._field.proxy_name +
-                                "%set_clean(depth=" +
                                 str(self._halo_depth) + ")"))
         parent.add(CommentGen(parent,""))
 
