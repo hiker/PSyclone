@@ -909,9 +909,10 @@ class HaloExchange(Node):
         
     def view(self, indent):
         ''' Class specific view  '''
-        print self.indent(indent) + "HaloExchange[field={0}, type={1}, " + \
-        "depth={2}, check_dirty={3}]".format(
-            self._field, self._halo_type, self._halo_depth, self._check_dirty)
+        print self.indent(indent) + (
+            "HaloExchange[field='{0}', type='{1}', depth={2}, "
+            "check_dirty={3}]".format(self._field.name, self._halo_type,
+                                      self._halo_depth, self._check_dirty))
 
 
 class Loop(Node):

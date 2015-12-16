@@ -2447,10 +2447,35 @@ def test_halo_exchange():
         "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
     assert output in generated_code
 
+
+def test_inc_redundant():
+    ''' test that depth 1 halos are redundantly computed for gh_inc in
+    the vanilla code *** merge this with test_halo_exchange_inc as that
+    already has incorrect DO loop extents'''
+    pass
+
 def test_halo_exchange_inc():
     ''' test that halo exchange calls are added if we
     have a gh_inc operation'''
-    pass
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.6_multikernel_invokes.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    result = str(psy.gen)
+    print result
+    output1 = ("      IF (a_proxy%is_dirty(depth=1)) THEN"
+               "        CALL a_proxy%halo_exchange(depth=1)"
+               "      END IF "
+               "      !"
+               "      DO cell=1,a_proxy%vspace%get_ncell()")
+    assert output1 in result
+    output2 = ("      IF (f_proxy%is_dirty(depth=1)) THEN"
+               "        CALL f_proxy%halo_exchange(depth=1)"
+               "      END IF "
+               "      !"
+               "      DO cell=1,f_proxy%vspace%get_ncell()")
+    assert output2 in result
+    assert result.count("halo_exchange") == 2
 
 def test_no_halo_exchange_w3():
     ''' test that no halo exchange calls are added for a field on w3 '''
@@ -2465,12 +2490,11 @@ def test_halo_exchange_depths():
     ''' test that halo exchange includes the correct halo depth '''
     pass
 
-def test_inc_redundant():
-    ''' test that depth 1 halos are redundantly computed for gh_inc in
-    the vanilla code '''
-    pass
-
 def test_w3_and_inc_error():
     ''' test that an error is raised if w3 and inc are provided in the
     metadata '''
+    pass
+
+def test_halo_exchange_view():
+    ''' test that the halo exchange view method returns what we expect '''
     pass
