@@ -2442,8 +2442,35 @@ def test_halo_exchange():
     output = (
         "     IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=1)\n"
-        "        CALL f2_proxy%set_clean(depth=1)\n"
         "      END IF \n"
         "      !\n"
         "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
     assert output in generated_code
+
+def test_halo_exchange_inc():
+    ''' test that halo exchange calls are added if we
+    have a gh_inc operation'''
+    pass
+
+def test_no_halo_exchange_w3():
+    ''' test that no halo exchange calls are added for a field on w3 '''
+    pass
+
+def test_halo_exchange_any_space():
+    ''' test that any_space results in a halo exchange call but that
+    there is a test that the space is not w3 '''
+    pass
+
+def test_halo_exchange_depths():
+    ''' test that halo exchange includes the correct halo depth '''
+    pass
+
+def test_inc_redundant():
+    ''' test that depth 1 halos are redundantly computed for gh_inc in
+    the vanilla code '''
+    pass
+
+def test_w3_and_inc_error():
+    ''' test that an error is raised if w3 and inc are provided in the
+    metadata '''
+    pass

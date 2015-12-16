@@ -521,7 +521,7 @@ class DynInvoke(Invoke):
         if DISTRIBUTED_MEMORY:
             # for the moment just add them before each loop as required
             for loop in self.schedule.loops():
-                for halo_field in loop.halo_fields("gh_field"):
+                for halo_field in loop.unique_halo_fields():
                     exchange = DynHaloExchange(halo_field, parent=loop)
                     loop.parent.children.insert(loop.position, exchange)
 
@@ -1013,6 +1013,46 @@ class DynLoop(Loop):
         else:
             my_mapping = FIELD_ACCESS_MAP
         return Loop.has_inc_arg(self, my_mapping)
+
+    def unique_halo_fields(self):
+        ''' Returns all fields in this loop that require at least some
+        of their halo to be clean to work correctly. If the same field
+        name is found more than once then the field with the largest
+        halo is chosen as this will make all other halo's clean for
+        the same field. '''
+        unique_fields = {}
+        for field in self.halo_fields():
+            if field.name not in unique_fields:
+                unique_fields[field.name] = field
+            else:
+                if field.descriptor.stencil:
+                    new_stencil_size = field.descriptor.stencil['extent']
+                else:
+                    new_stencil_size = 1
+                stored_field = unique_fields[field.name]
+                if stored_field.descriptor.stencil:
+                    current_stencil_size = \
+                        stored_field.descriptor.stencil['extent']
+                else:
+                    current_stencil_size = 1
+                if new_stencil_size > current_stencil_size:
+                    unique_fields[field.name] = field
+        return unique_fields.values()
+
+    def halo_fields(self):
+        ''' Returns all fields in this loop that require at least some
+        of their halo to be clean to work correctly.'''
+        fields=[]
+        for kern_call in self.kern_calls():
+            for arg in kern_call.arguments.args:
+                if arg.type.lower() == "gh_field":
+                    field = arg
+                    if field.descriptor.stencil or \
+                    (field.access.lower() == "gh_inc" and \
+                     field.function_space.lower() != "w3"):
+                        fields.append(field)
+        return fields
+
 
     def gen_code(self, parent):
         ''' Work out the appropriate loop bounds and variable name

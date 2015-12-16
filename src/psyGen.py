@@ -913,6 +913,7 @@ class HaloExchange(Node):
         "depth={2}, check_dirty={3}]".format(
             self._field, self._halo_type, self._halo_depth, self._check_dirty)
 
+
 class Loop(Node):
 
     @property
@@ -1077,19 +1078,6 @@ class Loop(Node):
                 if arg.access.lower() == mapping["inc"]:
                     return True
         return False
-
-    def halo_fields(self, field_name):
-        ''' xxx '''
-        fields=[]
-        for kern_call in self.kern_calls():
-            for arg in kern_call.arguments.args:
-                if arg.type.lower() == field_name:
-                    field = arg
-                    if field.descriptor.stencil or (field.access.lower() == "gh_inc" and
-                                                    field.function_space.lower() != "w3"):
-                        fields.append(field)
-        return fields
-
 
     def unique_modified_fields(self, mapping, field_name):
         ''' Return all fields from Kernels in this subroutine that are
