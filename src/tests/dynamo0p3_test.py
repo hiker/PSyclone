@@ -2463,37 +2463,67 @@ def test_halo_exchange_inc():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     result = str(psy.gen)
     print result
-    output1 = ("      IF (a_proxy%is_dirty(depth=1)) THEN"
-               "        CALL a_proxy%halo_exchange(depth=1)"
-               "      END IF "
-               "      !"
-               "      DO cell=1,a_proxy%vspace%get_ncell()")
+    output1 = ("      IF (a_proxy%is_dirty(depth=1)) THEN\n"
+               "        CALL a_proxy%halo_exchange(depth=1)\n"
+               "      END IF \n"
+               "      !\n"
+               "      DO cell=1,a_proxy%vspace%get_ncell()\n")
     assert output1 in result
-    output2 = ("      IF (f_proxy%is_dirty(depth=1)) THEN"
-               "        CALL f_proxy%halo_exchange(depth=1)"
-               "      END IF "
-               "      !"
-               "      DO cell=1,f_proxy%vspace%get_ncell()")
+    output2 = ("      IF (f_proxy%is_dirty(depth=1)) THEN\n"
+               "        CALL f_proxy%halo_exchange(depth=1)\n"
+               "      END IF \n"
+               "      !\n"
+               "      DO cell=1,f_proxy%vspace%get_ncell()\n")
     assert output2 in result
     assert result.count("halo_exchange") == 2
 
-def test_no_halo_exchange_w3():
-    ''' test that no halo exchange calls are added for a field on w3 '''
-    pass
 
-def test_halo_exchange_any_space():
-    ''' test that any_space results in a halo exchange call but that
-    there is a test that the space is not w3 '''
-    pass
+def test_halo_exchange_different_spaces():
+    '''test that all of our different function spaces with a stencil
+    access result in halo calls including any_space'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "14.3_halo_readers_all_fs.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    result = str(psy.gen)
+    print result
+    assert result.count("halo_exchange") == 9
+
+
+def test_halo_exchange_vectors():
+    ''' test that halo exchange produces correct code for vector fields *** gh_inc and stencil'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "14.4_halo_vector.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    result = str(psy.gen)
+    print result
+    exit(1)
 
 def test_halo_exchange_depths():
-    ''' test that halo exchange includes the correct halo depth '''
+    ''' test that halo exchange includes the correct halo depth *** and gh_inc '''
     pass
 
-def test_w3_and_inc_error():
-    ''' test that an error is raised if w3 and inc are provided in the
-    metadata '''
+def test_stencil_read_only():
+    '''test that an error is raised if a field with a stencil is not
+    accessed as gh_read'''
     pass
+
+def test_halo_exchange_conflicting_stencil():
+    ''' two different stencils for same space in a kernel *** and gh_inc '''
+
+def test_w3_and_inc_error():
+    '''test that an error is raised if w3 and gh_inc are provided for the
+    same field in the metadata '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_field,gh_read, w3)",
+                        "arg_type(gh_field,gh_inc, w3)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name="testkern_qr_type")
+    assert ("it does not make sense for a 'w3' space to have a 'gh_inc' "
+            "access") in str(excinfo.value)
+
 
 def test_halo_exchange_view():
     ''' test that the halo exchange view method returns what we expect '''

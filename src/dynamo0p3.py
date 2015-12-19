@@ -219,6 +219,11 @@ class DynArgDescriptor03(Descriptor):
                         "entry must be a valid stencil specification but "
                         "entry '{0}' raised the following error:".
                         format(arg_type) + str(err))
+            if self._function_space1.lower() == "w3" and \
+               self._access_descriptor.name.lower() == "gh_inc":
+                raise ParseError(
+                    "it does not make sense for a 'w3' space to have a 'gh_inc' access")
+
         elif self._type == "gh_operator":
             # we expect 4 arguments with the 3rd and 4th each being a
             # function space
