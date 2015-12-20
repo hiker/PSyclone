@@ -2448,15 +2448,12 @@ def test_halo_exchange():
     assert output in generated_code
 
 
-def test_inc_redundant():
-    ''' test that depth 1 halos are redundantly computed for gh_inc in
-    the vanilla code *** merge this with test_halo_exchange_inc as that
-    already has incorrect DO loop extents'''
-    pass
-
+@pytest.mark.xfail(reason="bug : loop bounds other than ncells() are"
+                   " not yet supported")
 def test_halo_exchange_inc():
-    ''' test that halo exchange calls are added if we
-    have a gh_inc operation'''
+    ''' test that halo exchange calls are added if we have a gh_inc
+    operation and that the loop bounds included computation in the l1
+    halo'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.6_multikernel_invokes.f90"),
                            api="dynamo0.3")
@@ -2467,13 +2464,13 @@ def test_halo_exchange_inc():
                "        CALL a_proxy%halo_exchange(depth=1)\n"
                "      END IF \n"
                "      !\n"
-               "      DO cell=1,a_proxy%vspace%get_ncell()\n")
+               "      DO cell=1,a_proxy%vspace%UNKNOWN\n")
     assert output1 in result
     output2 = ("      IF (f_proxy%is_dirty(depth=1)) THEN\n"
                "        CALL f_proxy%halo_exchange(depth=1)\n"
                "      END IF \n"
                "      !\n"
-               "      DO cell=1,f_proxy%vspace%get_ncell()\n")
+               "      DO cell=1,f_proxy%vspace%UNKNOWN\n")
     assert output2 in result
     assert result.count("halo_exchange") == 2
 
@@ -2491,26 +2488,72 @@ def test_halo_exchange_different_spaces():
 
 
 def test_halo_exchange_vectors():
-    ''' test that halo exchange produces correct code for vector fields *** gh_inc and stencil'''
+    ''' test that halo exchange produces correct code for vector
+    fields. Test both a field with a stencil and a field with gh_inc '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4_halo_vector.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     result = str(psy.gen)
     print result
-    exit(1)
+    assert result.count("halo_exchange(") == 7
+    for idx in range(1,4):
+        assert "f2_proxy("+str(idx)+")%halo_exchange" in result
+        assert "f1_proxy("+str(idx)+")%halo_exchange" in result
+    expected = ("      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+                "        CALL f2_proxy(4)%halo_exchange(depth=1)\n"
+                "      END IF \n"
+                "      !\n"
+                "      DO cell=1,f1_proxy(1)%vspace%get_ncell()\n")
+    assert expected in result
+
 
 def test_halo_exchange_depths():
     ''' test that halo exchange includes the correct halo depth *** and gh_inc '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "14.5_halo_depth.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    result = str(psy.gen)
+    print result
+    expected = ("      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+                "        CALL f2_proxy%halo_exchange(depth=1)\n"
+                "      END IF \n"
+                "      !\n"
+                "      IF (f3_proxy%is_dirty(depth=2)) THEN\n"
+                "        CALL f3_proxy%halo_exchange(depth=2)\n"
+                "      END IF \n"
+                "      !\n"
+                "      IF (f4_proxy%is_dirty(depth=3)) THEN\n"
+                "        CALL f4_proxy%halo_exchange(depth=3)\n"
+                "      END IF \n"
+                "      !\n"
+                "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
+    assert expected in result
+
+
+def test_halo_exchange_depths_gh_inc():
+    ''' test that halo exchange includes the correct halo depth when
+    we have a gh_inc as this increases the required depth by 1 (as
+    redundant computation is performed in the l1 halo) '''
     pass
+
 
 def test_stencil_read_only():
     '''test that an error is raised if a field with a stencil is not
     accessed as gh_read'''
-    pass
+    fparser.logging.disable('CRITICAL')
+    code = STENCIL_CODE.replace("gh_read, w2, stencil(cross,1)",
+                        "gh_write, w2, stencil(cross,1)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name="stencil_type")
+    assert "a stencil must be read only" in str(excinfo.value)
+
 
 def test_halo_exchange_conflicting_stencil():
     ''' two different stencils for same space in a kernel *** and gh_inc '''
+
 
 def test_w3_and_inc_error():
     '''test that an error is raised if w3 and gh_inc are provided for the

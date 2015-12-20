@@ -223,6 +223,10 @@ class DynArgDescriptor03(Descriptor):
                self._access_descriptor.name.lower() == "gh_inc":
                 raise ParseError(
                     "it does not make sense for a 'w3' space to have a 'gh_inc' access")
+            if stencil and self._access_descriptor.name.lower() != \
+                    "gh_read":
+                raise ParseError("a stencil must be read only so its access"
+                                 "should be gh_read")
 
         elif self._type == "gh_operator":
             # we expect 4 arguments with the 3rd and 4th each being a
@@ -527,8 +531,14 @@ class DynInvoke(Invoke):
             # for the moment just add them before each loop as required
             for loop in self.schedule.loops():
                 for halo_field in loop.unique_halo_fields():
-                    exchange = DynHaloExchange(halo_field, parent=loop)
-                    loop.parent.children.insert(loop.position, exchange)
+                    if halo_field.vector_size > 1:
+                        for idx in range(1, halo_field.vector_size+1):
+                            exchange = DynHaloExchange(halo_field, parent=loop,
+                                                       vector_index=idx)
+                            loop.parent.children.insert(loop.position, exchange)
+                    else:
+                        exchange = DynHaloExchange(halo_field, parent=loop)
+                        loop.parent.children.insert(loop.position, exchange)
 
     @property
     def qr_required(self):
@@ -962,13 +972,14 @@ class DynHaloExchange(HaloExchange):
     ''' Dynamo specific halo exchange class which can be added to and
     manipulated in, a schedule '''
 
-    def __init__(self, field, check_dirty=True, parent=None):
+    def __init__(self, field, check_dirty=True, parent=None, vector_index=None):
 
+        self._vector_index = vector_index
         if field.descriptor.stencil:
             halo_type = field.descriptor.stencil['type']
             halo_depth = field.descriptor.stencil['extent']
         else:
-            # check this is an inc and not w3
+            # TODO check this is an inc and not w3
             halo_type = 'region'
             halo_depth = 1
         HaloExchange.__init__(self, field, halo_type, halo_depth,
@@ -985,9 +996,14 @@ class DynHaloExchange(HaloExchange):
             halo_parent = if_then
         else:
             halo_parent = parent
-        halo_parent.add(CallGen(halo_parent, name=self._field.proxy_name +
-                                "%halo_exchange(depth=" +
-                                str(self._halo_depth) + ")"))
+        if self._vector_index:
+            ref = "(" + str(self._vector_index) + ")"
+        else:
+            ref = ""
+        halo_parent.add(
+            CallGen(
+                halo_parent, name=self._field.proxy_name + ref +
+                "%halo_exchange(depth=" + str(self._halo_depth) + ")"))
         parent.add(CommentGen(parent,""))
 
 
