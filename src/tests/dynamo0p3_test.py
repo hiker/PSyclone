@@ -2415,7 +2415,7 @@ def test_halo_dirty_5():
     assert "! Set halos dirty" not in generated_code
 
 
-def test_no_halo_dirty_2():
+def test_no_halo_dirty():
     ''' check that no halo_dirty code is produced if the
     DISTRIBUTED_MEMORY config value is set to False '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -2498,10 +2498,10 @@ def test_halo_exchange_vectors():
     print result
     assert result.count("halo_exchange(") == 7
     for idx in range(1,4):
-        assert "f2_proxy("+str(idx)+")%halo_exchange" in result
-        assert "f1_proxy("+str(idx)+")%halo_exchange" in result
-    expected = ("      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
-                "        CALL f2_proxy(4)%halo_exchange(depth=1)\n"
+        assert "f1_proxy("+str(idx)+")%halo_exchange(depth=1)" in result
+        assert "f2_proxy("+str(idx)+")%halo_exchange(depth=2)" in result
+    expected = ("      IF (f2_proxy%is_dirty(depth=2)) THEN\n"
+                "        CALL f2_proxy(4)%halo_exchange(depth=2)\n"
                 "      END IF \n"
                 "      !\n"
                 "      DO cell=1,f1_proxy(1)%vspace%get_ncell()\n")
@@ -2509,7 +2509,8 @@ def test_halo_exchange_vectors():
 
 
 def test_halo_exchange_depths():
-    ''' test that halo exchange includes the correct halo depth *** and gh_inc '''
+    ''' test that halo exchange (and gh_inc) includes the correct halo
+    depth wirh gh_write '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.5_halo_depth.f90"),
                            api="dynamo0.3")
@@ -2536,7 +2537,30 @@ def test_halo_exchange_depths_gh_inc():
     ''' test that halo exchange includes the correct halo depth when
     we have a gh_inc as this increases the required depth by 1 (as
     redundant computation is performed in the l1 halo) '''
-    pass
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "14.6_halo_depth_2.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    result = str(psy.gen)
+    print result
+    expected = ("      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
+                "        CALL f1_proxy%halo_exchange(depth=1)\n"
+                "      END IF \n"
+                "      !\n"
+                "      IF (f2_proxy%is_dirty(depth=2)) THEN\n"
+                "        CALL f2_proxy%halo_exchange(depth=2)\n"
+                "      END IF \n"
+                "      !\n"
+                "      IF (f3_proxy%is_dirty(depth=3)) THEN\n"
+                "        CALL f3_proxy%halo_exchange(depth=3)\n"
+                "      END IF \n"
+                "      !\n"
+                "      IF (f4_proxy%is_dirty(depth=4)) THEN\n"
+                "        CALL f4_proxy%halo_exchange(depth=4)\n"
+                "      END IF \n"
+                "      !\n"
+                "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
+    assert expected in result
 
 
 def test_stencil_read_only():
@@ -2551,8 +2575,10 @@ def test_stencil_read_only():
     assert "a stencil must be read only" in str(excinfo.value)
 
 
-def test_halo_exchange_conflicting_stencil():
-    ''' two different stencils for same space in a kernel *** and gh_inc '''
+# def test_halo_exchange_conflicting_stencil(): '''
+#two different stencils for same space in a kernel *** and gh_inc '''
+# only an issue when we have more than one kernel per loop i.e. we
+# need loop fusion. Therefore should go in dynamo0p3_transformations.py
 
 
 def test_w3_and_inc_error():
@@ -2568,6 +2594,19 @@ def test_w3_and_inc_error():
             "access") in str(excinfo.value)
 
 
-def test_halo_exchange_view():
+def test_halo_exchange_view(capsys):
     ''' test that the halo exchange view method returns what we expect '''
-    pass
+    _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    schedule = psy.invokes.get('invoke_0_testkern_stencil_type').schedule
+    schedule.view()
+    result, _ = capsys.readouterr()
+    expected = (
+        "Schedule[invoke='invoke_0_testkern_stencil_type']\n"
+        "    HaloExchange[field='f2', type='cross', depth=1, "
+        "check_dirty=True]\n"
+        "    Loop[type='',field_space='w1',it_space='cells']\n"
+        "        KernCall testkern_stencil_code(f1,f2,f3,f4) "
+        "[module_inline=False]")
+    assert expected in result

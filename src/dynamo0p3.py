@@ -530,14 +530,17 @@ class DynInvoke(Invoke):
         if DISTRIBUTED_MEMORY:
             # for the moment just add them before each loop as required
             for loop in self.schedule.loops():
+                inc = loop.has_inc_arg()
                 for halo_field in loop.unique_halo_fields():
                     if halo_field.vector_size > 1:
                         for idx in range(1, halo_field.vector_size+1):
-                            exchange = DynHaloExchange(halo_field, parent=loop,
-                                                       vector_index=idx)
+                            exchange = DynHaloExchange(
+                                halo_field, parent=loop, vector_index=idx,
+                                inc=inc)
                             loop.parent.children.insert(loop.position, exchange)
                     else:
-                        exchange = DynHaloExchange(halo_field, parent=loop)
+                        exchange = DynHaloExchange(halo_field, parent=loop,
+                                                   inc=inc)
                         loop.parent.children.insert(loop.position, exchange)
 
     @property
@@ -972,12 +975,17 @@ class DynHaloExchange(HaloExchange):
     ''' Dynamo specific halo exchange class which can be added to and
     manipulated in, a schedule '''
 
-    def __init__(self, field, check_dirty=True, parent=None, vector_index=None):
+    def __init__(self, field, check_dirty=True, parent=None,
+                 vector_index=None, inc=False):
 
         self._vector_index = vector_index
         if field.descriptor.stencil:
             halo_type = field.descriptor.stencil['type']
             halo_depth = field.descriptor.stencil['extent']
+            if inc:
+                # there is an inc writer which needs redundant
+                # computation so out halo depth must be increased by 1
+                halo_depth +=1
         else:
             # TODO check this is an inc and not w3
             halo_type = 'region'
