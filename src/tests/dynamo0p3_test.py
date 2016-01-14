@@ -319,6 +319,8 @@ def test_field():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = psy.gen
+    # reset variable so we don't affect other tests
+    config.DISTRIBUTED_MEMORY = True
     output = (
         "  MODULE psy_single_invoke\n"
         "    USE constants_mod, ONLY: r_def\n"
@@ -379,8 +381,6 @@ def test_field():
         "    END SUBROUTINE invoke_0_testkern_type\n"
         "  END MODULE psy_single_invoke")
     assert str(generated_code).find(output) != -1
-    # reset variable so we don't affect other tests
-    config.DISTRIBUTED_MEMORY = True
 
 
 def test_field_fs():
@@ -458,7 +458,7 @@ def test_field_fs():
         "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
         "        map_w1 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
         "        map_w2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
@@ -571,7 +571,7 @@ def test_field_qr():
         "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
         "        map_w1 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
         "        map_w2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
@@ -618,7 +618,7 @@ def test_vector_field_2():
     print generated_code
     # all references to chi_proxy should be chi_proxy(1)
     assert str(generated_code).find("chi_proxy%") == -1
-    assert str(generated_code).count("chi_proxy(1)%vspace") == 5
+    assert str(generated_code).count("chi_proxy(1)%vspace") == 4
     # use each chi field individually in the kernel
     assert str(generated_code).find("chi_proxy(1)%data, chi_proxy(2)%data,"
                                     " chi_proxy(3)%data") != -1
@@ -740,7 +740,7 @@ def test_operator_different_spaces():
         "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
-        "      DO cell=1,mapping_proxy%fs_from%get_ncell()\n"
+        "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
         "        map_w0 => chi_proxy(1)%vspace%get_cell_dofmap(cell)\n"
         "        !\n"
@@ -2418,17 +2418,17 @@ def test_halo_dirty_5():
 def test_no_halo_dirty():
     ''' check that no halo_dirty code is produced if the
     DISTRIBUTED_MEMORY config value is set to False '''
+    import config
+    config.DISTRIBUTED_MEMORY = False
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    import config
-    config.DISTRIBUTED_MEMORY = False
     generated_code = str(psy.gen)
+    # reset global value so we don't affect any other tests
+    config.DISTRIBUTED_MEMORY = True
     print generated_code
     assert "set_dirty()" not in generated_code
     assert "! Set halos dirty" not in generated_code
-    # reset global value so we don't affect any other tests
-    config.DISTRIBUTED_MEMORY = True
 
 
 def test_halo_exchange():
@@ -2444,7 +2444,7 @@ def test_halo_exchange():
         "        CALL f2_proxy%halo_exchange(depth=1)\n"
         "      END IF \n"
         "      !\n"
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
+        "      DO cell=1,mesh%get_last_halo_cell(1)\n")
     assert output in generated_code
 
 
@@ -2504,7 +2504,7 @@ def test_halo_exchange_vectors():
                 "        CALL f2_proxy(4)%halo_exchange(depth=2)\n"
                 "      END IF \n"
                 "      !\n"
-                "      DO cell=1,f1_proxy(1)%vspace%get_ncell()\n")
+                "      DO cell=1,mesh%get_last_halo_cell(1)\n")
     assert expected in result
 
 
@@ -2529,7 +2529,7 @@ def test_halo_exchange_depths():
                 "        CALL f4_proxy%halo_exchange(depth=3)\n"
                 "      END IF \n"
                 "      !\n"
-                "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
+                "      DO cell=1,mesh%get_last_edge_cell()\n")
     assert expected in result
 
 
@@ -2559,7 +2559,7 @@ def test_halo_exchange_depths_gh_inc():
                 "        CALL f4_proxy%halo_exchange(depth=4)\n"
                 "      END IF \n"
                 "      !\n"
-                "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
+                "      DO cell=1,mesh%get_last_halo_cell(1)\n")
     assert expected in result
 
 
@@ -2609,4 +2609,8 @@ def test_halo_exchange_view(capsys):
         "    Loop[type='',field_space='w1',it_space='cells']\n"
         "        KernCall testkern_stencil_code(f1,f2,f3,f4) "
         "[module_inline=False]")
+    print expected
+    print result
+    import config
+    print config.DISTRIBUTED_MEMORY
     assert expected in result

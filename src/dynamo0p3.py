@@ -21,7 +21,7 @@ import os
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
     Argument, Inf, NameSpaceFactory, GenerationError, FieldNotFoundError, \
     HaloExchange
-
+from config import DISTRIBUTED_MEMORY
 
 # first section : Parser specialisations and classes
 
@@ -41,6 +41,8 @@ VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator"]
 VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"]
 
 VALID_STENCIL_TYPES = ["x1d", "y1d", "cross", "region"]
+
+VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "edge", "halo", "colour", "colours", "cells"]
 
 # The mapping from meta-data strings to field-access types
 # used in this API.
@@ -526,7 +528,6 @@ class DynInvoke(Invoke):
                     self._psy_unique_qr_vars.append(call.qr_name)
 
         # lastly, add in halo exchange calls if required
-        from config import DISTRIBUTED_MEMORY
         if DISTRIBUTED_MEMORY:
             # for the moment just add them before each loop as required
             for loop in self.schedule.loops():
@@ -1027,12 +1028,91 @@ class DynLoop(Loop):
                       valid_loop_types=["colours", "colour", ""])
         self.loop_type = loop_type
 
+        if DISTRIBUTED_MEMORY and self._loop_type in ["colour", "colours"]:
+            # the API has not yet been defined and implemented
+            raise GenerationError("distributed memory and colours not yet supported")
+
+        # set our variable name at initialisation as it might be required by other classes before code generation
         if self._loop_type == "colours":
             self._variable_name = "colour"
         elif self._loop_type == "colour":
             self._variable_name = "cell"
         else:
             self._variable_name = "cell"
+
+        if call:
+            # we can determine our loop bounds from the child
+            self.set_lower_bound("start")
+            if DISTRIBUTED_MEMORY:
+                if self.field_space == "w3": # discontinuous
+                    self.set_upper_bound("edge")
+                else: # continuous
+                    self.set_upper_bound("halo",index=1)
+            else: # sequential
+                self.set_upper_bound("cells")
+        else:
+            # bounds will be set externally after initialisation
+            self._lower_bound_name = None
+            self._lower_bound_index = None
+            self._upper_bound_name = None
+            self._upper_bound_index = None
+
+    def set_lower_bound(self, name, index=None):
+        ''' Set the lower bounds of this loop '''
+        if name not in VALID_LOOP_BOUNDS_NAMES:
+            raise GenerationError("The specified lower bound loop name is invalid")
+        if name in ["inner", "halo"] and index<1:
+            raise GenerationError("The specified index for this lower loop bound is invalid")
+        self._lower_bound_name = name
+        self._lower_bound_index = index
+
+    def set_upper_bound(self, name, index=None):
+        ''' Set the upper bounds of this loop '''
+        if name not in VALID_LOOP_BOUNDS_NAMES:
+            raise GenerationError("The specified upper bound loop name is invalid")
+        if name == "start":
+            raise GenerationError("'start' is not a valid upper bound")
+        if name in ["inner", "halo"] and index < 1:
+            raise GenerationError("The specified index for this upper loop bound is invalid")
+        self._upper_bound_name = name
+        self._upper_bound_index = index
+
+    def _lower_bound_fortran(self):
+        ''' Create the associated fortran code for the type of lower bound '''
+        if not DISTRIBUTED_MEMORY and self._upper_bound_name != "start":
+             raise GenerationError("The lower bound must be 'start' if we are sequential but found '{0}'".format(self._upper_bound_name))
+        if self._lower_bound_name == "start":
+            return "1"
+        else:
+            # the start of our space is the end of the previous space +1
+            if self._lower_bound_name == "inner":
+                prev_space_name = self._lower_bound_name
+                prev_space_index = self._lower_bound_index+1
+            elif self._lower_bound_name == "edge":
+                prev_space_name = "inner"
+                prev_space_index = 1
+            elif self._lower_bound_name == "halo" and self._lower_bound_index==1:
+                prev_space_name = "edge"
+                prev_space_index = ""
+            elif self._lower_bound_name == "halo" and self._lower_bound_index>1:
+                prev_space_name = self._lower_bound_name
+                prev_space_index = self._lower_bound_index-1
+            else:
+                raise GenerationError("Unsupported lower bound name found")
+            return "mesh%get_last_" + prev_space_name + "_cell(" + prev_space_index + ")+1"
+
+    def _upper_bound_fortran(self):
+        ''' Create the associated fortran code for the type of upper bound '''
+        if not DISTRIBUTED_MEMORY:
+            if self._upper_bound_name != "cells":
+                raise GenerationError("The upper bound must be 'cells' if we are sequential")
+            return self.field.proxy_name_indexed + "%" + self.field.ref_name() + "%get_ncell()"
+        else:
+            if self._upper_bound_name in ["inner", "halo"]:
+                index = self._upper_bound_index
+            else:
+                index = ""
+            return "mesh%get_last_" + self._upper_bound_name+"_cell(" + str(index) + ")"
 
     def has_inc_arg(self, mapping=None):
         ''' Returns True if any of the Kernels called within this loop
@@ -1094,19 +1174,12 @@ class DynLoop(Loop):
             raise GenerationError("Cannot have a loop over "
                                   "colours within an OpenMP "
                                   "parallel region.")
-        # Set-up loop bounds
-        self._start = "1"
-        if self._loop_type == "colours":
-            self._stop = "ncolour"
-        elif self._loop_type == "colour":
-            self._stop = "ncp_colour(colour)"
-        else:
-            self._stop = self.field.proxy_name_indexed + "%" + \
-                self.field.ref_name() + "%get_ncell()"
+        # get fortran loop bounds
+        self._start = self._lower_bound_fortran()
+        self._stop = self._upper_bound_fortran()
         Loop.gen_code(self, parent)
 
-        import config
-        if config.DISTRIBUTED_MEMORY and self._loop_type != "colour":
+        if DISTRIBUTED_MEMORY and self._loop_type != "colour":
             # Set halo dirty for all fields that are modified
             from f2pygen import CallGen, CommentGen
             fields = self.unique_modified_fields(FIELD_ACCESS_MAP, "gh_field")
