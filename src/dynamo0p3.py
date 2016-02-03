@@ -222,6 +222,10 @@ class DynArgDescriptor03(Descriptor):
                         "entry must be a valid stencil specification but "
                         "entry '{0}' raised the following error:".
                         format(arg_type) + str(err))
+                raise GenerationError("Stencils are currently not "
+                                      "supported in PSyclone, pending agreement and "
+                                      "implementation of the associated infrastructure")
+                    
             if self._function_space1.lower() == "w3" and \
                self._access_descriptor.name.lower() == "gh_inc":
                 raise ParseError(
@@ -1068,8 +1072,12 @@ class DynLoop(Loop):
                     self.set_upper_bound("halo",index=1)
             else: # sequential
                 self.set_upper_bound("cells")
+        elif self.loop_type in ["colour", "colours"]:
+            # assume the bounds are always the same - this will
+            # probably not be valid in the future
+            self.set_lower_bound("start")
+            self.set_upper_bound(self.loop_type)
         else:
-            # bounds will be set externally after initialisation
             self._lower_bound_name = None
             self._lower_bound_index = None
             self._upper_bound_name = None
@@ -1124,9 +1132,14 @@ class DynLoop(Loop):
     def _upper_bound_fortran(self):
         ''' Create the associated fortran code for the type of upper bound '''
         if not config.DISTRIBUTED_MEMORY:
-            if self._upper_bound_name != "cells":
+            if self._upper_bound_name == "cells":
+                return self.field.proxy_name_indexed + "%" + self.field.ref_name() + "%get_ncell()"
+            elif self._upper_bound_name == "colours":
+                return "ncolour"
+            elif self._upper_bound_name == "colour":
+                return "ncp_colour(colour)"
+            else:
                 raise GenerationError("The upper bound must be 'cells' if we are sequential")
-            return self.field.proxy_name_indexed + "%" + self.field.ref_name() + "%get_ncell()"
         else:
             if self._upper_bound_name in ["inner", "halo"]:
                 index = self._upper_bound_index
