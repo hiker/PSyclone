@@ -21,7 +21,8 @@ import os
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
     Argument, Inf, NameSpaceFactory, GenerationError, FieldNotFoundError, \
     HaloExchange
-from config import DISTRIBUTED_MEMORY
+#from config import DISTRIBUTED_MEMORY
+import config
 
 # first section : Parser specialisations and classes
 
@@ -528,7 +529,7 @@ class DynInvoke(Invoke):
                     self._psy_unique_qr_vars.append(call.qr_name)
 
         # lastly, add in halo exchange calls if required
-        if DISTRIBUTED_MEMORY:
+        if config.DISTRIBUTED_MEMORY:
             # for the moment just add them before each loop as required
             for loop in self.schedule.loops():
                 inc = loop.has_inc_arg()
@@ -771,7 +772,7 @@ class DynInvoke(Invoke):
                                entity_decls=[nlayers_name]))
 
         # declare and initialise a mesh object if required
-        if DISTRIBUTED_MEMORY:
+        if config.DISTRIBUTED_MEMORY:
             from f2pygen import UseGen, TypeDeclGen, CommentGen, AssignGen
             # we will need a mesh object for any loop bounds
             mesh_obj_name = self._name_space_manager.create_name(
@@ -780,7 +781,6 @@ class DynInvoke(Invoke):
                               funcnames=["mesh_type"]))
             invoke_sub.add(TypeDeclGen(invoke_sub, datatype="mesh_type",
                                    entity_decls=[mesh_obj_name]))
-            print dir(first_var)
             rhs = first_var.name_indexed + "%get_mesh()"
             invoke_sub.add(CommentGen(invoke_sub, ""))
             invoke_sub.add(CommentGen(invoke_sub, " Create a mesh object"))
@@ -1046,7 +1046,7 @@ class DynLoop(Loop):
                       valid_loop_types=["colours", "colour", ""])
         self.loop_type = loop_type
 
-        if DISTRIBUTED_MEMORY and self._loop_type in ["colour", "colours"]:
+        if config.DISTRIBUTED_MEMORY and self._loop_type in ["colour", "colours"]:
             # the API has not yet been defined and implemented
             raise GenerationError("distributed memory and colours not yet supported")
 
@@ -1061,7 +1061,7 @@ class DynLoop(Loop):
         if call:
             # we can determine our loop bounds from the child
             self.set_lower_bound("start")
-            if DISTRIBUTED_MEMORY:
+            if config.DISTRIBUTED_MEMORY:
                 if self.field_space == "w3": # discontinuous
                     self.set_upper_bound("edge")
                 else: # continuous
@@ -1097,7 +1097,7 @@ class DynLoop(Loop):
 
     def _lower_bound_fortran(self):
         ''' Create the associated fortran code for the type of lower bound '''
-        if not DISTRIBUTED_MEMORY and self._upper_bound_name != "start":
+        if not config.DISTRIBUTED_MEMORY and self._lower_bound_name != "start":
              raise GenerationError("The lower bound must be 'start' if we are sequential but found '{0}'".format(self._upper_bound_name))
         if self._lower_bound_name == "start":
             return "1"
@@ -1123,7 +1123,7 @@ class DynLoop(Loop):
 
     def _upper_bound_fortran(self):
         ''' Create the associated fortran code for the type of upper bound '''
-        if not DISTRIBUTED_MEMORY:
+        if not config.DISTRIBUTED_MEMORY:
             if self._upper_bound_name != "cells":
                 raise GenerationError("The upper bound must be 'cells' if we are sequential")
             return self.field.proxy_name_indexed + "%" + self.field.ref_name() + "%get_ncell()"
@@ -1204,7 +1204,7 @@ class DynLoop(Loop):
         self._stop = self._upper_bound_fortran()
         Loop.gen_code(self, parent)
 
-        if DISTRIBUTED_MEMORY and self._loop_type != "colour":
+        if config.DISTRIBUTED_MEMORY and self._loop_type != "colour":
             # Set halo dirty for all fields that are modified
             from f2pygen import CallGen, CommentGen
             fields = self.unique_modified_fields(FIELD_ACCESS_MAP, "gh_field")

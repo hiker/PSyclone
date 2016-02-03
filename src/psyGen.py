@@ -39,7 +39,9 @@ class PSyFactory(object):
     ''' Creates a specific version of the PSy. If a particular api is not
         provided then the default api, as specified in the configs.py file,
         is chosen. '''
-    def __init__(self, api=""):
+    def __init__(self, api="", distributed_memory=True):
+        import config
+        config.DISTRIBUTED_MEMORY = distributed_memory
         if api == "":
             from config import DEFAULTAPI
             self._type = DEFAULTAPI

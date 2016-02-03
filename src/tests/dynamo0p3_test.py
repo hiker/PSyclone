@@ -309,18 +309,14 @@ def test_fsdesc_fs_not_in_argdesc():
     assert 'function spaces specified in meta_funcs must exist in ' + \
         'meta_args' in str(excinfo)
 
-@pytest.mark.xfail(reason="We have no way to switch DISTRIBUTED_MEMORY off in py.test")
+
 def test_field():
     ''' Tests that a call with a set of fields, no basis functions and
     no distributed memory, produces correct code.'''
-    #import config
-    #config.DISTRIBUTED_MEMORY = False
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     generated_code = psy.gen
-    # reset variable so we don't affect other tests
-    #config.DISTRIBUTED_MEMORY = True
     output = (
         "  MODULE psy_single_invoke\n"
         "    USE constants_mod, ONLY: r_def\n"
@@ -380,6 +376,8 @@ def test_field():
         "      !\n"
         "    END SUBROUTINE invoke_0_testkern_type\n"
         "  END MODULE psy_single_invoke")
+    print output
+    print generated_code
     assert str(generated_code).find(output) != -1
 
 
@@ -2432,18 +2430,14 @@ def test_halo_dirty_5():
     assert "set_dirty()" not in generated_code
     assert "! Set halos dirty" not in generated_code
 
-@pytest.mark.xfail(reason="We have no way to switch DISTRIBUTED_MEMORY off in py.test")
+
 def test_no_halo_dirty():
-    ''' check that no halo_dirty code is produced if the
-    DISTRIBUTED_MEMORY config value is set to False '''
-    import config
-    #config.DISTRIBUTED_MEMORY = False
+    '''check that no halo_dirty code is produced if distributed_memory is
+    set to False'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     generated_code = str(psy.gen)
-    # reset global value so we don't affect any other tests
-    #config.DISTRIBUTED_MEMORY = True
     print generated_code
     assert "set_dirty()" not in generated_code
     assert "! Set halos dirty" not in generated_code
