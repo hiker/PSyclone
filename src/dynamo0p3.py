@@ -769,6 +769,24 @@ class DynInvoke(Invoke):
                       first_var.ref_name() + "%get_nlayers()"))
         invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                entity_decls=[nlayers_name]))
+
+        # declare and initialise a mesh object if required
+        if DISTRIBUTED_MEMORY:
+            from f2pygen import UseGen, TypeDeclGen, CommentGen, AssignGen
+            # we will need a mesh object for any loop bounds
+            mesh_obj_name = self._name_space_manager.create_name(
+            root_name="mesh", context="PSyVars", label="mesh")
+            invoke_sub.add(UseGen(invoke_sub, name="mesh_mod", only=True,
+                              funcnames=["mesh_type"]))
+            invoke_sub.add(TypeDeclGen(invoke_sub, datatype="mesh_type",
+                                   entity_decls=[mesh_obj_name]))
+            print dir(first_var)
+            rhs = first_var.name_indexed + "%get_mesh()"
+            invoke_sub.add(CommentGen(invoke_sub, ""))
+            invoke_sub.add(CommentGen(invoke_sub, " Create a mesh object"))
+            invoke_sub.add(CommentGen(invoke_sub, ""))
+            invoke_sub.add(AssignGen(invoke_sub, lhs=mesh_obj_name, rhs=rhs))
+
         if self.qr_required:
             # declare and initialise qr values
             invoke_sub.add(CommentGen(invoke_sub, ""))
@@ -1099,7 +1117,9 @@ class DynLoop(Loop):
                 prev_space_index = self._lower_bound_index-1
             else:
                 raise GenerationError("Unsupported lower bound name found")
-            return "mesh%get_last_" + prev_space_name + "_cell(" + prev_space_index + ")+1"
+            mesh_obj_name = self._name_space_manager.create_name(
+            root_name="mesh", context="PSyVars", label="mesh")
+            return mesh_obj_name + "%get_last_" + prev_space_name + "_cell(" + prev_space_index + ")+1"
 
     def _upper_bound_fortran(self):
         ''' Create the associated fortran code for the type of upper bound '''
@@ -1112,7 +1132,9 @@ class DynLoop(Loop):
                 index = self._upper_bound_index
             else:
                 index = ""
-            return "mesh%get_last_" + self._upper_bound_name+"_cell(" + str(index) + ")"
+            mesh_obj_name = self._name_space_manager.create_name(
+            root_name="mesh", context="PSyVars", label="mesh")
+            return mesh_obj_name + "%get_last_" + self._upper_bound_name+"_cell(" + str(index) + ")"
 
     def has_inc_arg(self, mapping=None):
         ''' Returns True if any of the Kernels called within this loop
@@ -1167,6 +1189,9 @@ class DynLoop(Loop):
         ''' Work out the appropriate loop bounds and variable name
         depending on the loop type and then call the base class to
         generate the code. '''
+
+        # create a namespace manager so we can avoid name clashes
+        self._name_space_manager = NameSpaceFactory().create()
 
         # Check that we're not within an OpenMP parallel region if
         # we are a loop over colours.
@@ -2116,6 +2141,16 @@ class DynKernelArgument(Argument):
             return self._name+"_proxy(1)"
         else:
             return self._name+"_proxy"
+
+    @property
+    def name_indexed(self):
+        ''' Returns the name for this argument with an
+        additional index which accesses the first element for a vector
+        argument. '''
+        if self._vector_size > 1:
+            return self._name+"(1)"
+        else:
+            return self._name
 
     @property
     def function_space(self):

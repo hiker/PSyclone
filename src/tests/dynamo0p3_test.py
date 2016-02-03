@@ -309,18 +309,18 @@ def test_fsdesc_fs_not_in_argdesc():
     assert 'function spaces specified in meta_funcs must exist in ' + \
         'meta_args' in str(excinfo)
 
-
+@pytest.mark.xfail(reason="We have no way to switch DISTRIBUTED_MEMORY off in py.test")
 def test_field():
     ''' Tests that a call with a set of fields, no basis functions and
     no distributed memory, produces correct code.'''
-    import config
-    config.DISTRIBUTED_MEMORY = False
+    #import config
+    #config.DISTRIBUTED_MEMORY = False
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = psy.gen
     # reset variable so we don't affect other tests
-    config.DISTRIBUTED_MEMORY = True
+    #config.DISTRIBUTED_MEMORY = True
     output = (
         "  MODULE psy_single_invoke\n"
         "    USE constants_mod, ONLY: r_def\n"
@@ -401,6 +401,7 @@ def test_field_fs():
         "    SUBROUTINE invoke_0_testkern_fs_type(f1, f2, m1, m2, f3, f4, "
         "m3)\n"
         "      USE testkern_fs, ONLY: testkern_code\n"
+        "      USE mesh_mod, ONLY: mesh_type\n"
         "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2, f3, f4, m3\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
         "map_w3(:) => null(), map_wtheta(:) => null(), map_w2h(:) => null(), "
@@ -408,6 +409,7 @@ def test_field_fs():
         "      INTEGER cell\n"
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3, "
         "ndf_wtheta, undf_wtheta, ndf_w2h, undf_w2h, ndf_w2v, undf_w2v\n"
+        "      TYPE(mesh_type) mesh\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy, "
         "f3_proxy, f4_proxy, m3_proxy\n"
@@ -425,6 +427,10 @@ def test_field_fs():
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Create a mesh object\n"
+        "      !\n"
+        "      mesh = f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise sizes and allocate any basis arrays for w1\n"
         "      !\n"
@@ -499,6 +505,7 @@ def test_field_qr():
     output = (
         "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, m2, qr)\n"
         "      USE testkern_qr, ONLY: testkern_qr_code\n"
+        "      USE mesh_mod, ONLY: mesh_type\n"
         "      TYPE(field_type), intent(inout) :: f1, f2, m1, m2\n"
         "      TYPE(quadrature_type), intent(in) :: qr\n"
         "      INTEGER, pointer :: map_w1(:) => null(), map_w2(:) => null(), "
@@ -512,6 +519,7 @@ def test_field_qr():
         "wv(:) => null()\n"
         "      REAL(KIND=r_def), pointer :: xp(:,:) => null()\n"
         "      INTEGER nqp_h, nqp_v\n"
+        "      TYPE(mesh_type) mesh\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      !\n"
@@ -525,6 +533,10 @@ def test_field_qr():
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Create a mesh object\n"
+        "      !\n"
+        "      mesh = f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise qr values\n"
         "      !\n"
@@ -672,6 +684,7 @@ def test_operator_different_spaces():
         "(mapping, chi, qr)\n"
         "      USE assemble_weak_derivative_w3_w2_kernel_mod, ONLY: "
         "assemble_weak_derivative_w3_w2_kernel_code\n"
+        "      USE mesh_mod, ONLY: mesh_type\n"
         "      TYPE(field_type), intent(inout) :: chi(3)\n"
         "      TYPE(operator_type), intent(inout) :: mapping\n"
         "      TYPE(quadrature_type), intent(in) :: qr\n"
@@ -686,6 +699,7 @@ def test_operator_different_spaces():
         "wv(:) => null()\n"
         "      REAL(KIND=r_def), pointer :: xp(:,:) => null()\n"
         "      INTEGER nqp_h, nqp_v\n"
+        "      TYPE(mesh_type) mesh\n"
         "      INTEGER nlayers\n"
         "      TYPE(operator_proxy_type) mapping_proxy\n"
         "      TYPE(field_proxy_type) chi_proxy(3)\n"
@@ -700,6 +714,10 @@ def test_operator_different_spaces():
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers = mapping_proxy%fs_from%get_nlayers()\n"
+        "      !\n"
+        "      ! Create a mesh object\n"
+        "      !\n"
+        "      mesh = mapping%get_mesh()\n"
         "      !\n"
         "      ! Initialise qr values\n"
         "      !\n"
@@ -2414,18 +2432,18 @@ def test_halo_dirty_5():
     assert "set_dirty()" not in generated_code
     assert "! Set halos dirty" not in generated_code
 
-
+@pytest.mark.xfail(reason="We have no way to switch DISTRIBUTED_MEMORY off in py.test")
 def test_no_halo_dirty():
     ''' check that no halo_dirty code is produced if the
     DISTRIBUTED_MEMORY config value is set to False '''
     import config
-    config.DISTRIBUTED_MEMORY = False
+    #config.DISTRIBUTED_MEMORY = False
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = str(psy.gen)
     # reset global value so we don't affect any other tests
-    config.DISTRIBUTED_MEMORY = True
+    #config.DISTRIBUTED_MEMORY = True
     print generated_code
     assert "set_dirty()" not in generated_code
     assert "! Set halos dirty" not in generated_code
@@ -2448,8 +2466,6 @@ def test_halo_exchange():
     assert output in generated_code
 
 
-@pytest.mark.xfail(reason="bug : loop bounds other than ncells() are"
-                   " not yet supported")
 def test_halo_exchange_inc():
     ''' test that halo exchange calls are added if we have a gh_inc
     operation and that the loop bounds included computation in the l1
@@ -2464,13 +2480,13 @@ def test_halo_exchange_inc():
                "        CALL a_proxy%halo_exchange(depth=1)\n"
                "      END IF \n"
                "      !\n"
-               "      DO cell=1,a_proxy%vspace%UNKNOWN\n")
+               "      DO cell=1,mesh%get_last_halo_cell(1)\n")
     assert output1 in result
     output2 = ("      IF (f_proxy%is_dirty(depth=1)) THEN\n"
                "        CALL f_proxy%halo_exchange(depth=1)\n"
                "      END IF \n"
                "      !\n"
-               "      DO cell=1,f_proxy%vspace%UNKNOWN\n")
+               "      DO cell=1,mesh%get_last_halo_cell(1)\n")
     assert output2 in result
     assert result.count("halo_exchange") == 2
 
@@ -2611,6 +2627,35 @@ def test_halo_exchange_view(capsys):
         "[module_inline=False]")
     print expected
     print result
-    import config
-    print config.DISTRIBUTED_MEMORY
     assert expected in result
+
+
+# there is currently no way to perform the test below as we can not
+# switch DISTRIBUTED_MEMORY off and on in py.test
+
+#def test_no_mesh_mod():
+#    '''test that we do not add a mesh module to the PSy layer if one is
+#    not required. '''
+#    assert False
+#    pass
+
+
+def test_mesh_mod():
+    '''test that a mesh module is added to the PSy layer and a mesh object
+    is created when required. One is required when we determine loop
+    bounds for distributed memory '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.6_multikernel_invokes.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    result = str(psy.gen)
+    print result
+    assert "USE mesh_mod, ONLY: mesh_type" in result
+    assert "TYPE(mesh_type) mesh" in result
+    output = ("      !\n"
+              "      ! Create a mesh object\n"
+              "      !\n"
+              "      mesh = a%get_mesh()\n")
+    assert output in result
+
+# can we get the mesh object from an operator?
