@@ -14,30 +14,44 @@
 from psyGen import TransInfo, Transformation, PSyFactory, NameSpace, NameSpaceFactory, GenerationError
 from dynamo0p3 import DynKern, DynKernMetadata
 from fparser import api as fpapi
+import pytest
+
 
 class TestPSyFactoryClass:
     ''' PSyFactory class unit tests '''
 
     def test_invalid_api(self):
         ''' test that psyfactory raises appropriate error when an invalid api is supplied '''
-        import pytest
         with pytest.raises(GenerationError):
             psy_factory = PSyFactory(api = "invalid")
 
     def test_psyfactory_valid_return_object(self):
         ''' test that psyfactory returns a psyfactory object for all supported inputs '''
         psy_factory = PSyFactory()
-        assert isinstance(psy_factory,PSyFactory)
-        for api in ["", "gunghoproto", "dynamo0.1", "gocean0.1"]:
-            psy_factory = PSyFactory(api = api)
-            assert isinstance(psy_factory,PSyFactory)
+        assert isinstance(psy_factory, PSyFactory)
+        from config import SUPPORTEDAPIS
+        apis = SUPPORTEDAPIS
+        apis.insert(0, "")
+        for api in apis:
+            psy_factory = PSyFactory(api=api)
+            assert isinstance(psy_factory, PSyFactory)
+
+    def test_psyfactory_valid_dm_flag(self):
+        '''test that a PSyFactory instance raises an exception if the
+        optional distributed_memory flag is set to an invalid value
+        and does not if the value is valid '''
+        with pytest.raises(GenerationError) as excinfo:
+            _ = PSyFactory(distributed_memory="ellie")
+        assert "distributed_memory flag" in str(excinfo.value)
+        _ = PSyFactory(distributed_memory=True)
+        _ = PSyFactory(distributed_memory=False)
 
     # TBD need to find a way to create a valid info object to pass to create so we can check creation
     #def test_create_valid_return_object(self):
     #    from ghproto import GHProtoPSy
     #    psy = PSyFactory().create(None)
     #    assert isinstance(psy,GHProtoPSy)
-import pytest
+
 
 class TestTransformationClass:
     ''' Transformation class unit tests '''

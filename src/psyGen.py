@@ -36,11 +36,20 @@ class FieldNotFoundError(Exception):
 
 
 class PSyFactory(object):
-    ''' Creates a specific version of the PSy. If a particular api is not
-        provided then the default api, as specified in the configs.py file,
-        is chosen. '''
-    def __init__(self, api="", distributed_memory=True):
+    '''Creates a specific version of the PSy. If a particular api is not
+        provided then the default api, as specified in the configs.py
+        file, is chosen. Note, for pytest to work we need to set
+        distributed_memory to the same default as the value found in
+        config.DISTRIBUTED_MEMORY. If we set it to None and then test
+        the value, it then fails. I've no idea why. '''
+    import config
+
+    def __init__(self, api="", distributed_memory=config.DISTRIBUTED_MEMORY):
         import config
+        if distributed_memory not in [True, False]:
+            raise GenerationError(
+                "The distributed_memory flag in PSyFactory must be set to"
+                " 'True' or 'False'")
         config.DISTRIBUTED_MEMORY = distributed_memory
         if api == "":
             from config import DEFAULTAPI
@@ -897,6 +906,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
         parent.add(DirectiveGen(parent, "omp", "end", "parallel do", ""))
 
+
 class HaloExchange(Node):
 
     ''' Generic Halo Exchange class which can be added to and
@@ -908,7 +918,7 @@ class HaloExchange(Node):
         self._halo_type = halo_type
         self._halo_depth = halo_depth
         self._check_dirty = check_dirty
-        
+
     def view(self, indent):
         ''' Class specific view  '''
         print self.indent(indent) + (
@@ -1085,8 +1095,8 @@ class Loop(Node):
     def unique_modified_fields(self, mapping, field_name):
         ''' Return all fields from Kernels in this subroutine that are
         modified '''
-        field_names=[]
-        fields=[]
+        field_names = []
+        fields = []
         for kern_call in self.kern_calls():
             for arg in kern_call.arguments.args:
                 if arg.type.lower() == field_name:
@@ -1096,7 +1106,6 @@ class Loop(Node):
                             field_names.append(field.name)
                             fields.append(field)
         return fields
-
 
     def gen_code(self, parent):
         if self._start == "1" and self._stop == "1":  # no need for a loop
