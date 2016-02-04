@@ -2630,14 +2630,18 @@ def test_halo_exchange_view(capsys):
     assert expected in result
 
 
-# there is currently no way to perform the test below as we can not
-# switch DISTRIBUTED_MEMORY off and on in py.test
-
-#def test_no_mesh_mod():
-#    '''test that we do not add a mesh module to the PSy layer if one is
-#    not required. '''
-#    assert False
-#    pass
+def test_no_mesh_mod():
+    '''test that we do not add a mesh module to the PSy layer if one is
+    not required. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.6_multikernel_invokes.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    result = str(psy.gen)
+    print result
+    assert "USE mesh_mod, ONLY: mesh_type" not in result
+    assert "TYPE(mesh_type) mesh" not in result
+    assert "mesh = a%get_mesh()" not in result
 
 
 def test_mesh_mod():
@@ -2677,3 +2681,12 @@ def test_no_dm_and_colour():
         # try to Colour the loop
         cschedule, _ = ctrans.apply(schedule.children[0])
     assert 'distributed memory and colours not yet supported' in str(excinfo.value)
+
+
+def test_no_stencil_support():
+    '''test that we raise an exception if we encounter a stencil kernel
+    as the infrastructure API for this is not yet decided '''
+    ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
+    with pytest.raises(GenerationError) as excinfo:
+        metadata = DynKernMetadata(ast)
+    assert 'not supported in PSyclone' in str(excinfo.value)
