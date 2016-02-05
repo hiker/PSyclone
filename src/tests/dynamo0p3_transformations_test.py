@@ -8,6 +8,8 @@
 
 ''' Tests of transformations with the Dynamo 0.3 API '''
 
+import os
+import pytest
 from parse import parse
 from psyGen import PSyFactory
 from transformations import TransformationError, \
@@ -17,8 +19,6 @@ from transformations import TransformationError, \
     DynamoOMPParallelLoopTrans, \
     DynamoLoopFuseTrans, \
     KernelModuleInlineTrans
-import os
-import pytest
 
 # The version of the API that the tests in this file
 # exercise.

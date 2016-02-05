@@ -540,9 +540,6 @@ class Node(object):
             return 0
         return self.parent.children.index(self)
 
-        current = self.root
-        position = 0
-
     @property
     def abs_position(self):
         ''' Find my position in the schedule. Needs to be computed

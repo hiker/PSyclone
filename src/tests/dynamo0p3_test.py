@@ -9,10 +9,10 @@
 ''' This module tests the Dynamo 0.3 API using pytest. '''
 
 # imports
+import os
 import pytest
 from parse import parse, ParseError
 from psyGen import PSyFactory, GenerationError
-import os
 import fparser
 from fparser import api as fpapi
 from dynamo0p3 import DynKernMetadata, DynKern
@@ -2683,7 +2683,7 @@ def test_no_dm_and_colour():
     ctrans = ColourTrans()
     with pytest.raises(GenerationError) as excinfo:
         # try to Colour the loop
-        cschedule, _ = ctrans.apply(schedule.children[0])
+        _, _ = ctrans.apply(schedule.children[0])
     assert 'distributed memory and colours not yet supported' in \
         str(excinfo.value)
 
@@ -2693,5 +2693,5 @@ def test_no_stencil_support():
     as the infrastructure API for this is not yet decided '''
     ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
     with pytest.raises(GenerationError) as excinfo:
-        metadata = DynKernMetadata(ast)
+        _ = DynKernMetadata(ast)
     assert 'not supported in PSyclone' in str(excinfo.value)
