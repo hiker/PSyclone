@@ -102,14 +102,14 @@ def test_colour_trans():
 
     # Check that we get the right number of set_dirty halo calls in
     # the correct location
-    #dirty_str = (
+    # dirty_str = (
     #    "      !\n"
     #    "      ! set halos dirty for fields modified in the above loop\n"
     #    "      !\n"
     #    "      call f1_proxy%set_dirty()")
 
-    #assert dirty_str in gen
-    #assert gen.count("set_dirty()") == 1
+    # assert dirty_str in gen
+    # assert gen.count("set_dirty()") == 1
 
 
 def test_colouring_not_a_loop():
@@ -649,6 +649,7 @@ def test_loop_fuse_set_dirty():
 
     assert gen.count("set_dirty()") == 1
 
+
 @pytest.mark.xfail(reason="bug: not yet fixed")
 def test_loop_fuse_omp():
     '''Test that we can loop-fuse two loop nests and enclose them in an
@@ -803,12 +804,12 @@ def test_fuse_colour_loops():
     assert call_idx2 < end_loop_idx2
 
     # limiting to sequential test for the moment
-    #set_dirty_str = (
+    # set_dirty_str = (
     #    "      ! Set halos dirty for fields modified in the above loop\n"
     #    "      !\n"
     #    "      CALL f1_proxy%set_dirty()\n")
-    #assert set_dirty_str in code
-    #assert code.count("set_dirty()") == 1
+    # assert set_dirty_str in code
+    # assert code.count("set_dirty()") == 1
 
 
 def test_module_inline():

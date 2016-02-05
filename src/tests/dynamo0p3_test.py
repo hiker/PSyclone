@@ -2046,7 +2046,7 @@ def test_stencil_metadata():
     ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     stencil_descriptor_0 = metadata.arg_descriptors[0]
-    assert  stencil_descriptor_0.stencil == None
+    assert stencil_descriptor_0.stencil is None
     stencil_descriptor_1 = metadata.arg_descriptors[1]
     assert stencil_descriptor_1.stencil['type'] == 'cross'
     assert stencil_descriptor_1.stencil['extent'] == 1
@@ -2390,6 +2390,7 @@ def test_halo_dirty_2():
 
     assert expected in generated_code
 
+
 def test_halo_dirty_3():
     ''' check halo_dirty calls with multiple kernel calls '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2511,7 +2512,7 @@ def test_halo_exchange_vectors():
     result = str(psy.gen)
     print result
     assert result.count("halo_exchange(") == 7
-    for idx in range(1,4):
+    for idx in range(1, 4):
         assert "f1_proxy("+str(idx)+")%halo_exchange(depth=1)" in result
         assert "f2_proxy("+str(idx)+")%halo_exchange(depth=2)" in result
     expected = ("      IF (f2_proxy%is_dirty(depth=2)) THEN\n"
@@ -2547,6 +2548,7 @@ def test_halo_exchange_depths():
                 "      DO cell=1,mesh%get_last_edge_cell()\n")
     assert expected in result
 
+
 @pytest.mark.xfail(reason="stencils not yet supported")
 def test_halo_exchange_depths_gh_inc():
     ''' test that halo exchange includes the correct halo depth when
@@ -2577,13 +2579,14 @@ def test_halo_exchange_depths_gh_inc():
                 "      DO cell=1,mesh%get_last_halo_cell(1)\n")
     assert expected in result
 
+
 @pytest.mark.xfail(reason="stencils not yet supported")
 def test_stencil_read_only():
     '''test that an error is raised if a field with a stencil is not
     accessed as gh_read'''
     fparser.logging.disable('CRITICAL')
     code = STENCIL_CODE.replace("gh_read, w2, stencil(cross,1)",
-                        "gh_write, w2, stencil(cross,1)", 1)
+                                "gh_write, w2, stencil(cross,1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name="stencil_type")
@@ -2591,7 +2594,7 @@ def test_stencil_read_only():
 
 
 # def test_halo_exchange_conflicting_stencil(): '''
-#two different stencils for same space in a kernel *** and gh_inc '''
+# two different stencils for same space in a kernel *** and gh_inc '''
 # only an issue when we have more than one kernel per loop i.e. we
 # need loop fusion. Therefore should go in dynamo0p3_transformations.py
 
@@ -2662,7 +2665,8 @@ def test_mesh_mod():
               "      mesh = a%get_mesh()\n")
     assert output in result
 
-# when we add build tests we should test that we can we get the mesh object from an operator
+# when we add build tests we should test that we can we get the mesh
+# object from an operator
 
 
 def test_no_dm_and_colour():
@@ -2680,7 +2684,8 @@ def test_no_dm_and_colour():
     with pytest.raises(GenerationError) as excinfo:
         # try to Colour the loop
         cschedule, _ = ctrans.apply(schedule.children[0])
-    assert 'distributed memory and colours not yet supported' in str(excinfo.value)
+    assert 'distributed memory and colours not yet supported' in \
+        str(excinfo.value)
 
 
 def test_no_stencil_support():
