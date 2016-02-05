@@ -18,6 +18,7 @@
    stub_gen
    line_length
    api
+   system_specific_setup
    f2py_install
 ..   developers
 ..   infrastructure_calls
