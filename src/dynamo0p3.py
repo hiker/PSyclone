@@ -42,8 +42,8 @@ VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"]
 
 VALID_STENCIL_TYPES = ["x1d", "y1d", "cross", "region"]
 
-VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "edge", "halo", "colour",
-                           "colours", "cells"]
+VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "edge", "halo", "ncolour",
+                           "ncolours", "cells"]
 
 # The mapping from meta-data strings to field-access types
 # used in this API.
@@ -1067,7 +1067,8 @@ class DynLoop(Loop):
             self._variable_name = "cell"
 
         if call:
-            # we can determine our loop bounds from the child
+            # a kernel call has been passed so we can determine our
+            # default loop bounds from this
             self.set_lower_bound("start")
             if config.DISTRIBUTED_MEMORY:
                 if self.field_space == "w3":  # discontinuous
@@ -1076,11 +1077,6 @@ class DynLoop(Loop):
                     self.set_upper_bound("halo", index=1)
             else:  # sequential
                 self.set_upper_bound("cells")
-        elif self.loop_type in ["colour", "colours"]:
-            # assume the bounds are always the same - this will
-            # probably not be valid in the future
-            self.set_lower_bound("start")
-            self.set_upper_bound(self.loop_type)
         else:
             self._lower_bound_name = None
             self._lower_bound_index = None
@@ -1148,9 +1144,9 @@ class DynLoop(Loop):
             if self._upper_bound_name == "cells":
                 return self.field.proxy_name_indexed + "%" + \
                     self.field.ref_name() + "%get_ncell()"
-            elif self._upper_bound_name == "colours":
+            elif self._upper_bound_name == "ncolours":
                 return "ncolour"
-            elif self._upper_bound_name == "colour":
+            elif self._upper_bound_name == "ncolour":
                 return "ncp_colour(colour)"
             else:
                 raise GenerationError(

@@ -611,7 +611,7 @@ class ColourTrans(Transformation):
         colours_loop.field_space = node.field_space
         colours_loop.iteration_space = node.iteration_space
         colours_loop.set_lower_bound("start")
-        colours_loop.set_upper_bound("colours")
+        colours_loop.set_upper_bound("ncolours")
         # Add this loop as a child of the original node's parent
         node_parent.addchild(colours_loop, index=node_position)
 
@@ -621,7 +621,7 @@ class ColourTrans(Transformation):
         colour_loop.field_space = node.field_space
         colour_loop.iteration_space = node.iteration_space
         colour_loop.set_lower_bound("start")
-        colour_loop.set_upper_bound("colour")
+        colour_loop.set_upper_bound("ncolour")
         # Add this loop as a child of our loop over colours
         colours_loop.addchild(colour_loop)
 
