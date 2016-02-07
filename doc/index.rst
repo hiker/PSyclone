@@ -13,6 +13,7 @@
    algorithm_layer
    psy_layer
    transformations
+   distributed_memory
    dynamo0p3
    gocean1p0
    stub_gen
