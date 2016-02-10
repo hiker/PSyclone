@@ -1024,8 +1024,8 @@ class DynHaloExchange(HaloExchange):
         from f2pygen import IfThenGen, CallGen, CommentGen
         if self._check_dirty:
             if_then = IfThenGen(parent, self._field.proxy_name +
-                                "%is_dirty(depth=" + str(self._halo_depth)
-                                + ")")
+                                "%is_dirty(depth=" + str(self._halo_depth) +
+                                ")")
             parent.add(if_then)
             halo_parent = if_then
         else:
