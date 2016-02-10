@@ -30,6 +30,7 @@ def test_invalid_api():
     with pytest.raises(GenerationError):
         _ = PSyFactory(api="invalid")
 
+
 def test_psyfactory_valid_return_object():
     '''test that psyfactory returns a psyfactory object for all supported
     inputs'''
@@ -42,6 +43,7 @@ def test_psyfactory_valid_return_object():
         psy_factory = PSyFactory(api=api)
         assert isinstance(psy_factory, PSyFactory)
 
+
 def test_psyfactory_valid_dm_flag():
     '''test that a PSyFactory instance raises an exception if the
     optional distributed_memory flag is set to an invalid value
@@ -51,6 +53,7 @@ def test_psyfactory_valid_dm_flag():
     assert "distributed_memory flag" in str(excinfo.value)
     _ = PSyFactory(distributed_memory=True)
     _ = PSyFactory(distributed_memory=False)
+
 
 # TBD need to find a way to create a valid info object to pass to
 # create so we can check creation
@@ -68,6 +71,7 @@ def test_base_class_not_callable():
     with pytest.raises(TypeError):
         _ = Transformation()
 
+
 # TransInfo class unit tests
 
 def test_new_module():
@@ -79,6 +83,7 @@ def test_new_module():
     trans = TransInfo(module=dummy_transformations)
     assert trans.num_trans == 0
 
+
 def test_new_baseclass():
     '''check that we can change the transformations baseclass. There
     should be no transformations available as the default
@@ -87,6 +92,7 @@ def test_new_baseclass():
     from test_files.dummy_transformations import LocalTransformation
     trans = TransInfo(base_class=LocalTransformation)
     assert trans.num_trans == 0
+
 
 def test_new_module_and_baseclass():
     '''check that we can change the module where we look for
@@ -98,15 +104,18 @@ def test_new_module_and_baseclass():
                       base_class=dummy_transformations.LocalTransformation)
     assert trans.num_trans == 1
 
+
 def test_list_valid_return_object():
     ''' check the list method returns the valid type '''
     trans = TransInfo()
     assert isinstance(trans.list, str)
 
+
 def test_list_return_data():
     ''' check the list method returns sensible information '''
     trans = TransInfo()
     assert trans.list.find("available") != -1
+
 
 def test_invalid_low_number():
     '''check an out-of-range low number for get_trans_num method raises
@@ -115,6 +124,7 @@ def test_invalid_low_number():
     with pytest.raises(GenerationError):
         _ = trans.get_trans_num(0)
 
+
 def test_invalid_high_number():
     '''check an out-of-range high number for get_trans_num method raises
     correct exception'''
@@ -122,11 +132,13 @@ def test_invalid_high_number():
     with pytest.raises(GenerationError):
         _ = trans.get_trans_num(999)
 
+
 def test_valid_return_object_from_number():
     ''' check get_trans_num method returns expected type of instance '''
     trans = TransInfo()
     transform = trans.get_trans_num(1)
     assert isinstance(transform, Transformation)
+
 
 def test_invalid_name():
     '''check get_trans_name method fails correctly when an invalid name
@@ -134,6 +146,7 @@ def test_invalid_name():
     trans = TransInfo()
     with pytest.raises(GenerationError):
         _ = trans.get_trans_name("invalid")
+
 
 def test_valid_return_object_from_name():
     ''' check get_trans_name method return the correct object type '''
@@ -152,6 +165,7 @@ def test_fail_context_label():
     with pytest.raises(RuntimeError):
         namespace.create_name(label="dummy_context")
 
+
 def test_case_sensitive_names():
     ''' tests that in the case sensitive option, names that only differ by
     case are treated as being distinct'''
@@ -162,6 +176,7 @@ def test_case_sensitive_names():
     assert name1 == name
     assert name2 == name.lower()
 
+
 def test_case_insensitive_names():
     ''' tests that in the case insensitive option (the default), names that
     only differ by case are treated as being the same '''
@@ -171,6 +186,7 @@ def test_case_insensitive_names():
     name2 = namespace.create_name(root_name=name.lower())
     assert name1 == name.lower()
     assert name2 == name1 + "_1"
+
 
 def test_new_labels():
     '''tests that different labels and contexts are treated as being
@@ -190,6 +206,7 @@ def test_new_labels():
     assert name3 == name1+"_2"
     assert name4 == name1+"_3"
 
+
 def test_new_labels_case_sensitive():
     '''tests that different labels and contexts are treated as being
     distinct for case sensitive names'''
@@ -208,6 +225,7 @@ def test_new_labels_case_sensitive():
     assert name3 == name1+"_2"
     assert name4 == name1+"_3"
 
+
 def test_existing_labels():
     '''tests that existing labels and contexts return the previous name'''
     namespace = NameSpace()
@@ -224,6 +242,7 @@ def test_existing_labels():
     assert name2 == name1+"_1"
     assert name3 == name1
     assert name4 == name2
+
 
 def test_existing_labels_case_sensitive():
     '''tests that existing labels and contexts return the previous name'''
@@ -242,6 +261,7 @@ def test_existing_labels_case_sensitive():
     assert name3 == name1
     assert name4 == name2
 
+
 def test_reserved_names():
     '''tests that reserved names are not returned by the name space
     manager'''
@@ -254,6 +274,7 @@ def test_reserved_names():
     namespace.add_reserved_names([nameb.lower()])
     name1 = namespace.create_name(root_name=nameb)
     assert name1 == nameb.lower()+"_1"
+
 
 def test_reserved_names_case_sensitive():
     '''tests that reserved names are not returned by the case sensitive
@@ -272,6 +293,7 @@ def test_reserved_names_case_sensitive():
     name1 = namespace.create_name(root_name=nameb.lower())
     assert name1 == nameb.lower()
 
+
 def test_reserved_name_exists():
     '''tests that an error is generated if a reserved name has already
     been used as a name'''
@@ -282,6 +304,7 @@ def test_reserved_name_exists():
         namespace.add_reserved_name(name)
     with pytest.raises(RuntimeError):
         namespace.add_reserved_name(name.lower())
+
 
 def test_reserved_name_exists_case_sensitive():
     '''tests that an error is generated if a reserved name has already
@@ -295,6 +318,7 @@ def test_reserved_name_exists_case_sensitive():
     with pytest.raises(RuntimeError):
         namespace.add_reserved_names([name])
 
+
 def test_anonymous_name():
     ''' tests that anonymous names are successfully created '''
     namespace = NameSpace()
@@ -302,6 +326,7 @@ def test_anonymous_name():
     assert name1 == "anon"
     name2 = namespace.create_name()
     assert name2 == "anon_1"
+
 
 def test_internal_name_clashes():
     ''' tests that names that are generated internally by the namespace
@@ -314,6 +339,7 @@ def test_internal_name_clashes():
     assert name2 == name1+"_1"
     name3 = namespace.create_name(root_name=anon_name+"_1")
     assert name3 == name2+"_1"
+
 
 def test_internal_name_clashes_case_sensitive():
     '''tests that names that are generated internally by the case
@@ -335,6 +361,7 @@ def test_create():
     nspace = nsf.create()
     assert isinstance(nspace, NameSpace)
 
+
 def test_singleton():
     '''test that the same NameSpace object is returned from different
     NameSpaceFactory's by default'''
@@ -344,6 +371,7 @@ def test_singleton():
     ns2 = nsf.create()
     assert ns1 == ns2
 
+
 def test_reset():
     ''' test that different NameSpace objects are returned from different
     NameSpaceFactory's when the reset option is set'''
@@ -352,6 +380,7 @@ def test_reset():
     nsf = NameSpaceFactory(reset=True)
     ns2 = nsf.create()
     assert ns1 != ns2
+
 
 # Kern class test
 
