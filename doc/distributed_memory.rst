@@ -5,7 +5,8 @@ Distributed Memory
 
 PSyclone supports the generation of code for distributed memory
 machines. When this option is switched on, PSyclone takes on
-responsibility for both performance and correctness.
+responsibility for both performance and correctness, as described
+below.
 
 Correctness
 -----------
@@ -15,12 +16,12 @@ communication calls to the PSy layer to ensure that the distributed
 memory code runs correctly. For example, a stencil operation will
 require halo exchanges between the different processes.
 
-The burdon of correctly placing distributed memory communication calls
+The burden of correctly placing distributed memory communication calls
 has traditionally been born by the user. However, PSyclone is able to
-determine these within the PSy-layer, thereby freeing the user from
-this responsibility. Thus, the Algorithm and Kernel code remain the
-same, irrespective of whether the target architecture does or does not
-require a distributed memory solution.
+determine the placing of these within the PSy-layer, thereby freeing
+the user from this responsibility. Thus, the Algorithm and Kernel code
+remain the same, irrespective of whether the target architecture does
+or does not require a distributed memory solution.
 
 Performance
 -----------
@@ -32,20 +33,21 @@ purposes of optimisation. For example the halo-exchange objects may be
 moved in the schedule (via appropriate transformations) to enable
 overlap of computation with communication.
 
-.. note:: When these optimisations are implemented, add a reference
-   :ref:`transformations` Section.
+.. note:: When these optimisations are implemented, add a reference to
+   the :ref:`transformations` Section.
 
 Implementation
 --------------
 
 Within the contents of an ``invoke()`` call, PSyclone is able to
 statically determine which communication calls are required and where
-they should be placed. However, between ``invoke()`` calls, PSyclone
-is not able to do this, as in the general case their may be arbitrary
-code between invoke calls. The solution that is used is to add
-run-time flags in the PSy layer to keep track of whether data has been
-written to and read from, which are then used to determine when
-communication calls are required.
+they should be placed. However, PSyclone has no information on what
+happens outside ``invoke()`` calls and thus is unable to statically
+determine whether communication is required between these calls. The
+solution we use is to add run-time flags in the PSy layer to keep
+track of whether data has been written to and read from. These flags
+are then used to determine whether communication calls are required upon
+entry to an ``invoke()``.
 
 Control
 -------

@@ -107,7 +107,7 @@ Test
 
 Once you have the necessary dependencies installed and your
 environment configured, you can check that things are working by using
-the PSyclone test suite. These tests is not required and can be
+the PSyclone test suite. These tests are not required and can be
 skipped if preferred:
 ::
 

@@ -37,7 +37,8 @@ Set your python path appropriately
    > cd PSyclone_trunk
    > export PYTHONPATH=`pwd`/src:`pwd`/f2py_93
 
-You may want to set your python path perminantly.
+You may want to set your python path permanently (e.g. by editing your
+${HOME}/.bashrc file if you run the BASH shell).
 
 numpy is required to run PSyclone
 ::
