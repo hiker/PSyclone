@@ -539,8 +539,11 @@ class DynInvoke(Invoke):
             # for the moment just add them before each loop as required
             for loop in self.schedule.loops():
                 inc = loop.has_inc_arg()
-                for halo_field in loop.unique_halo_fields():
+                for halo_field in loop.unique_fields_with_halo_reads():
                     if halo_field.vector_size > 1:
+                        # the range function below returns values from
+                        # 1 to the vector size which is what we
+                        # require in our Fortran code
                         for idx in range(1, halo_field.vector_size+1):
                             exchange = DynHaloExchange(
                                 halo_field, parent=loop, vector_index=idx,
@@ -739,6 +742,9 @@ class DynInvoke(Invoke):
         invoke_sub.add(CommentGen(invoke_sub, ""))
         for arg in self.psy_unique_vars:
             if arg.vector_size > 1:
+                # the range function below returns values from
+                # 1 to the vector size which is what we
+                # require in our Fortran code
                 for idx in range(1, arg.vector_size+1):
                     invoke_sub.add(
                         AssignGen(invoke_sub,
@@ -1090,7 +1096,8 @@ class DynLoop(Loop):
                 "The specified lower bound loop name is invalid")
         if name in ["inner", "halo"] and index < 1:
             raise GenerationError(
-                "The specified index for this lower loop bound is invalid")
+                "The specified index '{0}' for this lower loop bound is "
+                "invalid".format(str(index)))
         self._lower_bound_name = name
         self._lower_bound_index = index
 
@@ -1103,7 +1110,8 @@ class DynLoop(Loop):
             raise GenerationError("'start' is not a valid upper bound")
         if name in ["inner", "halo"] and index < 1:
             raise GenerationError(
-                "The specified index for this upper loop bound is invalid")
+                "The specified index '{0}' for this upper loop bound is "
+                "invalid".format(str(index)))
         self._upper_bound_name = name
         self._upper_bound_index = index
 
@@ -1170,7 +1178,7 @@ class DynLoop(Loop):
             my_mapping = FIELD_ACCESS_MAP
         return Loop.has_inc_arg(self, my_mapping)
 
-    def unique_halo_fields(self):
+    def unique_fields_with_halo_reads(self):
         ''' Returns all fields in this loop that require at least some
         of their halo to be clean to work correctly. If the same field
         name is found more than once then the field with the largest
@@ -1240,9 +1248,12 @@ class DynLoop(Loop):
                 parent.add(CommentGen(parent, ""))
                 for field in fields:
                     if field.vector_size > 1:
-                        for index in range(field.vector_size):
+                        # the range function below returns values from
+                        # 1 to the vector size which is what we
+                        # require in our Fortran code
+                        for index in range(1, field.vector_size+1):
                             parent.add(CallGen(parent, name=field.proxy_name +
-                                               "(" + str(index+1) +
+                                               "(" + str(index) +
                                                ")%set_dirty()"))
                     else:
                         parent.add(CallGen(parent, name=field.proxy_name +
@@ -1449,6 +1460,9 @@ class DynKern(Kern):
             if arg.type == "gh_field":
                 dataref = "%data"
                 if arg.vector_size > 1:
+                    # the range function below returns values from
+                    # 1 to the vector size which is what we
+                    # require in our Fortran code
                     for idx in range(1, arg.vector_size+1):
                         if my_type == "subroutine":
                             text = arg.name + "_" + arg.function_space + \
