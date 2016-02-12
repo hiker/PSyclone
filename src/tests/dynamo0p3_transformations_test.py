@@ -650,7 +650,6 @@ def test_loop_fuse_set_dirty():
     assert gen.count("set_dirty()") == 1
 
 
-@pytest.mark.xfail(reason="bug: not yet fixed")
 def test_loop_fuse_omp():
     '''Test that we can loop-fuse two loop nests and enclose them in an
        OpenMP parallel region'''
@@ -658,7 +657,7 @@ def test_loop_fuse_omp():
                                  "test_files", "dynamo0p3",
                                  "4_multikernel_invokes.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     invoke = psy.invokes.get('invoke_0')
     schedule = invoke.schedule
 
@@ -679,7 +678,6 @@ def test_loop_fuse_omp():
     invoke.schedule = fschedule
     code = str(psy.gen)
     print code
-    exit(1)
 
     # Check generated code
     omp_para_idx = -1
