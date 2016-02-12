@@ -1239,7 +1239,7 @@ class DynLoop(Loop):
         if config.DISTRIBUTED_MEMORY and self._loop_type != "colour":
             # Set halo dirty for all fields that are modified
             from f2pygen import CallGen, CommentGen
-            fields = self.unique_modified_fields(FIELD_ACCESS_MAP, "gh_field")
+            fields = self.unique_modified_args(FIELD_ACCESS_MAP, "gh_field")
             if fields:
                 parent.add(CommentGen(parent, ""))
                 parent.add(CommentGen(parent,
