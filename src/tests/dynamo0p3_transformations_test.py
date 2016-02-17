@@ -419,7 +419,7 @@ def test_colouring_multi_kernel():
     when an invoke contains more than one kernel '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
-                                 "4_multikernel_invokes.f90"),
+                                 "4.6_multikernel_invokes.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     invoke = psy.invokes.get('invoke_0')
@@ -438,12 +438,14 @@ def test_colouring_multi_kernel():
 
     invoke.schedule = newsched
     gen = str(psy.gen)
+    print gen
 
     # Check that we're calling the API to get the no. of colours
-    assert "f1_proxy%vspace%get_colours(" in gen
-    assert gen.count("f1_proxy%vspace%get_colours(") == 2
-    assert "private(cell,map_w1,map_w2,map_w3)" in gen
-    assert gen.count("private(cell,map_w1,map_w2,map_w3)") == 2
+    assert "a_proxy%vspace%get_colours(" in gen
+    assert "f_proxy%vspace%get_colours(" in gen
+    assert gen.count("_proxy%vspace%get_colours(") == 2
+    assert "private(cell,map_w2,map_w3,map_w0)" in gen
+    assert gen.count("private(cell,map_w2,map_w3,map_w0)") == 2
 
 
 def test_omp_region_omp_do():
@@ -715,7 +717,7 @@ def test_fuse_colour_loops():
     single node (non MPI) code '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
-                                 "4_multikernel_invokes.f90"),
+                                 "4.6_multikernel_invokes.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     invoke = psy.invokes.get('invoke_0')
@@ -778,13 +780,13 @@ def test_fuse_colour_loops():
                 cell_loop_idx2 = idx
         if "DO colour=1,ncolour" in line:
             col_loop_idx = idx
-        if "CALL testkern_code(nlayers," in line:
+        if "CALL ru_code(nlayers," in line:
             if call_idx1 == -1:
                 call_idx1 = idx
             else:
                 call_idx2 = idx
         if "!$omp parallel default(shared), " +\
-           "private(cell,map_w1,map_w2,map_w3)" in line:
+           "private(cell,map_w2,map_w3,map_w0)" in line:
             omp_para_idx = idx
         if "!$omp do schedule(static)" in line:
             if omp_do_idx1 == -1:
