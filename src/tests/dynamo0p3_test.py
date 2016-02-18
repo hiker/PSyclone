@@ -15,7 +15,7 @@ from parse import parse, ParseError
 from psyGen import PSyFactory, GenerationError
 import fparser
 from fparser import api as fpapi
-from dynamo0p3 import DynKernMetadata, DynKern
+from dynamo0p3 import DynKernMetadata, DynKern, DynLoop
 from transformations import LoopFuseTrans, ColourTrans
 from genkernelstub import generate
 
@@ -2695,3 +2695,50 @@ def test_no_stencil_support():
     with pytest.raises(GenerationError) as excinfo:
         _ = DynKernMetadata(ast)
     assert 'not supported in PSyclone' in str(excinfo.value)
+
+
+def test_set_bounds_functions():
+    '''test that we raise appropriate exceptions when the lower bound of
+    a loop is set to an invalid value '''
+    my_loop = DynLoop()
+    with pytest.raises(GenerationError) as excinfo:
+        my_loop.set_lower_bound("invalid_loop_bounds_name")
+    assert "lower bound loop name is invalid" in str(excinfo.value)
+    with pytest.raises(GenerationError) as excinfo:
+        my_loop.set_lower_bound("inner",index=0)
+    assert "specified index" in str(excinfo.value)
+    assert "lower loop bound is invalid" in str(excinfo.value)
+    with pytest.raises(GenerationError) as excinfo:
+        my_loop.set_upper_bound("invalid_loop_bounds_name")
+    assert "upper bound loop name is invalid" in str(excinfo.value)
+    with pytest.raises(GenerationError) as excinfo:
+        my_loop.set_upper_bound("start")
+    assert "'start' is not a valid upper bound" in str(excinfo.value)
+    with pytest.raises(GenerationError) as excinfo:
+        my_loop.set_upper_bound("inner",index=0)
+    assert "specified index" in str(excinfo.value)
+    assert "upper loop bound is invalid" in str(excinfo.value)
+
+
+def test_lower_bound_fortran():
+    ''' tests we raise an exception in the DynLoop:_lower_bound_fortran() method '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    my_loop = psy.invokes.invoke_list[0].schedule.children[0]
+    my_loop.set_lower_bound("inner",index=1)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = my_loop._lower_bound_fortran()
+    assert "lower bound must be 'start' if we are sequential" in str(excinfo.value)
+    my_loop.set_upper_bound("halo",index=1)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = my_loop._upper_bound_fortran()
+    assert "upper bound must be 'cells' if we are sequential" in str(excinfo.value)
+
+
+#def test_multi_field_name_halo():
+#    '''tests the case where we have multiple kernels within an invoke and
+#    the same field requires clean halos in more than one Kernel. In
+#    this case the field with the largest halo is chosen. This test
+#    only checks the case when the halo sizes are the same (as we don't
+#    currently support stencils '''
