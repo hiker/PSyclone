@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# abort if a command fails
+set -e
+
 cd dynamo/eg1
 python runme.py
 python runme_openmp.py
@@ -12,7 +15,8 @@ python runme_loop_fuse.py
 cd -
 
 cd dynamo/eg3
-python ../../../src/generator.py -s ./colouring_and_omp.py solver_mod.x90
+python ../../../src/generator.py solver_mod.x90
+python ../../../src/generator.py -s ./colouring_and_omp.py -nodm solver_mod.x90
 cd -
 
 cd gocean
@@ -28,4 +32,3 @@ cd -
 cd line_length
 python runme.py
 cd -
-
