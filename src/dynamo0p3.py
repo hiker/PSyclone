@@ -1189,18 +1189,14 @@ class DynLoop(Loop):
             if field.name not in unique_fields:
                 unique_fields[field.name] = field
             else:
-                if field.descriptor.stencil:
-                    new_stencil_size = field.descriptor.stencil['extent']
-                else:
-                    new_stencil_size = 1
-                stored_field = unique_fields[field.name]
-                if stored_field.descriptor.stencil:
-                    current_stencil_size = \
-                        stored_field.descriptor.stencil['extent']
-                else:
-                    current_stencil_size = 1
-                if new_stencil_size > current_stencil_size:
-                    unique_fields[field.name] = field
+                # This case should not arise at this point as we only
+                # use this call to add halo exchange calls and we only
+                # add halo exchange calls to vanilla code where there
+                # is only one kernel per loop See ticket 420 for more
+                # details.
+                raise GenerationError(
+                    "DynLoop:unique_fields_with_halo_reads(): non-unique "
+                    "fields are not expected.")
         return unique_fields.values()
 
     def halo_fields(self):

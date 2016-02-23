@@ -2736,9 +2736,29 @@ def test_lower_bound_fortran():
     assert "upper bound must be 'cells' if we are sequential" in str(excinfo.value)
 
 
-#def test_multi_field_name_halo():
-#    '''tests the case where we have multiple kernels within an invoke and
-#    the same field requires clean halos in more than one Kernel. In
-#    this case the field with the largest halo is chosen. This test
-#    only checks the case when the halo sizes are the same (as we don't
-#    currently support stencils '''
+def test_multi_field_name_halo():
+    '''tests the case where we have multiple kernels within an invoke and
+    the same field requires clean halos in more than one Kernel. In
+    this case we raise an error as we don't expect this case to happen. See
+    ticket 420 for more info.'''
+    # parse an example where halo exchanges are needed for each loop
+    # and the variable name is the samefor the Kernel in each
+    # loop. Don't use distributed memory as this will place halo's and
+    # we want to loop fuse without worrying about that.
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.6.2_multikernel_invokes.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    psy.invokes.invoke_list[0].schedule.view()
+    invoke =  psy.invokes.invoke_list[0]
+    # Loop fuse so two Kernels requiring halo exchange calls are in the same loop
+    loop1 = invoke.schedule.children[0]
+    loop2 = invoke.schedule.children[1]
+    trans = LoopFuseTrans()
+    schedule, _ = trans.apply(loop1, loop2)
+    invoke.schedule = schedule
+    loop1 = schedule.children[0]
+    # Now check the fused loop
+    with pytest.raises(GenerationError) as excinfo:
+        _ = loop1.unique_fields_with_halo_reads()
+    assert "non-unique fields are not expected" in str(excinfo.value)
