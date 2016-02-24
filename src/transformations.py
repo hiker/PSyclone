@@ -115,8 +115,8 @@ class LoopFuseTrans(Transformation):
 
 
 class GOceanLoopFuseTrans(LoopFuseTrans):
-    ''' Performs error checking before calling the
-        :py:meth:`LoopFuseTrans.apply` method of the
+    ''' Performs error checking (that the loops are over the same grid-point
+        type) before calling the :py:meth:`LoopFuseTrans.apply` method of the
         :py:class:`base class <LoopFuseTrans>` in order to fuse two
         GOcean loops. '''
 
@@ -467,10 +467,9 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
 class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
 
     '''GOcean specific OpenMP Do loop transformation. Adds GOcean
-        specific validity checks. Actual transformation is done by
-        :py:class:`base class <OMPParallelLoopTrans>`.
-
-    '''
+       specific validity checks (that supplied Loop is an inner or outer
+       loop). Actual transformation is done by
+       :py:class:`base class <OMPParallelLoopTrans>`.  '''
 
     @property
     def name(self):
@@ -541,10 +540,9 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
 class GOceanOMPLoopTrans(OMPLoopTrans):
 
     ''' GOcean-specific orphan OpenMP loop transformation. Adds GOcean
-        specific validity checks. Actual transformation is done by
-        :py:class:`base class <OMPLoopTrans>`.
-
-    '''
+        specific validity checks (that the node is either an inner or outer
+        Loop). Actual transformation is done by
+        :py:class:`base class <OMPLoopTrans>`. '''
 
     @property
     def name(self):
@@ -621,6 +619,8 @@ class ColourTrans(Transformation):
         colours_loop = node.__class__(parent=node_parent, loop_type="colours")
         colours_loop.field_space = node.field_space
         colours_loop.iteration_space = node.iteration_space
+        colours_loop.set_lower_bound("start")
+        colours_loop.set_upper_bound("ncolours")
         # Add this loop as a child of the original node's parent
         node_parent.addchild(colours_loop, index=node_position)
 
@@ -629,6 +629,8 @@ class ColourTrans(Transformation):
         colour_loop = node.__class__(parent=colours_loop, loop_type="colour")
         colour_loop.field_space = node.field_space
         colour_loop.iteration_space = node.iteration_space
+        colour_loop.set_lower_bound("start")
+        colour_loop.set_upper_bound("ncolour")
         # Add this loop as a child of our loop over colours
         colours_loop.addchild(colour_loop)
 
@@ -926,7 +928,25 @@ class OMPParallelTrans(Transformation):
 
 class GOConstLoopBoundsTrans(Transformation):
     ''' Switch on (or off) the use of constant loop bounds within
-    a GOSchedule, e.g.:
+    a GOSchedule. In the absence of constant loop bounds, PSyclone will
+    generate loops where the bounds are obtained by de-referencing a field
+    object, e.g.:
+    ::
+
+      DO j = my_field%grid%internal%ystart, my_field%grid%internal%ystop
+
+    Some compilers are able to produce more efficient code if they are
+    provided with information on the relative trip-counts of the loops
+    within an Invoke. With constant loop bounds switched on, PSyclone
+    generates code like:
+    ::
+
+      ny = my_field%grid%simulation_domain%ystop
+      ...
+      DO j = 1, ny-1
+
+    In practice, the application of the constant loop bounds looks
+    something like, e.g.:
 
     >>> from parse import parse
     >>> from psyGen import PSyFactory

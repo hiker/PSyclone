@@ -18,10 +18,10 @@ from parse import Descriptor, KernelType, ParseError
 import expression as expr
 import fparser
 import os
+
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, InfKern, \
     Arguments, Argument, KernelArgument, \
-    NameSpaceFactory, GenerationError, FieldNotFoundError
-
+    NameSpaceFactory, GenerationError, FieldNotFoundError, HaloExchange
 
 # first section : Parser specialisations and classes
 
@@ -36,9 +36,15 @@ VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + VALID_ANY_SPACE_NAMES
 
 VALID_OPERATOR_NAMES = ["gh_basis", "gh_diff_basis", "gh_orientation"]
 
-VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator", "gh_rscalar"]
+VALID_SCALAR_NAMES = ["gh_rscalar", "gh_iscalar"]
+VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator"] + VALID_SCALAR_NAMES
 
 VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"]
+
+VALID_STENCIL_TYPES = ["x1d", "y1d", "cross", "region"]
+
+VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "edge", "halo", "ncolour",
+                           "ncolours", "cells"]
 
 # The mapping from meta-data strings to field-access types
 # used in this API.
@@ -156,6 +162,11 @@ class DynArgDescriptor03(Descriptor):
                     "entry should be a valid argument type (one of {0}), but "
                     "found '{1}' in '{2}'".format(VALID_ARG_TYPE_NAMES,
                                                   self._type, arg_type))
+            if self._type in VALID_SCALAR_NAMES and self._vector_size > 1:
+                raise ParseError(
+                    "In the dynamo0.3 API vector notation is not supported "
+                    "for scalar arguments (found '{0}')".
+                    format(arg_type.args[0]))
             if not operator == "*":
                 raise ParseError(
                     "In the dynamo0.3 API the 1st argument of a meta_arg "
@@ -192,22 +203,63 @@ class DynArgDescriptor03(Descriptor):
                 "'{1}' in '{2}'".format(VALID_ACCESS_DESCRIPTOR_NAMES,
                                         arg_type.args[1].name, arg_type))
         self._access_descriptor = arg_type.args[1]
-        if self._type == "gh_field":
-            # we expect 3 arguments in total with the 3rd being a
-            # function space
-            if len(arg_type.args) != 3:
+        # Currently we only support read-only scalar arguments
+        if self._type in VALID_SCALAR_NAMES:
+            if self._access_descriptor.name != "gh_read":
                 raise ParseError(
-                    "In the dynamo0.3 API each meta_arg entry must have 3 "
-                    "arguments if its first argument is gh_field, but found "
-                    "{0} in '{1}'".format(len(arg_type.args), arg_type))
+                    "In the dynamo0.3 API scalar arguments must be "
+                    "read-only (gh_read) but found '{0}' in '{1}'".
+                    format(self._access_descriptor.name, arg_type))
+        stencil = None
+        if self._type == "gh_field":
+            if len(arg_type.args) < 3:
+                raise ParseError(
+                    "In the dynamo0.3 API each meta_arg entry must have at "
+                    "least 3 arguments if its first argument is gh_field, but "
+                    "found {0} in '{1}'".format(len(arg_type.args), arg_type)
+                    )
+            # There must be at most 4 arguments.
+            if len(arg_type.args) > 4:
+                raise ParseError(
+                    "In the dynamo0.3 API each meta_arg entry must have at "
+                    "most 4 arguments if its first argument is gh_field, but "
+                    "found {0} in '{1}'".format(len(arg_type.args), arg_type))
+            # The 3rd argument must be a function space name
             if arg_type.args[2].name not in VALID_FUNCTION_SPACE_NAMES:
                 raise ParseError(
                     "In the dynamo0.3 API the 3rd argument of a meta_arg "
-                    "entry must be a valid function space name (one of {0}), "
-                    "but found '{1}' in '{2}".
-                    format(VALID_FUNCTION_SPACE_NAMES, arg_type.args[2].name,
-                           arg_type))
+                    "entry must be a valid function space name if its first "
+                    "argument is gh_field (one of {0}), but found '{1}' in "
+                    "'{2}".format(VALID_FUNCTION_SPACE_NAMES,
+                                  arg_type.args[2].name, arg_type))
             self._function_space1 = arg_type.args[2].name
+
+            # The optional 4th argument is a stencil specification
+            if len(arg_type.args) == 4:
+                try:
+                    stencil = self._get_stencil(arg_type.args[3],
+                                                VALID_STENCIL_TYPES)
+                except ParseError as err:
+                    raise ParseError(
+                        "In the dynamo0.3 API the 4th argument of a meta_arg "
+                        "entry must be a valid stencil specification but "
+                        "entry '{0}' raised the following error:".
+                        format(arg_type) + str(err))
+                raise GenerationError(
+                    "Stencils are currently not supported in PSyclone, "
+                    "pending agreement and implementation of the associated "
+                    "infrastructure")
+
+            if self._function_space1.lower() == "w3" and \
+               self._access_descriptor.name.lower() == "gh_inc":
+                raise ParseError(
+                    "it does not make sense for a 'w3' space to have a "
+                    "'gh_inc' access")
+            if stencil and self._access_descriptor.name.lower() != \
+                    "gh_read":
+                raise ParseError("a stencil must be read only so its access"
+                                 "should be gh_read")
+
         elif self._type == "gh_operator":
             # we expect 4 arguments with the 3rd and 4th each being a
             # function space
@@ -232,11 +284,11 @@ class DynArgDescriptor03(Descriptor):
                     format(VALID_FUNCTION_SPACE_NAMES, arg_type.args[2].name,
                            arg_type))
             self._function_space2 = arg_type.args[3].name
-        elif self._type == "gh_rscalar":
+        elif self._type in VALID_SCALAR_NAMES:
             if len(arg_type.args) != 2:
                 raise ParseError(
                     "In the dynamo0.3 API each meta_arg entry must have 2 "
-                    "arguments if its first argument is gh_rscalar, but "
+                    "arguments if its first argument is gh_{{r,i}}scalar, but "
                     "found {0} in '{1}'".format(len(arg_type.args), arg_type))
             # Scalars don't have a function space
             self._function_space1 = None
@@ -245,7 +297,7 @@ class DynArgDescriptor03(Descriptor):
                 "Internal error in DynArgDescriptor03.__init__, (2) should "
                 "not get to here")
         Descriptor.__init__(self, self._access_descriptor.name,
-                            self._function_space1, None)
+                            self._function_space1, stencil=stencil)
 
     @property
     def function_space_to(self):
@@ -280,7 +332,7 @@ class DynArgDescriptor03(Descriptor):
             return self._function_space1
         elif self._type == "gh_operator":
             return self._function_space2
-        elif self._type == "gh_rscalar":
+        elif self._type in VALID_SCALAR_NAMES:
             return None
         else:
             raise RuntimeError(
@@ -312,7 +364,7 @@ class DynArgDescriptor03(Descriptor):
         elif self._type == "gh_operator":
             # return to before from to maintain expected ordering
             return [self.function_space_to, self.function_space_from]
-        elif self._type == "gh_rscalar":
+        elif self._type in VALID_SCALAR_NAMES:
             return []
         else:
             raise RuntimeError(
@@ -358,6 +410,8 @@ class DynArgDescriptor03(Descriptor):
                    format(self._function_space1) + os.linesep
             res += "  function_space_from[3]='{0}'".\
                    format(self._function_space2) + os.linesep
+        elif self._type in VALID_SCALAR_NAMES:
+            pass  # we have nothing to add if we're a scalar
         else:  # we should never get to here
             raise ParseError("Internal error in DynArgDescriptor03.__str__")
         return res
@@ -533,6 +587,27 @@ class DynInvoke(Invoke):
                 if call.qr_name not in self._psy_unique_qr_vars:
                     self._psy_unique_qr_vars.append(call.qr_name)
 
+        # lastly, add in halo exchange calls if required
+        if config.DISTRIBUTED_MEMORY:
+            # for the moment just add them before each loop as required
+            for loop in self.schedule.loops():
+                inc = loop.has_inc_arg()
+                for halo_field in loop.unique_fields_with_halo_reads():
+                    if halo_field.vector_size > 1:
+                        # the range function below returns values from
+                        # 1 to the vector size which is what we
+                        # require in our Fortran code
+                        for idx in range(1, halo_field.vector_size+1):
+                            exchange = DynHaloExchange(
+                                halo_field, parent=loop, vector_index=idx,
+                                inc=inc)
+                            loop.parent.children.insert(loop.position,
+                                                        exchange)
+                    else:
+                        exchange = DynHaloExchange(halo_field, parent=loop,
+                                                   inc=inc)
+                        loop.parent.children.insert(loop.position, exchange)
+
     @property
     def qr_required(self):
         ''' Returns True if at least one of the kernels in this invoke
@@ -576,7 +651,7 @@ class DynInvoke(Invoke):
                 for arg in kern_call.arguments.args:
                     if fs_name in arg.function_spaces:
                         return arg
-        raise GenerationError("Functionspace name not found")
+        raise GenerationError("No argument found on {0} space".format(fs_name))
 
     def unique_fss(self):
         ''' Returns the unique function space names over all kernel
@@ -705,36 +780,59 @@ class DynInvoke(Invoke):
         declaration of its arguments. '''
         from f2pygen import SubroutineGen, TypeDeclGen, AssignGen, DeclGen, \
             AllocateGen, DeallocateGen, CallGen, CommentGen
-        # create a namespace manager so we can avoid name clashes
+        # Create a namespace manager so we can avoid name clashes
         self._name_space_manager = NameSpaceFactory().create()
-
-        # create the subroutine
+        # Create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
                                    args=self.psy_unique_var_names +
                                    self._psy_unique_qr_vars)
-        # add the subroutine argument declarations fields
+        # Add the subroutine argument declarations for real scalars
+        r_declarations = self.unique_declarations("gh_rscalar")
+        if r_declarations:
+            invoke_sub.add(DeclGen(invoke_sub, datatype="real",
+                                   kind="r_def", entity_decls=r_declarations,
+                                   intent="inout"))
+
+        # Add the subroutine argument declarations for integer scalars
+        i_declarations = self.unique_declarations("gh_iscalar")
+        if i_declarations:
+            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
+                                   entity_decls=i_declarations,
+                                   intent="inout"))
+
+        # Add the subroutine argument declarations for fields
         field_declarations = self.unique_declarations("gh_field")
         if len(field_declarations) > 0:
             invoke_sub.add(TypeDeclGen(invoke_sub, datatype="field_type",
                                        entity_decls=field_declarations,
                                        intent="inout"))
-        # operators
+
+        # Add the subroutine argument declarations for operators
         operator_declarations = self.unique_declarations("gh_operator")
         if len(operator_declarations) > 0:
             invoke_sub.add(TypeDeclGen(invoke_sub, datatype="operator_type",
                                        entity_decls=operator_declarations,
                                        intent="inout"))
-        # qr
+
+        # Add the subroutine argument declarations for qr (quadrature
+        # rules)
         if len(self._psy_unique_qr_vars) > 0:
             invoke_sub.add(TypeDeclGen(invoke_sub, datatype="quadrature_type",
                                        entity_decls=self._psy_unique_qr_vars,
                                        intent="in"))
-        # declare and initialise proxies for each of the arguments
+        # declare and initialise proxies for each of the (non-scalar)
+        # arguments
         invoke_sub.add(CommentGen(invoke_sub, ""))
         invoke_sub.add(CommentGen(invoke_sub, " Initialise field proxies"))
         invoke_sub.add(CommentGen(invoke_sub, ""))
         for arg in self.psy_unique_vars:
+            # We don't have proxies for scalars
+            if arg.type in VALID_SCALAR_NAMES:
+                continue
             if arg.vector_size > 1:
+                # the range function below returns values from
+                # 1 to the vector size which is what we
+                # require in our Fortran code
                 for idx in range(1, arg.vector_size+1):
                     invoke_sub.add(
                         AssignGen(invoke_sub,
@@ -764,14 +862,14 @@ class DynInvoke(Invoke):
         # Use the first argument that is not a scalar
         first_var = None
         for var in self.psy_unique_vars:
-            if var.type == "gh_field" or var.type == "gh_operator":
+            if var.type in ["gh_field", "gh_operator"]:
                 first_var = var
                 break
         if not first_var:
             raise GenerationError(
                 "Cannot create an Invoke with no field/operator arguments")
 
-        # use our namespace manager to create a unique name unless
+        # Use our namespace manager to create a unique name unless
         # the context and label match and in this case return the
         # previous name
         nlayers_name = self._name_space_manager.create_name(
@@ -782,6 +880,23 @@ class DynInvoke(Invoke):
                       first_var.ref_name() + "%get_nlayers()"))
         invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                entity_decls=[nlayers_name]))
+
+        # declare and initialise a mesh object if required
+        if config.DISTRIBUTED_MEMORY:
+            from f2pygen import UseGen
+            # we will need a mesh object for any loop bounds
+            mesh_obj_name = self._name_space_manager.create_name(
+                root_name="mesh", context="PSyVars", label="mesh")
+            invoke_sub.add(UseGen(invoke_sub, name="mesh_mod", only=True,
+                                  funcnames=["mesh_type"]))
+            invoke_sub.add(TypeDeclGen(invoke_sub, datatype="mesh_type",
+                                       entity_decls=[mesh_obj_name]))
+            rhs = first_var.name_indexed + "%get_mesh()"
+            invoke_sub.add(CommentGen(invoke_sub, ""))
+            invoke_sub.add(CommentGen(invoke_sub, " Create a mesh object"))
+            invoke_sub.add(CommentGen(invoke_sub, ""))
+            invoke_sub.add(AssignGen(invoke_sub, lhs=mesh_obj_name, rhs=rhs))
+
         if self.qr_required:
             # declare and initialise qr values
             invoke_sub.add(CommentGen(invoke_sub, ""))
@@ -986,6 +1101,50 @@ class DynSchedule(Schedule):
         Schedule.__init__(self, DynKernCallFactory, DynInfCallFactory, arg)
 
 
+class DynHaloExchange(HaloExchange):
+
+    ''' Dynamo specific halo exchange class which can be added to and
+    manipulated in, a schedule '''
+
+    def __init__(self, field, check_dirty=True, parent=None,
+                 vector_index=None, inc=False):
+
+        self._vector_index = vector_index
+        if field.descriptor.stencil:
+            halo_type = field.descriptor.stencil['type']
+            halo_depth = field.descriptor.stencil['extent']
+            if inc:
+                # there is an inc writer which needs redundant
+                # computation so our halo depth must be increased by 1
+                halo_depth += 1
+        else:
+            halo_type = 'region'
+            halo_depth = 1
+        HaloExchange.__init__(self, field, halo_type, halo_depth,
+                              check_dirty, parent=parent)
+
+    def gen_code(self, parent):
+        ''' Dynamo specific code generation for this class '''
+        from f2pygen import IfThenGen, CallGen, CommentGen
+        if self._check_dirty:
+            if_then = IfThenGen(parent, self._field.proxy_name +
+                                "%is_dirty(depth=" + str(self._halo_depth) +
+                                ")")
+            parent.add(if_then)
+            halo_parent = if_then
+        else:
+            halo_parent = parent
+        if self._vector_index:
+            ref = "(" + str(self._vector_index) + ")"
+        else:
+            ref = ""
+        halo_parent.add(
+            CallGen(
+                halo_parent, name=self._field.proxy_name + ref +
+                "%halo_exchange(depth=" + str(self._halo_depth) + ")"))
+        parent.add(CommentGen(parent, ""))
+
+
 class DynKern(Kern):
     ''' Stores information about Dynamo Kernels as specified by the
     Kernel metadata and associated algorithm call. Uses this
@@ -1017,10 +1176,15 @@ class DynKern(Kern):
                 pre = "op_"
             elif descriptor.type.lower() == "gh_field":
                 pre = "field_"
+            elif descriptor.type.lower() == "gh_rscalar":
+                pre = "rscalar_"
+            elif descriptor.type.lower() == "gh_iscalar":
+                pre = "iscalar_"
             else:
                 raise GenerationError(
-                    "load_meta expected one of 'gh_field, gh_operator' but "
-                    "found '{0}'".format(descriptor.type))
+                    "load_meta expected one of '{0}' but "
+                    "found '{1}'".format(VALID_ARG_TYPE_NAMES,
+                                         descriptor.type))
             args.append(Arg("variable", pre+str(idx+1)))
         # initialise qr so we can test whether it is required
         self._setup_qr(ktype.func_descriptors)
@@ -1147,7 +1311,7 @@ class DynKern(Kern):
         from f2pygen import DeclGen, AssignGen, UseGen
         if my_type == "subroutine":
             # add in any required USE associations
-            parent.add(UseGen(parent, name="constants_mod", only="True",
+            parent.add(UseGen(parent, name="constants_mod", only=True,
                               funcnames=["r_def"]))
         # create the argument list
         arglist = []
@@ -1168,10 +1332,14 @@ class DynKern(Kern):
         first_arg = True
         first_arg_decl = None
         for arg in self._arguments.args:
-            undf_name = self._fs_descriptors.undf_name(arg.function_space)
+
             if arg.type == "gh_field":
+                undf_name = self._fs_descriptors.undf_name(arg.function_space)
                 dataref = "%data"
                 if arg.vector_size > 1:
+                    # the range function below returns values from
+                    # 1 to the vector size which is what we
+                    # require in our Fortran code
                     for idx in range(1, arg.vector_size+1):
                         if my_type == "subroutine":
                             text = arg.name + "_" + arg.function_space + \
@@ -1202,6 +1370,7 @@ class DynKern(Kern):
                     else:
                         text = arg.proxy_name+dataref
                     arglist.append(text)
+
             elif arg.type == "gh_operator":
                 if my_type == "subroutine":
                     size = arg.name+"_ncell_3d"
@@ -1227,11 +1396,30 @@ class DynKern(Kern):
                 else:
                     arglist.append(arg.proxy_name_indexed+"%ncell_3d")
                     arglist.append(arg.proxy_name_indexed+"%local_stencil")
+
+            elif arg.type in VALID_SCALAR_NAMES:
+                if my_type == "subroutine":
+                    if arg.type == "gh_rscalar":
+                        decl = DeclGen(parent, datatype="real", kind="r_def",
+                                       intent=arg.intent,
+                                       entity_decls=[arg.name])
+                    elif arg.type == "gh_iscalar":
+                        decl = DeclGen(parent, datatype="integer",
+                                       intent=arg.intent,
+                                       entity_decls=[arg.name])
+                    else:
+                        raise GenerationError(
+                            "Internal error: expected arg type to be one "
+                            "of '{0}' but got '{1}'".format(VALID_SCALAR_NAMES,
+                                                            arg.type))
+                    parent.add(decl)
+                arglist.append(arg.name)
+
             else:
                 raise GenerationError(
                     "Unexpected arg type found in "
-                    "dynamo0p3.py:DynKern:gen_code(). Expected one of"
-                    " [gh_field, gh_operator] but found " + arg.type)
+                    "dynamo0p3.py:DynKern:gen_code(). Expected one of '{0}' "
+                    "but found '{1}'".format(VALID_ARG_TYPE_NAMES, arg.type))
         # 3: For each function space (in the order they appear in the
         # metadata arguments)
         for unique_fs in self.arguments.unique_fss:
@@ -1612,7 +1800,15 @@ class DynLoop(Loop):
                       valid_loop_types=VALID_LOOP_TYPES)
         self.loop_type = loop_type
         self._kern = None
+
+        if config.DISTRIBUTED_MEMORY and self._loop_type in ["colour",
+                                                             "colours"]:
+            # the API has not yet been defined and implemented
+            raise GenerationError(
+                "distributed memory and colours not yet supported")
         
+        # set our variable name at initialisation as it might be
+        # required by other classes before code generation
         if self._loop_type == "colours":
             self._variable_name = "colour"
         elif self._loop_type == "colour":
@@ -1623,6 +1819,12 @@ class DynLoop(Loop):
             self._variable_name = "df"
         else:
             self._variable_name = "cell"
+
+        # At this stage we don't know what our loop bounds are
+        self._lower_bound_name = None
+        self._lower_bound_index = None
+        self._upper_bound_name = None
+        self._upper_bound_index = None
 
     def load(self, kern):
         ''' Load the state of this Loop using the supplied Kernel
@@ -1642,6 +1844,96 @@ class DynLoop(Loop):
         self._field_name = arg.name
         self._field_space = arg.function_space # W1, W2 etc.
         self._iteration_space = kern.iterates_over  # cells etc.
+
+        # Loop bounds
+        self.set_lower_bound("start")
+        if config.DISTRIBUTED_MEMORY:
+            if self.field_space == "w3":  # discontinuous
+                self.set_upper_bound("edge")
+            else:  # continuous
+                self.set_upper_bound("halo", index=1)
+        else:  # sequential
+            self.set_upper_bound("cells")
+
+    def set_lower_bound(self, name, index=None):
+        ''' Set the lower bounds of this loop '''
+        if name not in VALID_LOOP_BOUNDS_NAMES:
+            raise GenerationError(
+                "The specified lower bound loop name is invalid")
+        if name in ["inner", "halo"] and index < 1:
+            raise GenerationError(
+                "The specified index '{0}' for this lower loop bound is "
+                "invalid".format(str(index)))
+        self._lower_bound_name = name
+        self._lower_bound_index = index
+
+    def set_upper_bound(self, name, index=None):
+        ''' Set the upper bounds of this loop '''
+        if name not in VALID_LOOP_BOUNDS_NAMES:
+            raise GenerationError(
+                "The specified upper bound loop name is invalid")
+        if name == "start":
+            raise GenerationError("'start' is not a valid upper bound")
+        if name in ["inner", "halo"] and index < 1:
+            raise GenerationError(
+                "The specified index '{0}' for this upper loop bound is "
+                "invalid".format(str(index)))
+        self._upper_bound_name = name
+        self._upper_bound_index = index
+
+    def _lower_bound_fortran(self):
+        ''' Create the associated fortran code for the type of lower bound '''
+        if not config.DISTRIBUTED_MEMORY and self._lower_bound_name != "start":
+            raise GenerationError(
+                "The lower bound must be 'start' if we are sequential but "
+                "found '{0}'".format(self._upper_bound_name))
+        if self._lower_bound_name == "start":
+            return "1"
+        else:
+            # the start of our space is the end of the previous space +1
+            if self._lower_bound_name == "inner":
+                prev_space_name = self._lower_bound_name
+                prev_space_index = self._lower_bound_index+1
+            elif self._lower_bound_name == "edge":
+                prev_space_name = "inner"
+                prev_space_index = 1
+            elif (self._lower_bound_name == "halo" and
+                  self._lower_bound_index == 1):
+                prev_space_name = "edge"
+                prev_space_index = ""
+            elif (self._lower_bound_name == "halo" and
+                  self._lower_bound_index > 1):
+                prev_space_name = self._lower_bound_name
+                prev_space_index = self._lower_bound_index-1
+            else:
+                raise GenerationError("Unsupported lower bound name found")
+            mesh_obj_name = self._name_space_manager.create_name(
+                root_name="mesh", context="PSyVars", label="mesh")
+            return mesh_obj_name + "%get_last_" + prev_space_name + "_cell(" \
+                + prev_space_index + ")+1"
+
+    def _upper_bound_fortran(self):
+        ''' Create the associated fortran code for the type of upper bound '''
+        if not config.DISTRIBUTED_MEMORY:
+            if self._upper_bound_name == "cells":
+                return self.field.proxy_name_indexed + "%" + \
+                    self.field.ref_name() + "%get_ncell()"
+            elif self._upper_bound_name == "ncolours":
+                return "ncolour"
+            elif self._upper_bound_name == "ncolour":
+                return "ncp_colour(colour)"
+            else:
+                raise GenerationError(
+                    "The upper bound must be 'cells' if we are sequential")
+        else:
+            if self._upper_bound_name in ["inner", "halo"]:
+                index = self._upper_bound_index
+            else:
+                index = ""
+            mesh_obj_name = self._name_space_manager.create_name(
+                root_name="mesh", context="PSyVars", label="mesh")
+            return mesh_obj_name + "%get_last_" + self._upper_bound_name + \
+                "_cell(" + str(index) + ")"
 
     def has_inc_arg(self, mapping=None):
         ''' Returns True if any of the Kernels called within this loop
@@ -1667,6 +1959,41 @@ class DynLoop(Loop):
     def field_space(self, my_space):
         self._iteration_space = my_space
 
+    def unique_fields_with_halo_reads(self):
+        ''' Returns all fields in this loop that require at least some
+        of their halo to be clean to work correctly. If the same field
+        name is found more than once then the field with the largest
+        halo is chosen as this will make all other halo's clean for
+        the same field. '''
+        unique_fields = {}
+        for field in self.halo_fields():
+            if field.name not in unique_fields:
+                unique_fields[field.name] = field
+            else:
+                # This case should not arise at this point as we only
+                # use this call to add halo exchange calls and we only
+                # add halo exchange calls to vanilla code where there
+                # is only one kernel per loop See ticket 420 for more
+                # details.
+                raise GenerationError(
+                    "DynLoop:unique_fields_with_halo_reads(): non-unique "
+                    "fields are not expected.")
+        return unique_fields.values()
+
+    def halo_fields(self):
+        ''' Returns all fields in this loop that require at least some
+        of their halo to be clean to work correctly.'''
+        fields = []
+        for kern_call in self.kern_calls():
+            for arg in kern_call.arguments.args:
+                if arg.type.lower() == "gh_field":
+                    field = arg
+                    if field.descriptor.stencil or \
+                        (field.access.lower() == "gh_inc" and
+                         field.function_space.lower() != "w3"):
+                        fields.append(field)
+        return fields
+
     def gen_code(self, parent):
         ''' Work out the appropriate loop bounds and variable name
         depending on the loop type and then call the base class to
@@ -1683,26 +2010,34 @@ class DynLoop(Loop):
         # the name of the nlayers and ndf variables
         name_space_manager = NameSpaceFactory().create()
 
-        # Set-up loop bounds
-        self._start = "1"
-        if self._loop_type == "colours":
-            self._stop = "ncolour"
-        elif self._loop_type == "colour":
-            self._stop = "ncp_colour(colour)"
-        elif self._loop_type == "levels":
-            self._stop = name_space_manager.create_name(
-                root_name="nlayers", context="PSyVars", label="nlayers")
-        elif self._loop_type == "dofs":
-            # Use the kernel that this loop contains to work out what
-            # the name of our ndf variable is. This has to be done
-            # dynamically because we may have changed the function space
-            # of the kernel argument from that which was read from
-            # meta-data. (This is only done for pointwise kernels.)
-            self._stop = self._kern.ndf_name
-        else:
-            self._stop = self.field.proxy_name_indexed + "%" + \
-                self.field.ref_name() + "%get_ncell()"
+        # get fortran loop bounds
+        self._start = self._lower_bound_fortran()
+        self._stop = self._upper_bound_fortran()
         Loop.gen_code(self, parent)
+
+        if config.DISTRIBUTED_MEMORY and self._loop_type != "colour":
+            # Set halo dirty for all fields that are modified
+            from f2pygen import CallGen, CommentGen
+            fields = self.unique_modified_args(FIELD_ACCESS_MAP, "gh_field")
+            if fields:
+                parent.add(CommentGen(parent, ""))
+                parent.add(CommentGen(parent,
+                                      " Set halos dirty for fields modified "
+                                      "in the above loop"))
+                parent.add(CommentGen(parent, ""))
+                for field in fields:
+                    if field.vector_size > 1:
+                        # the range function below returns values from
+                        # 1 to the vector size which is what we
+                        # require in our Fortran code
+                        for index in range(1, field.vector_size+1):
+                            parent.add(CallGen(parent, name=field.proxy_name +
+                                               "(" + str(index) +
+                                               ")%set_dirty()"))
+                    else:
+                        parent.add(CallGen(parent, name=field.proxy_name +
+                                           "%set_dirty()"))
+                parent.add(CommentGen(parent, ""))
 
 
 class FSDescriptor(object):
@@ -1930,7 +2265,8 @@ class DynKernelArgument(KernelArgument):
 
     @property
     def descriptor(self):
-        ''' Returns the raw parse object used to initialise this class. '''
+        ''' return a descriptor object which contains Kernel
+        metadata about this argument '''
         return self._arg
 
     def ref_name(self, function_space=None):
@@ -2007,6 +2343,16 @@ class DynKernelArgument(KernelArgument):
             return self._name+"_proxy(1)"
         else:
             return self._name+"_proxy"
+
+    @property
+    def name_indexed(self):
+        ''' Returns the name for this argument with an
+        additional index which accesses the first element for a vector
+        argument. '''
+        if self._vector_size > 1:
+            return self._name+"(1)"
+        else:
+            return self._name
 
     @property
     def function_space(self):
