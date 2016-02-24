@@ -2705,7 +2705,7 @@ def test_set_bounds_functions():
         my_loop.set_lower_bound("invalid_loop_bounds_name")
     assert "lower bound loop name is invalid" in str(excinfo.value)
     with pytest.raises(GenerationError) as excinfo:
-        my_loop.set_lower_bound("inner",index=0)
+        my_loop.set_lower_bound("inner", index=0)
     assert "specified index" in str(excinfo.value)
     assert "lower loop bound is invalid" in str(excinfo.value)
     with pytest.raises(GenerationError) as excinfo:
@@ -2715,25 +2715,28 @@ def test_set_bounds_functions():
         my_loop.set_upper_bound("start")
     assert "'start' is not a valid upper bound" in str(excinfo.value)
     with pytest.raises(GenerationError) as excinfo:
-        my_loop.set_upper_bound("inner",index=0)
+        my_loop.set_upper_bound("inner", index=0)
     assert "specified index" in str(excinfo.value)
     assert "upper loop bound is invalid" in str(excinfo.value)
 
 
 def test_lower_bound_fortran():
-    ''' tests we raise an exception in the DynLoop:_lower_bound_fortran() method '''
+    '''tests we raise an exception in the DynLoop:_lower_bound_fortran()
+    method'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     my_loop = psy.invokes.invoke_list[0].schedule.children[0]
-    my_loop.set_lower_bound("inner",index=1)
+    my_loop.set_lower_bound("inner", index=1)
     with pytest.raises(GenerationError) as excinfo:
         _ = my_loop._lower_bound_fortran()
-    assert "lower bound must be 'start' if we are sequential" in str(excinfo.value)
-    my_loop.set_upper_bound("halo",index=1)
+    assert ("lower bound must be 'start' if we are sequential" in
+            str(excinfo.value))
+    my_loop.set_upper_bound("halo", index=1)
     with pytest.raises(GenerationError) as excinfo:
         _ = my_loop._upper_bound_fortran()
-    assert "upper bound must be 'cells' if we are sequential" in str(excinfo.value)
+    assert ("upper bound must be 'cells' if we are sequential" in
+            str(excinfo.value))
 
 
 def test_multi_field_name_halo():
@@ -2750,8 +2753,9 @@ def test_multi_field_name_halo():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     psy.invokes.invoke_list[0].schedule.view()
-    invoke =  psy.invokes.invoke_list[0]
-    # Loop fuse so two Kernels requiring halo exchange calls are in the same loop
+    invoke = psy.invokes.invoke_list[0]
+    # Loop fuse so two Kernels requiring halo exchange calls are in the
+    # same loop
     loop1 = invoke.schedule.children[0]
     loop2 = invoke.schedule.children[1]
     trans = LoopFuseTrans()
