@@ -1820,7 +1820,7 @@ SIMPLE_WITH_SCALARS = (
 
 
 def test_stub_generate_with_scalars():
-    ''' check that the stub generate produces the expected output when
+    ''' check that the stub generator produces the expected output when
     the kernel has scalar arguments '''
     result = generate("test_files/dynamo0p3/simple_with_scalars.f90",
                       api="dynamo0.3")
@@ -3344,3 +3344,11 @@ def test_multi_field_name_halo():
     with pytest.raises(GenerationError) as excinfo:
         _ = loop1.unique_fields_with_halo_reads()
     assert "non-unique fields are not expected" in str(excinfo.value)
+
+def test_single_global_sum():
+    '''tests the case where we have an integer scalar with gh_inc access
+    in a Kernel and therefore need to add a global sum. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.1_single_int_scalar_inc.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)

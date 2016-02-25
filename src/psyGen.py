@@ -904,6 +904,20 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         parent.add(DirectiveGen(parent, "omp", "end", "parallel do", ""))
 
 
+class GlobalSum(Node):
+    ''' Generic Global Sum class which can be added to and
+    manipulated in, a schedule. '''
+
+    def __init__(self, scalar, parent=None):
+        Node.__init__(self, children=[], parent=parent)
+        self._scalar = scalar
+
+    def view(self, indent):
+        ''' Class specific view  '''
+        print self.indent(indent) + (
+            "GlobalSum[scalar='{0}'".format(self._scalar.name))
+
+
 class HaloExchange(Node):
 
     ''' Generic Halo Exchange class which can be added to and

@@ -20,7 +20,7 @@ import fparser
 import os
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
     Argument, Inf, NameSpaceFactory, GenerationError, FieldNotFoundError, \
-    HaloExchange
+    HaloExchange, GlobalSum
 import config
 
 # first section : Parser specialisations and classes
@@ -595,10 +595,8 @@ class DynInvoke(Invoke):
                 for scalar in loop.args_filter(
                         arg_type=["gh_iscalar", "gh_rscalar"],
                         arg_access="gh_inc", unique=True):
-                    print "found one!!!"
-                    exit(1)
-                    #global_sum = DynGlobalSum(scalar)
-                    #loop.parent.children.append(loop.position,global_sum)
+                    global_sum = DynGlobalSum(scalar, parent=loop)
+                    loop.parent.children.insert(loop.position+1,global_sum)
 
     @property
     def qr_required(self):
@@ -1078,6 +1076,19 @@ class DynSchedule(Schedule):
         Schedule.__init__(self, DynLoop, DynInf, arg)
 
 
+class DynGlobalSum(GlobalSum):
+    ''' Dynamo specific global sum class which can be added to and
+    manipulated in, a schedule '''
+    def __init__(self, scalar, parent=None):
+        GlobalSum.__init__(self, scalar, parent=parent)
+
+    def gen_code(self, parent):
+        ''' Dynamo specific code generation for this class '''
+        from f2pygen import CallGen, CommentGen
+        parent.add(CallGen(parent, name=self._scalar.name+"%global_sum()"))
+        #parent.add(CommentGen(parent, ""))
+
+    
 class DynHaloExchange(HaloExchange):
 
     ''' Dynamo specific halo exchange class which can be added to and
