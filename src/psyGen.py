@@ -1104,6 +1104,23 @@ class Loop(Node):
                             fields.append(field)
         return fields
 
+    def args_filter(self, arg_type=[], arg_access=[], unique=False):
+        '''Return all arguments of type arg_type and arg_access. If these are
+        not set then return all arguments. If unique is set to True then only
+        return uniquely named arguments'''
+        all_args = []
+        all_arg_names = []
+        for call in self.calls():
+            call_args = call.arguments.args_filter(arg_type, arg_access)
+            if unique:
+                for arg in call_args:
+                    if arg.name not in all_arg_names:
+                        all_args.append(arg)
+                        all_arg_names.append(arg.name)
+            else:
+                all_args.extend(call_args)
+        return all_args
+
     def gen_code(self, parent):
         if self._start == "1" and self._stop == "1":  # no need for a loop
             for child in self.children:
@@ -1356,6 +1373,27 @@ class Arguments(object):
     @property
     def args(self):
         return self._args
+
+    def args_filter(self, arg_type=[], arg_access=[]):
+        '''Return all arguments of type arg_type and arg_access. If these are
+        not set then return all arguments.'''
+        arguments = []
+        if arg_type != [] and arg_access != []:
+            for argument in self._args:
+                if argument.type.lower() in arg_type and \
+                   argument.access.lower() in arg_access:
+                    arguments.append(argument)
+        elif arg_type != []:
+            for argument in self._args:
+                if argument.type.lower() in arg_type:
+                    arguments.append(argument)
+        elif arg_access != []:
+            for argument in self._args:
+                if argument.access.lower() in arg_access:
+                    arguments.append(argument)
+        else: # no conditions provided so return all args
+            return self._args
+        return arguments
 
     def iteration_space_arg(self, mapping={}):
         assert mapping != {}, "psyGen:Arguments:iteration_space_arg: Error "

@@ -140,22 +140,8 @@ def test_ad_scalar_type_no_write():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("scalar arguments must be read-only (gh_read) but found "
-            "'gh_write'" in str(excinfo.value))
-
-
-def test_ad_scalar_type_no_inc():
-    ''' Tests that an error is raised when the argument descriptor
-    metadata for a scalar specifies GH_INC '''
-    fparser.logging.disable('CRITICAL')
-    code = CODE.replace("arg_type(gh_rscalar, gh_read)",
-                        "arg_type(gh_rscalar, gh_inc)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_qr_type"
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert "scalar arguments must be read-only (gh_read) but found 'gh_inc'" \
-        in str(excinfo.value)
+    assert ("scalar arguments must be read-only (gh_read) or increment "
+            "(gh_inc) but found 'gh_write'" in str(excinfo.value))
 
 
 def test_ad_field_type_too_few_args():

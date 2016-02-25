@@ -199,13 +199,14 @@ class DynArgDescriptor03(Descriptor):
                 "'{1}' in '{2}'".format(VALID_ACCESS_DESCRIPTOR_NAMES,
                                         arg_type.args[1].name, arg_type))
         self._access_descriptor = arg_type.args[1]
-        # Currently we only support read-only scalar arguments
+        # Scalar arguments can only be gh_read or gh_inc
         if self._type in VALID_SCALAR_NAMES:
-            if self._access_descriptor.name != "gh_read":
+            if self._access_descriptor.name not in ["gh_read", "gh_inc"]:
                 raise ParseError(
                     "In the dynamo0.3 API scalar arguments must be "
-                    "read-only (gh_read) but found '{0}' in '{1}'".
-                    format(self._access_descriptor.name, arg_type))
+                    "read-only (gh_read) or increment (gh_inc) but found "
+                    "'{0}' in '{1}'".format(self._access_descriptor.name,
+                                            arg_type))
         stencil = None
         if self._type == "gh_field":
             if len(arg_type.args) < 3:
@@ -567,8 +568,9 @@ class DynInvoke(Invoke):
                 if call.qr_name not in self._psy_unique_qr_vars:
                     self._psy_unique_qr_vars.append(call.qr_name)
 
-        # lastly, add in halo exchange calls if required
+        # lastly, add in distributed memory communication calls if required
         if config.DISTRIBUTED_MEMORY:
+            # 1: halo exchange calls
             # for the moment just add them before each loop as required
             for loop in self.schedule.loops():
                 inc = loop.has_inc_arg()
@@ -587,6 +589,16 @@ class DynInvoke(Invoke):
                         exchange = DynHaloExchange(halo_field, parent=loop,
                                                    inc=inc)
                         loop.parent.children.insert(loop.position, exchange)
+            # 2: global sum calls
+            # add them after each loop as required
+            for loop in self.schedule.loops():
+                for scalar in loop.args_filter(
+                        arg_type=["gh_iscalar", "gh_rscalar"],
+                        arg_access="gh_inc", unique=True):
+                    print "found one!!!"
+                    exit(1)
+                    #global_sum = DynGlobalSum(scalar)
+                    #loop.parent.children.append(loop.position,global_sum)
 
     @property
     def qr_required(self):
