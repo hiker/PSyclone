@@ -3361,40 +3361,85 @@ def test_multi_field_name_halo():
 
 # Check that the new gh_sum access type is supported correctly
 
-
 def test_field_gh_sum_invalid():
     ''' Tests that an error is raised when a field is specified with
     access type gh_sum '''
     fparser.logging.disable('CRITICAL')
-    code = CODE.replace("arg_type(gh_field, gh_read, w2)",     &
+    code = CODE.replace("arg_type(gh_field,gh_read, w2)",
                         "arg_type(gh_field, gh_sum, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert "xxx" \
+    assert "reduction access 'gh_sum' is only valid with a scalar argument" \
         in str(excinfo.value)
+    assert "but 'gh_field' was found" in str(excinfo.value)
 
 
 def test_operator_gh_sum_invalid():
     ''' Tests that an error is raised when an operator is specified with
     access type gh_sum '''
     fparser.logging.disable('CRITICAL')
-    code = CODE.replace("arg_type(gh_operator, gh_read, w2, w2)",     &
+    code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
                         "arg_type(gh_operator, gh_sum, w2, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert "xxx" \
+    assert "reduction access 'gh_sum' is only valid with a scalar argument" \
         in str(excinfo.value)
+    assert "but 'gh_operator' was found" in str(excinfo.value)
 
 
-def test_scalar_only_sum():
-    ''' Test that an integer scalar generates correct code when it is specified with gh_sum '''
-    ''' Test that a real scalar generates correct code when it is specified with gh_sum '''
-    ''' Test that a (real) scalar generates code when it is the only writer '''
-    ''' Test that multiple scalar reductions generate expected code '''
-    ''' Test that a mixture of a scalar reduction and a field write generate expected code (scalar first)'''
+def test_single_scalar_sum_invalid():
+    '''Test that a single integer scalar fails as we require at least one
+    writer to be a field or operator '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "16.1_integer_scalar_sum.f90"),
+        api="dynamo0.3")
+    with pytest.raises(GenerationError) as excinfo:
+        psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    assert "we assume there is at least one writer" in str(excinfo.value)
+
+
+def test_single_integer_scalar_sum():
+    ''' Test that a single integer scalar generates correct code when it is specified with gh_sum '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    assert "CALL testkern_code(nlayers, isum, f1_proxy%data, ndf_w3, undf_w3, map_w3)" in gen
+
+
+def test_single_real_scalar_sum():
+    ''' Test that a single real scalar generates correct code when it is specified with gh_sum '''
+    assert False
+
+
+def test_multiple_scalar_sums():
+    ''' Test that multiple scalar (gh_sum) reductions generate correct code '''
+    assert False
+
+
+def test_mixed_field_write_scalar_sum():
     ''' Test that a mixture of a scalar reduction and a field write generate expected code (field first)'''
+    assert False
 
+
+def test_mixed_scalar_sum_field_write():
+    ''' Test that a mixture of a scalar reduction and a field write generate expected code (scalar first)'''
+    assert False
+
+
+def test_scalar_sum_and_dm_unsupported():
+    ''' Test that we fail if DM and global sums are specified '''
+    assert False
+
+
+def test_scalar_sum_and_OpenMP_unsupported():
+    ''' Test that we fail if OpenMP and global sums are specified '''
+    assert False
+
+
+''' Add tests for multiple kernels within an invoke '''

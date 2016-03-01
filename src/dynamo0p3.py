@@ -39,7 +39,9 @@ VALID_OPERATOR_NAMES = ["gh_basis", "gh_diff_basis", "gh_orientation"]
 VALID_SCALAR_NAMES = ["gh_rscalar", "gh_iscalar"]
 VALID_ARG_TYPE_NAMES = ["gh_field", "gh_operator"] + VALID_SCALAR_NAMES
 
-VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"]
+VALID_REDUCTION_NAMES = ["gh_sum"]
+VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"] + \
+                                VALID_REDUCTION_NAMES
 
 VALID_STENCIL_TYPES = ["x1d", "y1d", "cross", "region"]
 
@@ -199,6 +201,13 @@ class DynArgDescriptor03(Descriptor):
                 "'{1}' in '{2}'".format(VALID_ACCESS_DESCRIPTOR_NAMES,
                                         arg_type.args[1].name, arg_type))
         self._access_descriptor = arg_type.args[1]
+        # Reduction access descriptors are only valid for scalar arguments
+        if self._type not in VALID_SCALAR_NAMES and \
+           self._access_descriptor.name in VALID_REDUCTION_NAMES:
+            raise ParseError(
+                "In the dynamo0.3 API a reduction access '{0}' is only valid "
+                "with a scalar argument, but '{1}' was found".
+                format(self._access_descriptor.name, self._type))
         # Currently we only support read-only scalar arguments
         if self._type in VALID_SCALAR_NAMES:
             if self._access_descriptor.name != "gh_read":
