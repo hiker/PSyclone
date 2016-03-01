@@ -15,9 +15,10 @@ program multikernel_invokes_7
 
   use inf, only : field_type
   implicit none
-  type(field_type)      :: a, b, c, d, e, f
-
-  call invoke( ru_kernel_type(a, b, c, d, e), &
-               ru_kernel_type(a, b, c, d, e) )
+  type(field_type)      :: a, b, c, d, qr
+  integer(i_def)        :: iflag
+  real(r_def)           :: rdt
+  call invoke( ru_kernel_type(a, b, iflag, rdt, c, d, qr), &
+               ru_kernel_type(a, b, iflag, rdt, c, d, qr) )
 
 end program multikernel_invokes_7

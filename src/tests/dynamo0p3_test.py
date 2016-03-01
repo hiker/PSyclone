@@ -3108,8 +3108,7 @@ def test_pointwise_copy_str():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0].children[0].\
-           children[0]
+    kern = first_invoke.schedule.children[0].children[0]
     assert str(kern) == "Field copy infrastructure call"
 
 
@@ -3121,8 +3120,7 @@ def test_pointwise_set_str():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0].children[0].\
-           children[0]
+    kern = first_invoke.schedule.children[0].children[0]
     assert str(kern) == "Set infrastructure call"
 
 
@@ -3134,8 +3132,7 @@ def test_pw_multiply_field_str():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].children[0].children[0].\
-           children[0]
+    kern = first_invoke.schedule.children[0].children[0]
     assert str(kern) == "Field multiply infrastructure call"
  
 

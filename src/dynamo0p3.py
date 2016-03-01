@@ -2405,18 +2405,6 @@ class DynInfCallFactory(object):
     def create(call, parent=None):
         ''' Create the objects needed for a call to the intrinsic
         described in the call (InfCall) object '''
-        # Loop over cells
-        cloop = DynLoop(parent=parent)
-        cloop.set_lower_bound("start")
-        cloop.set_upper_bound("cells")
-
-        # Loop over levels
-        lloop = DynLoop(parent=cloop,
-                        loop_type="levels")
-        lloop.set_lower_bound("start")
-        # TODO work out what our loop bounds are for pointwise kernels
-        lloop.set_upper_bound("edge")
-        cloop.addchild(lloop)
 
         # The infrastructure operation itself
         if call.func_name == "set_field_scalar":
@@ -2433,21 +2421,15 @@ class DynInfCallFactory(object):
         pwkern.load(call)
 
         # Create the loop over DoFs
-        dofloop = DynLoop(parent=lloop,
+        dofloop = DynLoop(parent=parent,
                           loop_type="dofs")
         # Set-up its state
         dofloop.load(pwkern)
         # As it is the innermost loop it has the kernel as a child
         dofloop.addchild(pwkern)
         
-        lloop.addchild(dofloop)
-
-        # Now that we have the point-wise object, we use it to supply
-        # the properties of the outermost loop over cells
-        cloop.load(pwkern)
-
         # Return the outermost loop
-        return cloop
+        return dofloop
 
 
 class DynKernCallFactory(object):
