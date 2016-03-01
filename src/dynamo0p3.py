@@ -18,10 +18,10 @@ from parse import Descriptor, KernelType, ParseError
 import expression as expr
 import fparser
 import os
-
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, InfKern, \
     Arguments, Argument, KernelArgument, \
     NameSpaceFactory, GenerationError, FieldNotFoundError, HaloExchange
+import config
 
 # first section : Parser specialisations and classes
 
@@ -1801,6 +1801,10 @@ class DynLoop(Loop):
         self.loop_type = loop_type
         self._kern = None
 
+        # Get the namespace manager instance so we can look-up
+        # the name of the nlayers and ndf variables
+        self._name_space_manager = NameSpaceFactory().create()
+
         if config.DISTRIBUTED_MEMORY and self._loop_type in ["colour",
                                                              "colours"]:
             # the API has not yet been defined and implemented
@@ -1906,7 +1910,8 @@ class DynLoop(Loop):
                 prev_space_name = self._lower_bound_name
                 prev_space_index = self._lower_bound_index-1
             else:
-                raise GenerationError("Unsupported lower bound name found")
+                raise GenerationError("Unsupported lower bound name ('{0}') "
+                                      "found".format(self._lower_bound_name))
             mesh_obj_name = self._name_space_manager.create_name(
                 root_name="mesh", context="PSyVars", label="mesh")
             return mesh_obj_name + "%get_last_" + prev_space_name + "_cell(" \
@@ -1946,12 +1951,10 @@ class DynLoop(Loop):
 
     @property
     def field_space(self):
-        '''Return the function space of the field that is updated within this
+        ''' Return the function space of the field that is updated within this
         loop. This is made more complicated by the fact that this
         space can be changed *after* the meta-data is read (but only
-        for pointwise kernels)
-
-        '''
+        for pointwise kernels) '''
         # ARPDBG working here
         return self._field_space # self._field.function_space
 
@@ -2005,10 +2008,6 @@ class DynLoop(Loop):
             raise GenerationError("Cannot have a loop over "
                                   "colours within an OpenMP "
                                   "parallel region.")
-
-        # Get the namespace manager instance so we can look-up
-        # the name of the nlayers and ndf variables
-        name_space_manager = NameSpaceFactory().create()
 
         # get fortran loop bounds
         self._start = self._lower_bound_fortran()

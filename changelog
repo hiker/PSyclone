@@ -1,3 +1,21 @@
+	1) #415 Support for parsing stencil information supplied in
+	Dynamo 0.3 kernel meta-data.
+
+	2) #367 Make gocean python conform to pep8
+
+	3) #230 Add documentation for the GOcean1.0 API
+
+	4) #379 Make f2pygen and its tests conform to pep8, pylint and
+	improve the test coverage
+
+	5) #429 Support for read-only scalar arguments in the 0.3
+	Dynamo API.
+
+	6) #420 Support for inter-invoke halo calls and logic (for
+	distributed memory)
+	
+release 1.1.0
+
 	1) #263 OpenMP (including colouring) supported for the 0.3 Dynamo
 	API. Parser fails gracefully if Kernel-code parsing is
 	unsuccessful.

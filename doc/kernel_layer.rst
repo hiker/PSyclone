@@ -1,3 +1,5 @@
+.. _kernel-layer:
+
 Kernel layer
 ============
 
@@ -11,6 +13,9 @@ able to call the kernel layer in a flexible way (blocked and/or in
 parallel for example). Kernel code in the kernel layer is not allowed
 to include any parallelisation calls or directives and works on
 raw fortran arrays (to allow the compiler to optimise the code).
+
+Since a Kernel is called over the spatial domain (by the PSy layer) it
+must take at least one field or operator as an argument.
 
 API
 ---
