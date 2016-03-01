@@ -3358,3 +3358,43 @@ def test_multi_field_name_halo():
     with pytest.raises(GenerationError) as excinfo:
         _ = loop1.unique_fields_with_halo_reads()
     assert "non-unique fields are not expected" in str(excinfo.value)
+
+# Check that the new gh_sum access type is supported correctly
+
+
+def test_field_gh_sum_invalid():
+    ''' Tests that an error is raised when a field is specified with
+    access type gh_sum '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_field, gh_read, w2)",     &
+                        "arg_type(gh_field, gh_sum, w2)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert "xxx" \
+        in str(excinfo.value)
+
+
+def test_operator_gh_sum_invalid():
+    ''' Tests that an error is raised when an operator is specified with
+    access type gh_sum '''
+    fparser.logging.disable('CRITICAL')
+    code = CODE.replace("arg_type(gh_operator, gh_read, w2, w2)",     &
+                        "arg_type(gh_operator, gh_sum, w2, w2)", 1)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast, name=name)
+    assert "xxx" \
+        in str(excinfo.value)
+
+
+def test_scalar_only_sum():
+    ''' Test that an integer scalar generates correct code when it is specified with gh_sum '''
+    ''' Test that a real scalar generates correct code when it is specified with gh_sum '''
+    ''' Test that a (real) scalar generates code when it is the only writer '''
+    ''' Test that multiple scalar reductions generate expected code '''
+    ''' Test that a mixture of a scalar reduction and a field write generate expected code (scalar first)'''
+    ''' Test that a mixture of a scalar reduction and a field write generate expected code (field first)'''
+
