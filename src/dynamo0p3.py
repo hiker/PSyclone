@@ -2407,10 +2407,15 @@ class DynInfCallFactory(object):
         described in the call (InfCall) object '''
         # Loop over cells
         cloop = DynLoop(parent=parent)
+        cloop.set_lower_bound("start")
+        cloop.set_upper_bound("cells")
 
         # Loop over levels
         lloop = DynLoop(parent=cloop,
                         loop_type="levels")
+        lloop.set_lower_bound("start")
+        # TODO work out what our loop bounds are for pointwise kernels
+        lloop.set_upper_bound("edge")
         cloop.addchild(lloop)
 
         # The infrastructure operation itself
