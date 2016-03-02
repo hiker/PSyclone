@@ -7,7 +7,7 @@ in the Dynamo 0.3 API using pytest. '''
 import os
 import pytest
 from parse import parse, ParseError
-from psyGen import PSyFactory
+from psyGen import PSyFactory, GenerationError
 
 
 # constants
@@ -117,9 +117,61 @@ def test_pointwise_set_by_ref():
     assert output in code
 
 
-@pytest.mark.xfail(
-    reason="Requires kernel-argument dependency analysis to deduce the "
-    "space of the field passed to the pointwise kernel")
+@pytest.mark.xfail(reason="Invokes containing multiple kernels with "
+                   "any-space arguments are not yet supported")
+def test_multiple_pointwise_set():
+    ''' Tests that we generate correct code when we have an invoke
+    containing multiple set operations '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.0.2_multiple_set_kernels.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    code = str(psy.gen)
+    print code
+    output = (
+        "    SUBROUTINE invoke_0(f1, fred, f2, f3, ginger)\n"
+        "      USE mesh_mod, ONLY: mesh_type\n"
+        "      REAL(KIND=r_def), intent(inout) :: fred, ginger\n"
+        "      TYPE(field_type), intent(inout) :: f1, f2, f3\n"
+        "      INTEGER df\n"
+        "      INTEGER ndf_any_space_1, undf_any_space_1\n"
+        "      TYPE(mesh_type) mesh\n"
+        "      INTEGER nlayers\n"
+        "      TYPE(field_proxy_type) f1_proxy\n"
+        "      !\n"
+        "      ! Initialise field proxies\n"
+        "      !\n"
+        "      f1_proxy = f1%get_proxy()\n"
+        "      !\n"
+        "      ! Initialise number of layers\n"
+        "      !\n"
+        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Create a mesh object\n"
+        "      !\n"
+        "      mesh = f1%get_mesh()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for "
+        "any_space_1\n"
+        "      !\n"
+        "      ndf_any_space_1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_any_space_1 = f1_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Call our kernels\n"
+        "      !\n"
+        "      DO df=1,undf_any_space_1\n"
+        "        f1_proxy%data(df) = fred\n"
+        "      END DO \n"
+        "      DO df=1,undf_any_space_1\n"
+        "        f2_proxy%data(df) = 3.0\n"
+        "      END DO \n"
+        "      DO df=1,undf_any_space_1\n"
+        "        f3_proxy%data(df) = ginger\n"
+        "      END DO \n")
+    assert output in code
+
+
 def test_pointwise_set_plus_normal():
     ''' Tests that we generate correct code for a pointwise
     set operation when the invoke also contains a normal kernel '''
@@ -136,19 +188,31 @@ def test_pointwise_set_plus_normal():
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
         "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for "
+        "any_space_1\n"
+        "      !\n"
+        "      ndf_any_space_1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_any_space_1 = f1_proxy%vspace%get_undf()\n"
+        "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
         "        map_w1 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
         "        map_w2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
         "        map_w3 => m2_proxy%vspace%get_cell_dofmap(cell)\n"
         "        !\n"
-        "        CALL testkern_code(nlayers, f1_proxy%data, f2_proxy%data, "
+        "        CALL testkern_code(nlayers, ginger, f1_proxy%data, "
+        "f2_proxy%data, "
         "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, "
         "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)\n"
         "      END DO \n"
-        "      DO df=1,undf_w1\n"
+        "      !\n"
+        "      ! Set halos dirty for fields modified in the above loop\n"
+        "      !\n"
+        "      CALL f1_proxy%set_dirty()\n"
+        "      !\n"
+        "      DO df=1,undf_any_space_1\n"
         "        f1_proxy%data(df) = 0.0\n"
         "      END DO ")
     assert output in code
@@ -272,6 +336,9 @@ def test_pw_axpy():
     assert output in code
 
 
+@pytest.mark.xfail(
+    reason="Requires kernel-argument dependency analysis to deduce the "
+    "spaces of the fields passed to the pointwise kernel")
 def test_pw_multiply_fields_on_different_spaces():
     ''' Test that we raise an error if multiply_fields() is called for
     two fields that are on different spaces '''
@@ -280,7 +347,8 @@ def test_pw_multiply_fields_on_different_spaces():
                      "15.3.0_multiply_fields_different_spaces.f90"),
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    code = str(psy.gen)
+    with pytest.raises(GenerationError) as excinfo:
+        _ = str(psy.gen)
 
 
 @pytest.mark.xfail(
@@ -296,6 +364,7 @@ def test_pw_multiply_fields_deduce_space():
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     code = str(psy.gen)
+    print code
     output = (
         "some fortran\n"
     )

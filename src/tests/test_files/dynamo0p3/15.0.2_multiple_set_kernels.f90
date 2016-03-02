@@ -8,27 +8,33 @@
 
 program single_invoke
 
-  ! Description: single point-wise operation specified in an invoke call
+  ! Description: multiple point-wise set operations specified in an invoke call
+  ! with the scalar values passed by both value and reference
   use testkern, only: testkern_type
   use inf,      only: field_type
   implicit none
-  type(field_type) :: f1, f2, m1, m2
-  real(r_def) :: ginger
+  type(field_type) :: f1, f2
+  real(r_def) :: fred, ginger
+
+  fred = 20.1_r_def
+  ginger = 40.5_r_def
   
-  call invoke(                       &
-       testkern_type(ginger, f1, f2, m1, m2), &
-       set_field_scalar(f1, 0.0)    &
+  call invoke(                      &
+       set_field_scalar(f1, fred),  &
+       set_field_scalar(f2, 3.0),   &
+       set_field_scalar(f3, ginger) &
           )
 
 end program single_invoke
 
-subroutine expected_code(fld, value)
-  do cell = 1, ncells
-     do k = 1, nlayers
-        do df1 = 1, ndf_w3
-           idx = ((cell-1)*nlayers + (k-1))*ndf_w3 + df1
-           fld(idx) = value
-        end do
-     end do
+subroutine expected_code(f1, f2, value1, value2)
+  do df = 1, undf_any_space_1
+    f1(df) = value1
+  end do
+  do df = 1, undf_any_space_1
+    f2(df) = 3.0
+  end do
+  do df = 1, undf_any_space_1
+    f3(df) = value2
   end do
 end subroutine expected_code
