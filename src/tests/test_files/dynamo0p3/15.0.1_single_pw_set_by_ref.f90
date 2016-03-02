@@ -8,19 +8,24 @@
 
 program single_invoke
 
-  ! Description: multiply-field point-wise operation specified in an invoke call
-  ! where the supplied fields can be deduced to be on different spaces
-  use testkern_fs, only: testkern_fs_type
-  use inf,         only: field_type
+  ! Description: single point-wise set operation specified in an invoke call
+  ! with the scalar value passed by reference
+  use testkern, only: testkern_type
+  use inf,      only: field_type
   implicit none
-  type(field_type) :: f2, f3, f4, f5,f6, f7, f8
-  real :: a
+  type(field_type) :: f1
+  real(r_def) :: fred
 
-  a = 0.5
+  fred = 20.1_r_def
 
-  call invoke(                                             &
-              testkern_fs_type(f2, f3, f4, f5,f6, f7, f8), &
-              multiply_field(a, f2, f3)                    &
-             )
+  call invoke(                      &
+       set_field_scalar(f1, fred)   &
+          )
 
 end program single_invoke
+
+subroutine expected_code(fld, value)
+  do df = 1, undf_w3
+    fld(df) = value
+  end do
+end subroutine expected_code

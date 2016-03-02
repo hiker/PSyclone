@@ -13,12 +13,12 @@ program single_invoke
   use inf,      only: field_type
   implicit none
   type(field_type) :: f2, f3
-  real :: a
+  real(r_def) :: a
 
   a = 0.5
 
-  call invoke(                            &
-              multiply_field(a, f2, f3)   &
+  call invoke(                  &
+              axpy(a, f2, f3)   &
              )
 
 end program single_invoke

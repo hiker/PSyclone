@@ -36,7 +36,7 @@ module dynamo0p3_intrinsics_mod
      procedure, nopass :: copy_field_code
   end type copy_field
 
-  type, public, extends(kernel_type) :: multiply_field
+  type, public, extends(kernel_type) :: axpy
      private
      type(arg_type) :: meta_args(3) = (/                                &
           arg_type(GH_RSCALAR, GH_READ             ),                   &
@@ -45,8 +45,8 @@ module dynamo0p3_intrinsics_mod
           /)
      integer :: iterates_over = CELLS
    contains
-     procedure, nopass :: multiply_field_code
-  end type multiply_field
+     procedure, nopass :: axpy_code
+  end type axpy
 
 contains
 
@@ -56,7 +56,7 @@ contains
   subroutine copy_field_code()
   end subroutine copy_field_code
 
-  subroutine multiply_field_code()
-  end subroutine multiply_field_code
+  subroutine axpy_code()
+  end subroutine axpy_code
   
 end module dynamo0p3_intrinsics_mod

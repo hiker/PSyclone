@@ -26,9 +26,9 @@ def test_dyninf_str():
 
 def test_pointwise_set():
     ''' Tests that we generate correct code for a pointwise
-    set operation '''
+    set operation with a scalar passed by value'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "14_single_pointwise_invoke.f90"),
+                                        "15_single_pointwise_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
@@ -70,6 +70,53 @@ def test_pointwise_set():
     assert output in code
 
 
+def test_pointwise_set_by_ref():
+    ''' Tests that we generate correct code for a pointwise
+    set operation with a scalar passed by reference '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.0.1_single_pw_set_by_ref.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    code = str(psy.gen)
+    print code
+    output = (
+        "    SUBROUTINE invoke_0(f1, fred)\n"
+        "      USE mesh_mod, ONLY: mesh_type\n"
+        "      REAL(KIND=r_def), intent(inout) :: fred\n"
+        "      TYPE(field_type), intent(inout) :: f1\n"
+        "      INTEGER df\n"
+        "      INTEGER ndf_any_space_1, undf_any_space_1\n"
+        "      TYPE(mesh_type) mesh\n"
+        "      INTEGER nlayers\n"
+        "      TYPE(field_proxy_type) f1_proxy\n"
+        "      !\n"
+        "      ! Initialise field proxies\n"
+        "      !\n"
+        "      f1_proxy = f1%get_proxy()\n"
+        "      !\n"
+        "      ! Initialise number of layers\n"
+        "      !\n"
+        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Create a mesh object\n"
+        "      !\n"
+        "      mesh = f1%get_mesh()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for "
+        "any_space_1\n"
+        "      !\n"
+        "      ndf_any_space_1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_any_space_1 = f1_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Call our kernels\n"
+        "      !\n"
+        "      DO df=1,undf_any_space_1\n"
+        "        f1_proxy%data(df) = fred\n"
+        "      END DO \n")
+    assert output in code
+
+
 @pytest.mark.xfail(
     reason="Requires kernel-argument dependency analysis to deduce the "
     "space of the field passed to the pointwise kernel")
@@ -77,7 +124,7 @@ def test_pointwise_set_plus_normal():
     ''' Tests that we generate correct code for a pointwise
     set operation when the invoke also contains a normal kernel '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "14.1_pw_and_normal_kernel_invoke.f90"),
+                                        "15.1_pw_and_normal_kernel_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
@@ -111,7 +158,7 @@ def test_pointwise_copy():
     ''' Tests that we generate correct code for a pointwise
     copy field operation '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "14.2_single_pw_fld_copy_invoke.f90"),
+                                        "15.2_single_pw_fld_copy_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     code = str(psy.gen)
@@ -157,7 +204,7 @@ def test_pointwise_copy_str():
     ''' Check that the str method of DynCopyFieldKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "14.2_single_pw_fld_copy_invoke.f90"),
+                                        "15.2_single_pw_fld_copy_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
@@ -169,7 +216,7 @@ def test_pointwise_set_str():
     ''' Check that the str method of DynCopyFieldKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "14_single_pointwise_invoke.f90"),
+                                        "15_single_pointwise_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
@@ -178,22 +225,22 @@ def test_pointwise_set_str():
 
 
 def test_pw_multiply_field_str():
-    ''' Test that the str method of DynMultiplyFieldKern returns the
+    ''' Test that the str method of DynAXPYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "14.3_multiply_field_invoke.f90"),
+                                        "15.3_multiply_field_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0]
-    assert str(kern) == "Field multiply infrastructure call"
+    assert str(kern) == "AXPY infrastructure call"
  
 
-def test_pw_multiply_field():
+def test_pw_axpy():
     ''' Test that we generate correct code for the pointwise
     operation y = a*x '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "14.3_multiply_field_invoke.f90"),
+                                        "15.3_multiply_field_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     code = str(psy.gen)
@@ -230,19 +277,22 @@ def test_pw_multiply_fields_on_different_spaces():
     two fields that are on different spaces '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "14.3.0_multiply_fields_different_spaces.f90"),
+                     "15.3.0_multiply_fields_different_spaces.f90"),
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     code = str(psy.gen)
 
 
-def test_pw_multiply_fields_on_different_spaces():
+@pytest.mark.xfail(
+    reason="Dependency analysis of kernel arguments within an invoke is "
+    "not yet implemented")
+def test_pw_multiply_fields_deduce_space():
     ''' Test that we generate correct code if multiply_fields() is called
     in an invoke containing another kernel that allows the space of the
     fields to be deduced '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "14.3.1_multiply_fields_deduce_space.f90"),
+                     "15.3.1_multiply_fields_deduce_space.f90"),
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     code = str(psy.gen)

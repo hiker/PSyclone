@@ -2420,8 +2420,8 @@ class DynInfCallFactory(object):
             pwkern = DynSetFieldScalarKern()
         elif call.func_name == "copy_field":
             pwkern = DynCopyFieldKern()
-        elif call.func_name == "multiply_field":
-            pwkern = DynMultiplyFieldKern()
+        elif call.func_name == "axpy":
+            pwkern = DynAXPYKern()
         else:
             raise GenerationError(
                 "Unrecognised infrastructure call: {0}".format(call.func_name))
@@ -2540,11 +2540,11 @@ class DynCopyFieldKern(DynInfKern):
         return
 
 
-class DynMultiplyFieldKern(DynInfKern):
+class DynAXPYKern(DynInfKern):
     ''' Set a field equal to another field multiplied by a scalar '''
 
     def __str__(self):
-        return "Field multiply infrastructure call"
+        return "AXPY infrastructure call"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
