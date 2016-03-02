@@ -208,13 +208,23 @@ class DynArgDescriptor03(Descriptor):
                 "In the dynamo0.3 API a reduction access '{0}' is only valid "
                 "with a scalar argument, but '{1}' was found".
                 format(self._access_descriptor.name, self._type))
-        # Currently we only support read-only scalar arguments
+        # Scalars can only be read_only or reductions
         if self._type in VALID_SCALAR_NAMES:
-            if self._access_descriptor.name != "gh_read":
+            if self._access_descriptor.name not in  ["gh_read"] + \
+               VALID_REDUCTION_NAMES:
                 raise ParseError(
                     "In the dynamo0.3 API scalar arguments must be "
-                    "read-only (gh_read) but found '{0}' in '{1}'".
-                    format(self._access_descriptor.name, arg_type))
+                    "read-only (gh_read) or a reduction ({0}) but found "
+                    "'{1}' in '{2}'".format(VALID_REDUCTION_NAMES,
+                                            self._access_descriptor.name,
+                                            arg_type))
+        # Scalars with reductions do not work with Distributed Memory
+        if self._type in VALID_SCALAR_NAMES and \
+           self._access_descriptor.name in VALID_REDUCTION_NAMES and \
+           config.DISTRIBUTED_MEMORY:
+            raise ParseError(
+                "Scalar reductions are not yet supported with distributed "
+                "memory.")
         stencil = None
         if self._type == "gh_field":
             if len(arg_type.args) < 3:

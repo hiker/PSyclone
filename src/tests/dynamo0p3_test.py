@@ -51,6 +51,18 @@ end module testkern_qr
 # functions
 
 
+def test_scalar_sum_and_dm_unsupported():
+    '''Test that we fail if DM and global sums are specified. We do this
+    test here as at the end of the file the value of DM is set to
+    False and can't be changed for some reason.'''
+    with pytest.raises(ParseError) as excinfo:
+        _, invoke_info = parse(os.path.join(BASE_PATH,
+                                            "16.3_real_scalar_sum.f90"),
+                               api="dynamo0.3")
+    assert "Scalar reductions are not yet supported with distributed " \
+        "memory" in str(excinfo.value)
+
+
 def test_arg_descriptor_wrong_type():
     ''' Tests that an error is raised when the argument descriptor
     metadata is not of type arg_type. '''
@@ -140,8 +152,8 @@ def test_ad_scalar_type_no_write():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("scalar arguments must be read-only (gh_read) but found "
-            "'gh_write'" in str(excinfo.value))
+    assert ("scalar arguments must be read-only (gh_read) or a reduction "
+            "(['gh_sum']) but found 'gh_write'" in str(excinfo.value))
 
 
 def test_ad_scalar_type_no_inc():
@@ -154,8 +166,8 @@ def test_ad_scalar_type_no_inc():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert "scalar arguments must be read-only (gh_read) but found 'gh_inc'" \
-        in str(excinfo.value)
+    assert ("scalar arguments must be read-only (gh_read) or a reduction "
+            "(['gh_sum']) but found 'gh_inc'" in str(excinfo.value))
 
 
 def test_ad_field_type_too_few_args():
@@ -3403,38 +3415,39 @@ def test_single_scalar_sum_invalid():
 
 
 def test_single_integer_scalar_sum():
-    ''' Test that a single integer scalar generates correct code when it is specified with gh_sum '''
+    '''Test that a single integer scalar generates correct code when it
+    is specified with gh_sum'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen = str(psy.gen)
     print gen
-    assert "CALL testkern_code(nlayers, isum, f1_proxy%data, ndf_w3, undf_w3, map_w3)" in gen
+    assert "CALL testkern_code(nlayers, isum, f1_proxy%data, ndf_w3, " \
+        "undf_w3, map_w3)" in gen
 
 
 def test_single_real_scalar_sum():
-    ''' Test that a single real scalar generates correct code when it is specified with gh_sum '''
-    assert False
+    '''Test that a single real scalar generates correct code when it is
+    specified with gh_sum'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    assert "CALL testkern_code(nlayers, rsum, f1_proxy%data, ndf_w3, " \
+        "undf_w3, map_w3)" in gen
 
 
 def test_multiple_scalar_sums():
     ''' Test that multiple scalar (gh_sum) reductions generate correct code '''
-    assert False
-
-
-def test_mixed_field_write_scalar_sum():
-    ''' Test that a mixture of a scalar reduction and a field write generate expected code (field first)'''
-    assert False
-
-
-def test_mixed_scalar_sum_field_write():
-    ''' Test that a mixture of a scalar reduction and a field write generate expected code (scalar first)'''
-    assert False
-
-
-def test_scalar_sum_and_dm_unsupported():
-    ''' Test that we fail if DM and global sums are specified '''
-    assert False
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "16.4_multiple_scalar_sums.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    assert "CALL testkern_code(nlayers, rsum1, isum1, f1_proxy%data, rsum2, " \
+        "isum2, ndf_w3, undf_w3, map_w3)" in gen
 
 
 def test_scalar_sum_and_OpenMP_unsupported():

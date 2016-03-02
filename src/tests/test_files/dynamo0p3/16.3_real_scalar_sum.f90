@@ -6,12 +6,12 @@
 program single_invoke
 
   ! Description: single kernel, single scalar sum & field writer argument
-  use testkern_one_int_scalar_sum, only: testkern_type
-  use inf, only : i_def
+  use testkern_one_real_scalar_sum, only: testkern_type
+  use inf, only : r_def
   implicit none
-  integer(i_def)   :: isum
+  integer(r_def)   :: rsum
   type(field_type) :: f1
 
-  call invoke( testkern_type(isum, f1) )
+  call invoke( testkern_type(rsum, f1) )
 
 end program single_invoke
