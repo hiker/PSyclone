@@ -197,15 +197,30 @@ def test_pw_multiply_field():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     code = str(psy.gen)
+    print code
     output = (
-        "    x_proxy = x%get_proxy()\n"
-        "    y_proxy = y%get_proxy()\n"
-        "\n"
-        "    undf = x_proxy%vspace%get_undf()\n"
-        "\n"
-        "    do i = 1,undf\n"
-        "      y_proxy%data(i) = a*x_proxy%data(i)\n"
-        "    end do \n"
+        "      f2_proxy = f2%get_proxy()\n"
+        "      f3_proxy = f3%get_proxy()\n"
+        "      !\n"
+        "      ! Initialise number of layers\n"
+        "      !\n"
+        "      nlayers = f2_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Create a mesh object\n"
+        "      !\n"
+        "      mesh = f2%get_mesh()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for "
+        "any_space_1\n"
+        "      !\n"
+        "      ndf_any_space_1 = f2_proxy%vspace%get_ndf()\n"
+        "      undf_any_space_1 = f2_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Call our kernels\n"
+        "      !\n"
+        "      DO df=1,undf_any_space_1\n"
+        "        f3_proxy%data(df) = a*f2_proxy%data(df)\n"
+        "      END DO \n"
         )
     assert output in code
 

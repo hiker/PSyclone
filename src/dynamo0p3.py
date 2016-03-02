@@ -2468,23 +2468,15 @@ class DynKernCallFactory(object):
 
     
 class DynInfKern(DynKern, InfKern):
-    '''Base class for a Dynamo Infrastructure/Pointwise call. Has the
+    ''' Base class for a Dynamo Infrastructure/Pointwise call. Has the
     (abstract) InfKern as a base class to enable us to identify it as
     an Infrastructure kernel in the psyGen base classes (because it is
-    otherwise identical to a normal kernel).
-
-    '''
+    otherwise identical to a normal kernel). '''
 
     def gen_code(self, parent):
         from f2pygen import AssignGen, DeclGen
         # Get hold of the name space manager
         self._name_space_manager = NameSpaceFactory().create()
-        # Look-up the name previously given to the var holding
-        # the number of levels
-        nlayers_name = self._name_space_manager.create_name(
-                root_name="nlayers", context="PSyVars", label="nlayers")
-        # Look-up the ndf name
-        ndf_name = self.ndf_name
         # TODO remove this method altogether?
 
     @property
@@ -2564,9 +2556,13 @@ class DynMultiplyFieldKern(DynInfKern):
         # A (2nd arg) by a scalar (1st arg) and write the value to the
         # corresponding element of field B (3rd arg).
         idx_name = "df"
+        scalar_name = self._arguments.args[0].name
         inproxy_name = self._arguments.args[1].proxy_name
         outproxy_name = self._arguments.args[2].proxy_name
         invar_name = inproxy_name + "%data(" + idx_name + ")"
         outvar_name = outproxy_name + "%data(" + idx_name + ")"
-        print dir(self._arguments.args[0])
+        assign = AssignGen(parent, lhs=outvar_name,
+                           rhs=scalar_name + "*" + invar_name)
+        parent.add(assign)
+
 
