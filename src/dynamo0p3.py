@@ -339,21 +339,6 @@ class DynArgDescriptor03(Descriptor):
                 "Internal error, DynArgDescriptor03:function_space(), should "
                 "not get to here.")
 
-    @function_space.setter
-    def function_space(self, value):
-        if value not in VALID_FUNCTION_SPACE_NAMES:
-            raise RuntimeError(
-                "Invalid function space '{0}': must be one of {1}.".
-                format(value, VALID_FUNCTION_SPACE_NAMES))
-        # This setter only works for a gh_field as an operator has both
-        # a 'to' and a 'from' space and a scalar has no space at all.
-        if self._type == "gh_field":
-            self._function_space1 = value
-        else:
-            raise RuntimeError(
-                "Can only set the function space of a gh_field but I am "
-                "a {0}".format(self._type))
-
     @property
     def function_spaces(self):
         ''' Return the function space names that this instance operates
@@ -758,20 +743,6 @@ class DynInvoke(Invoke):
             if kern_call.field_on_space(func_space):
                 return True
         return False
-
-    def field_with_name(self, name):
-        '''If there is a field argument to a user-supplied kernel of the
-        specified name then return a corresponding kernel argument
-        object
-
-        '''
-        for call in self.schedule.kern_calls():
-            if not isinstance(call, InfKern):
-                for arg in call.arguments.args:
-                    print "arg name = ", arg.name
-                    if arg.name == name:
-                        return arg
-        return None
 
     def gen_code(self, parent):
         ''' Generates Dynamo specific invocation code (the subroutine
@@ -2366,18 +2337,6 @@ class DynKernelArgument(KernelArgument):
             argument as specified by the kernel argument metadata. '''
         return self._arg.function_space
 
-    @function_space.setter
-    def function_space(self, space):
-        '''Sets the expected finite element function space for this
-        argument. Permits the value specified in the kernel argument
-        metadata to be overwritten. This is used for pointwise kernels
-        where the space of the argument(s) can often be inferred (by
-        looking at other kernels that act on the same argument) when
-        psyclone is run.
-
-        '''
-        self._arg.function_space = space
-
     @property
     def function_spaces(self):
         '''Returns the expected finite element function spaces for this
@@ -2478,13 +2437,6 @@ class DynInfKern(DynKern, InfKern):
         # Get hold of the name space manager
         self._name_space_manager = NameSpaceFactory().create()
         # TODO remove this method altogether?
-
-    @property
-    def ndf_name(self):
-        ''' Dynamically looks up the name of the ndf variable for the
-        space that this kernel updates '''
-        field = self._arguments.iteration_space_arg()
-        return self.fs_descriptors.ndf_name(field.function_space)
 
     @property
     def undf_name(self):
