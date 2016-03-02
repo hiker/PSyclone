@@ -44,7 +44,7 @@ VALID_ACCESS_DESCRIPTOR_NAMES = ["gh_read", "gh_write", "gh_inc"]
 VALID_STENCIL_TYPES = ["x1d", "y1d", "cross", "region"]
 
 VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "edge", "halo", "ncolour",
-                           "ncolours", "cells"]
+                           "ncolours", "cells", "dofs"]
 
 # The mapping from meta-data strings to field-access types
 # used in this API.
@@ -1851,13 +1851,19 @@ class DynLoop(Loop):
 
         # Loop bounds
         self.set_lower_bound("start")
-        if config.DISTRIBUTED_MEMORY:
-            if self.field_space == "w3":  # discontinuous
-                self.set_upper_bound("edge")
-            else:  # continuous
-                self.set_upper_bound("halo", index=1)
-        else:  # sequential
-            self.set_upper_bound("cells")
+
+        if isinstance(kern, DynInfKern):
+            # If the kernel is an infrastructure/pointwise kernel
+            # then this loop must be over DoFs
+            self.set_upper_bound("dofs")
+        else:    
+            if config.DISTRIBUTED_MEMORY:
+                if self.field_space == "w3":  # discontinuous
+                    self.set_upper_bound("edge")
+                else:  # continuous
+                    self.set_upper_bound("halo", index=1)
+            else:  # sequential
+                self.set_upper_bound("cells")
 
     def set_lower_bound(self, name, index=None):
         ''' Set the lower bounds of this loop '''
@@ -1919,7 +1925,10 @@ class DynLoop(Loop):
 
     def _upper_bound_fortran(self):
         ''' Create the associated fortran code for the type of upper bound '''
-        if not config.DISTRIBUTED_MEMORY:
+        if self._upper_bound_name == "dofs":
+            return self._kern.undf_name
+
+        elif not config.DISTRIBUTED_MEMORY:
             if self._upper_bound_name == "cells":
                 return self.field.proxy_name_indexed + "%" + \
                     self.field.ref_name() + "%get_ncell()"
@@ -2476,18 +2485,7 @@ class DynInfKern(DynKern, InfKern):
                 root_name="nlayers", context="PSyVars", label="nlayers")
         # Look-up the ndf name
         ndf_name = self.ndf_name
-        # Use it to create a name for the variable to index into the
-        # field array
-        idx_name = self._name_space_manager.create_name(
-            root_name="idx", context="PSyVars", label="pw_index")
-        parent.add(DeclGen(parent,
-                           datatype="integer",
-                           entity_decls=[idx_name]))
-        # Set the value of this indexing variable
-        idx_val = (
-            "((cell-1)*" + nlayers_name + " + (k-1))*" + ndf_name + " + df")
-        assign_1 = AssignGen(parent, lhs=idx_name, rhs=idx_val)
-        parent.add(assign_1)
+        # TODO remove this method altogether?
 
     @property
     def ndf_name(self):
@@ -2495,6 +2493,13 @@ class DynInfKern(DynKern, InfKern):
         space that this kernel updates '''
         field = self._arguments.iteration_space_arg()
         return self.fs_descriptors.ndf_name(field.function_space)
+
+    @property
+    def undf_name(self):
+        ''' Dynamically looks up the name of the undf variable for the
+        space that this kernel updates '''
+        field = self._arguments.iteration_space_arg()
+        return self.fs_descriptors.undf_name(field.function_space)
 
 
 class DynSetFieldScalarKern(DynInfKern):
@@ -2509,14 +2514,10 @@ class DynSetFieldScalarKern(DynInfKern):
         DynInfKern.gen_code(self, parent)
         # Get hold of the name space manager
         self._name_space_manager = NameSpaceFactory().create()
+        idx_name = "df"
         # and now the specific part. In this case we're assigning
         # a single scalar value to all elements of a field.
         proxy_name = self._arguments.args[0].proxy_name
-        # Look-up the name given to our indexing variable
-        # (in DynInfKern.gen_code)
-        idx_name = self._name_space_manager.create_name(root_name="idx",
-                                                        context="PSyVars",
-                                                        label="pw_index")
         var_name = proxy_name + "%data(" + idx_name + ")"
         value = self._arguments.args[1]
         assign = AssignGen(parent, lhs=var_name, rhs=value)
@@ -2535,11 +2536,9 @@ class DynCopyFieldKern(DynInfKern):
         # Generate the generic part of this pointwise kernel
         DynInfKern.gen_code(self, parent)
         self._name_space_manager = NameSpaceFactory().create()
+        idx_name = "df"
         # and now the specific part - we copy one element of field A (first
         # arg) to the corresponding element of field B (second arg).
-        idx_name = self._name_space_manager.create_name(root_name="idx",
-                                                        context="PSyVars",
-                                                        label="pw_index")
         inproxy_name = self._arguments.args[0].proxy_name
         outproxy_name = self._arguments.args[1].proxy_name
         invar_name = inproxy_name + "%data(" + idx_name + ")"
@@ -2564,9 +2563,7 @@ class DynMultiplyFieldKern(DynInfKern):
         # and now the specific part - we multiply one element of field
         # A (2nd arg) by a scalar (1st arg) and write the value to the
         # corresponding element of field B (3rd arg).
-        idx_name = self._name_space_manager.create_name(root_name="idx",
-                                                        context="PSyVars",
-                                                        label="pw_index")
+        idx_name = "df"
         inproxy_name = self._arguments.args[1].proxy_name
         outproxy_name = self._arguments.args[2].proxy_name
         invar_name = inproxy_name + "%data(" + idx_name + ")"
