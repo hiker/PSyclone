@@ -36,6 +36,18 @@ module dynamo0p3_intrinsics_mod
      procedure, nopass :: copy_field_code
   end type copy_field
 
+  type, public, extends(kernel_type) :: minus_fields
+     private
+     type(arg_type) :: meta_args(3) = (/                               &
+          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1),                   &
+          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1),                   &
+          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                    &
+          /)
+     integer :: iterates_over = CELLS
+   contains
+     procedure, nopass :: minus_fields_code
+  end type minus_fields
+
   type, public, extends(kernel_type) :: axpy
      private
      type(arg_type) :: meta_args(3) = (/                                &
@@ -48,6 +60,18 @@ module dynamo0p3_intrinsics_mod
      procedure, nopass :: axpy_code
   end type axpy
 
+  type, public, extends(kernel_type) :: inner_prod
+     private
+     type(arg_type) :: meta_args(3) = (/                                &
+          arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_1),                  &
+          arg_type(GH_FIELD,   GH_WRITE, ANY_SPACE_1),                  &
+          arg_type(GH_RSCALAR, GH_SUM               )                   &
+          /)
+     integer :: iterates_over = CELLS
+   contains
+     procedure, nopass :: inner_prod_code
+  end type inner_prod
+
 contains
 
   subroutine set_field_scalar_code()
@@ -56,7 +80,13 @@ contains
   subroutine copy_field_code()
   end subroutine copy_field_code
 
+  subroutine minus_fields_code()
+  end subroutine minus_fields_code
+
   subroutine axpy_code()
   end subroutine axpy_code
+
+  subroutine inner_prod_code()
+  end subroutine inner_prod_code
   
 end module dynamo0p3_intrinsics_mod

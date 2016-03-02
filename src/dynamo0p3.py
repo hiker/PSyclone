@@ -2372,18 +2372,29 @@ class DynInfCallFactory(object):
         ''' Create the objects needed for a call to the intrinsic
         described in the call (InfCall) object '''
 
+        if call.func_name not in config.PSYCLONE_INTRINSICS:
+            raise ParseError(
+                "Unrecognised infrastructure call. Found '{0}' but expected "
+                "one of '{1}'".format(call.func_name,
+                                      config.PSYCLONE_INTRINSICS))
+
         # The infrastructure operation itself
         if call.func_name == "set_field_scalar":
             pwkern = DynSetFieldScalarKern()
         elif call.func_name == "copy_field":
             pwkern = DynCopyFieldKern()
+        elif call.func_name == "minus_fields":
+            pwkern = DynSubtractFieldsKern()
         elif call.func_name == "axpy":
             pwkern = DynAXPYKern()
         else:
+            # TODO is there a better way of handling this mapping such that
+            # it is harder to make this mistake?
             raise ParseError(
-                "Unrecognised infrastructure call. Found '{0}' but expected "
-                "one of '{1}'".format(call.func_name,
-                                      config.PSYCLONE_INTRINSICS))
+                "Internal error: infrastructure call '{0}' is listed in "
+                "config.PSYCLONE_INSTRINSICS but is not handled by "
+                "DynInfCallFactory".format(call.func_name))
+
         # Use the call object (created by the parser) to set-up the state
         # of the infrastructure kernel
         pwkern.load(call)
@@ -2488,6 +2499,34 @@ class DynCopyFieldKern(DynInfKern):
         invar_name = inproxy_name + "%data(" + idx_name + ")"
         outvar_name = outproxy_name + "%data(" + idx_name + ")"
         assign = AssignGen(parent, lhs=outvar_name, rhs=invar_name)
+        parent.add(assign)
+        return
+
+
+class DynSubtractFieldsKern(DynInfKern):
+    ''' Subtract one field from another and return the result as a
+    third field '''
+
+    def __str__(self):
+        return "Subtract fields infrastructure call"
+
+    def gen_code(self, parent):
+        from f2pygen import AssignGen
+        # Generate the generic part of this pointwise kernel
+        DynInfKern.gen_code(self, parent)
+        self._name_space_manager = NameSpaceFactory().create()
+        idx_name = "df"
+        # and now the specific part - we subtract each element of f2
+        # from the corresponding element of f1 and store the result in
+        # f3
+        inproxy_name1 = self._arguments.args[0].proxy_name
+        inproxy_name2 = self._arguments.args[1].proxy_name
+        outproxy_name = self._arguments.args[2].proxy_name
+        invar_name1 = inproxy_name1 + "%data(" + idx_name + ")"
+        invar_name2 = inproxy_name2 + "%data(" + idx_name + ")"
+        outvar_name = outproxy_name + "%data(" + idx_name + ")"
+        assign = AssignGen(parent, lhs=outvar_name,
+                           rhs=invar_name1 + " - " + invar_name2)
         parent.add(assign)
         return
 
