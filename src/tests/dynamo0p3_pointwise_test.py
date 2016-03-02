@@ -24,6 +24,31 @@ def test_dyninf_str():
     assert str(dyninf) == "Factory for a Dynamo infrastructure call"
 
 
+def test_dyninf_wrong_name():
+    ''' Check that DynInfCallFactory.create() raises an error if it
+    doesn't recognise the name of the kernel it is passed '''
+    from dynamo0p3 import DynInfCallFactory
+    dyninf = DynInfCallFactory()
+    fake_kern = ParseError("blah")
+    fake_kern.func_name = "pw_blah"
+    with pytest.raises(ParseError) as excinfo:
+        _ = dyninf.create(fake_kern)
+    assert ("Unrecognised infrastructure call. Found 'pw_blah' but "
+            "expected one of '[" in str(excinfo.value))
+
+
+def test_invalid_pointwise_kernel():
+    ''' Check that we raise an appropriate error if an unrecognised
+    pointwise kernel is specified in the algorithm layer '''
+    with pytest.raises(ParseError) as excinfo:
+        _, _ = parse(os.path.join(BASE_PATH,
+                                  "15.0.0_invalid_pw_kernel.f90"),
+                     api="dynamo0.3")
+    assert ("kernel call 'set_field_scala' must either be named in a "
+            "use statement or be a recognised pointwise kernel" in
+            str(excinfo.value))
+
+
 def test_pointwise_set():
     ''' Tests that we generate correct code for a pointwise
     set operation with a scalar passed by value'''
@@ -31,7 +56,6 @@ def test_pointwise_set():
                                         "15_single_pointwise_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    first_invoke = psy.invokes.invoke_list[0]
     code = str(psy.gen)
     print code
     output = (
@@ -77,7 +101,6 @@ def test_pointwise_set_by_ref():
                                         "15.0.1_single_pw_set_by_ref.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    first_invoke = psy.invokes.invoke_list[0]
     code = str(psy.gen)
     print code
     output = (
@@ -126,7 +149,6 @@ def test_multiple_pointwise_set():
                                         "15.0.2_multiple_set_kernels.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    first_invoke = psy.invokes.invoke_list[0]
     code = str(psy.gen)
     print code
     output = (
@@ -179,7 +201,6 @@ def test_pointwise_set_plus_normal():
                                         "15.1_pw_and_normal_kernel_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
-    first_invoke = psy.invokes.invoke_list[0]
     code = str(psy.gen)
     print code
     output = (
@@ -385,6 +406,7 @@ def test_pw_multiply_fields_on_different_spaces():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     with pytest.raises(GenerationError) as excinfo:
         _ = str(psy.gen)
+    assert "some string" in str(excinfo.value)
 
 
 @pytest.mark.xfail(

@@ -53,7 +53,7 @@ FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
 
 # Valid Dynamo loop types. The default is "" which is over cells (in the
 # horizontal plane).
-VALID_LOOP_TYPES = ["levels", "dofs", "colours", "colour", ""]
+VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 
 # classes
 
@@ -1817,8 +1817,6 @@ class DynLoop(Loop):
             self._variable_name = "colour"
         elif self._loop_type == "colour":
             self._variable_name = "cell"
-        elif self._loop_type == "levels":
-            self._variable_name = "k"
         elif self._loop_type == "dofs":
             self._variable_name = "df"
         else:
@@ -2404,8 +2402,8 @@ class DynKernelArgument(KernelArgument):
 
 class DynInfCallFactory(object):
     ''' Creates the necessary framework for a Dynamo infrastructure call,
-    This consists of the pointwise operation itself but also the loops over
-    cells, levels and DoFs. '''
+    This consists of the pointwise operation itself and the loop over
+    unique DoFs. '''
 
     def __str__(self):
         return "Factory for a Dynamo infrastructure call"
@@ -2423,8 +2421,10 @@ class DynInfCallFactory(object):
         elif call.func_name == "axpy":
             pwkern = DynAXPYKern()
         else:
-            raise GenerationError(
-                "Unrecognised infrastructure call: {0}".format(call.func_name))
+            raise ParseError(
+                "Unrecognised infrastructure call. Found '{0}' but expected "
+                "one of '{1}'".format(call.func_name,
+                                      config.PSYCLONE_INTRINSICS))
         # Use the call object (created by the parser) to set-up the state
         # of the infrastructure kernel
         pwkern.load(call)

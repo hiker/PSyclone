@@ -14,6 +14,7 @@ SUPPORTEDAPIS = ["gunghoproto", "dynamo0.1", "dynamo0.3", "gocean0.1",
 DEFAULTAPI = "dynamo0.3"
 SUPPORTEDSTUBAPIS = ["dynamo0.3"]
 DEFAULTSTUBAPI = "dynamo0.3"
+# The pointwise/infrastructure/intrinsic calls that we support
 PSYCLONE_INTRINSICS = ["set_field_scalar", "copy_field", "axpy"]
 # Dictionary giving the name of the file containing the meta-data
 # describing the intrinsics for each supported API
