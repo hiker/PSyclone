@@ -2385,6 +2385,8 @@ class DynInfCallFactory(object):
             pwkern = DynCopyFieldKern()
         elif call.func_name == "minus_fields":
             pwkern = DynSubtractFieldsKern()
+        elif call.func_name == "plus_fields":
+            pwkern = DynAddFieldsKern()
         elif call.func_name == "axpy":
             pwkern = DynAXPYKern()
         else:
@@ -2527,6 +2529,33 @@ class DynSubtractFieldsKern(DynInfKern):
         outvar_name = outproxy_name + "%data(" + idx_name + ")"
         assign = AssignGen(parent, lhs=outvar_name,
                            rhs=invar_name1 + " - " + invar_name2)
+        parent.add(assign)
+        return
+
+
+class DynAddFieldsKern(DynInfKern):
+    ''' Add one field to another and return the result as a third field '''
+
+    def __str__(self):
+        return "Add fields infrastructure call"
+
+    def gen_code(self, parent):
+        from f2pygen import AssignGen
+        # Generate the generic part of this pointwise kernel
+        DynInfKern.gen_code(self, parent)
+        self._name_space_manager = NameSpaceFactory().create()
+        idx_name = "df"
+        # and now the specific part - we add each element of f2
+        # to the corresponding element of f1 and store the result in
+        # f3
+        inproxy_name1 = self._arguments.args[0].proxy_name
+        inproxy_name2 = self._arguments.args[1].proxy_name
+        outproxy_name = self._arguments.args[2].proxy_name
+        invar_name1 = inproxy_name1 + "%data(" + idx_name + ")"
+        invar_name2 = inproxy_name2 + "%data(" + idx_name + ")"
+        outvar_name = outproxy_name + "%data(" + idx_name + ")"
+        assign = AssignGen(parent, lhs=outvar_name,
+                           rhs=invar_name1 + " + " + invar_name2)
         parent.add(assign)
         return
 

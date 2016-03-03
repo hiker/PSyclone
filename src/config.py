@@ -15,7 +15,8 @@ DEFAULTAPI = "dynamo0.3"
 SUPPORTEDSTUBAPIS = ["dynamo0.3"]
 DEFAULTSTUBAPI = "dynamo0.3"
 # The pointwise/infrastructure/intrinsic calls that we support
-PSYCLONE_INTRINSICS = ["set_field_scalar", "copy_field", "minus_fields", "axpy"]
+PSYCLONE_INTRINSICS = ["set_field_scalar", "copy_field",
+                       "minus_fields", "plus_fields", "axpy"]
 # Dictionary giving the name of the file containing the meta-data
 # describing the intrinsics for each supported API
 INTRINSIC_DEFINITIONS = {"dynamo0.3": "dynamo0p3_intrinsics_mod.f90"}

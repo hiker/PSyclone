@@ -48,6 +48,18 @@ module dynamo0p3_intrinsics_mod
      procedure, nopass :: minus_fields_code
   end type minus_fields
 
+  type, public, extends(kernel_type) :: plus_fields
+     private
+     type(arg_type) :: meta_args(3) = (/                               &
+          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1),                   &
+          arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1),                   &
+          arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                    &
+          /)
+     integer :: iterates_over = CELLS
+   contains
+     procedure, nopass :: plus_fields_code
+  end type plus_fields
+
   type, public, extends(kernel_type) :: axpy
      private
      type(arg_type) :: meta_args(3) = (/                                &
@@ -82,6 +94,9 @@ contains
 
   subroutine minus_fields_code()
   end subroutine minus_fields_code
+
+  subroutine plus_fields_code()
+  end subroutine plus_fields_code
 
   subroutine axpy_code()
   end subroutine axpy_code

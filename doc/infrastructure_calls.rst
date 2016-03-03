@@ -58,4 +58,18 @@ All types of field are supported.
 * type(field_type),intent(out) :: *field*
 * real,intent(in) :: *value*
 
+Adding support for additional infrastructure calls
+--------------------------------------------------
 
+ 1. Add the name of the new infrastructure call to the ``PSYCLONE_INTRINSICS``
+    list in ``config.py``.
+ 2. Add meta-data describing this call to the appropriate file specified in
+    the ``INTRINSIC_DEFINITIONS`` map in ``config.py``. For dynamo0.3 this is
+    ``dynamo0p3_intrinsics_mod.f90``.
+ 3. Add a hook to create an object for this new call in the ``create()``
+    method of the appropriate ``InfCallFactory``. For Dynamo0.3 this is
+    ``dynamo0p3.DynInfCallFactory``.
+ 4. Create the class for this new call. It must inherit from the
+    API-specific base class for infrastructure calls (``DynInfKern`` for
+    Dynamo0.3).
+ 5. Implement ``__str__`` and ``gen_code()`` methods for this new class.
