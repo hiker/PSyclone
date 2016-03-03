@@ -58,7 +58,8 @@ VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 # The pointwise/infrastructure/intrinsic calls that we support for
 # this API
 PSYCLONE_INTRINSIC_NAMES = ["set_field_scalar", "copy_field",
-                            "minus_fields", "plus_fields", "axpy"]
+                            "minus_fields", "plus_fields",
+                            "divide_fields", "axpy"]
 
 # The name of the file containing the meta-data describing the
 # intrinsics for this API
@@ -2396,6 +2397,8 @@ class DynInfCallFactory(object):
             pwkern = DynSubtractFieldsKern()
         elif call.func_name == "plus_fields":
             pwkern = DynAddFieldsKern()
+        elif call.func_name == "divide_fields":
+            pwkern = DynDivideFieldsKern()
         elif call.func_name == "axpy":
             pwkern = DynAXPYKern()
         else:
@@ -2403,7 +2406,7 @@ class DynInfCallFactory(object):
             # it is harder to make this mistake?
             raise ParseError(
                 "Internal error: infrastructure call '{0}' is listed in "
-                "config.PSYCLONE_INSTRINSICS but is not handled by "
+                "PSYCLONE_INSTRINSIC_NAMES but is not handled by "
                 "DynInfCallFactory".format(call.func_name))
 
         # Use the call object (created by the parser) to set-up the state
@@ -2565,6 +2568,34 @@ class DynAddFieldsKern(DynInfKern):
         outvar_name = outproxy_name + "%data(" + idx_name + ")"
         assign = AssignGen(parent, lhs=outvar_name,
                            rhs=invar_name1 + " + " + invar_name2)
+        parent.add(assign)
+        return
+
+
+class DynDivideFieldsKern(DynInfKern):
+    ''' Divide the first field by the second and return the result as
+    a third field '''
+
+    def __str__(self):
+        return "Divide fields infrastructure call"
+
+    def gen_code(self, parent):
+        from f2pygen import AssignGen
+        # Generate the generic part of this pointwise kernel
+        DynInfKern.gen_code(self, parent)
+        self._name_space_manager = NameSpaceFactory().create()
+        idx_name = "df"
+        # and now the specific part - we divide each element of f1
+        # by the corresponding element of f2 and store the result in
+        # f3
+        inproxy_name1 = self._arguments.args[0].proxy_name
+        inproxy_name2 = self._arguments.args[1].proxy_name
+        outproxy_name = self._arguments.args[2].proxy_name
+        invar_name1 = inproxy_name1 + "%data(" + idx_name + ")"
+        invar_name2 = inproxy_name2 + "%data(" + idx_name + ")"
+        outvar_name = outproxy_name + "%data(" + idx_name + ")"
+        assign = AssignGen(parent, lhs=outvar_name,
+                           rhs=invar_name1 + " / " + invar_name2)
         parent.add(assign)
         return
 

@@ -370,7 +370,7 @@ def test_pw_add_fields_str():
 
 
 def test_pw_add_fields():
-    ''' Test that the str method of DynSubtractFieldsKern returns the
+    ''' Test that the str method of DynAddFieldsKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.5.0_add_invoke.f90"),
@@ -401,6 +401,54 @@ def test_pw_add_fields():
         "      !\n"
         "      DO df=1,undf_any_space_1\n"
         "        f3_proxy%data(df) = f1_proxy%data(df) + f2_proxy%data(df)\n"
+        "      END DO")
+    assert output in code
+
+
+def test_pw_divide_fields_str():
+    ''' Test that the str method of DynDivideFieldsKern returns the
+    expected string '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.6.0_divide_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].children[0]
+    assert str(kern) == "Divide fields infrastructure call"
+
+
+def test_pw_divide_fields():
+    ''' Test that we generate correct code for the divide fields
+    infrastructure kernel '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.6.0_divide_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    code = str(psy.gen)
+    print code
+    output = (
+        "      f1_proxy = f1%get_proxy()\n"
+        "      f2_proxy = f2%get_proxy()\n"
+        "      f3_proxy = f3%get_proxy()\n"
+        "      !\n"
+        "      ! Initialise number of layers\n"
+        "      !\n"
+        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Create a mesh object\n"
+        "      !\n"
+        "      mesh = f1%get_mesh()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for "
+        "any_space_1\n"
+        "      !\n"
+        "      ndf_any_space_1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_any_space_1 = f1_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Call our kernels\n"
+        "      !\n"
+        "      DO df=1,undf_any_space_1\n"
+        "        f3_proxy%data(df) = f1_proxy%data(df) / f2_proxy%data(df)\n"
         "      END DO")
     assert output in code
 
