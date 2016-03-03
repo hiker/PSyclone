@@ -12,7 +12,7 @@
 
 import abc
 
-MAPPING={} # this should be set by a particular API
+MAPPING = {} # this should be set by a particular API
 
 class GenerationError(Exception):
     ''' Provides a PSyclone specific error class for errors found during PSy

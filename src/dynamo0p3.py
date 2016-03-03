@@ -2323,9 +2323,10 @@ class DynKernelArgument(Argument):
             return "in"
         elif self.access == "gh_write":
             return "out"
-        elif self.access == "gh_inc":
+        elif self.access in ["gh_inc"] + VALID_REDUCTION_NAMES:
             return "inout"
         else:
             raise GenerationError(
                 "Expecting argument access to be one of 'gh_read, gh_write, "
-                "gh_inc' but found '{0}'".format(self.access))
+                "gh_inc' or one of {0}, but found '{1}'". \
+                format(str(VALID_REDUCTION_NAMES), self.access))

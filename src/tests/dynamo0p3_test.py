@@ -1853,6 +1853,40 @@ def test_stub_generate_with_scalars():
     print result
     assert str(result).find(SIMPLE_WITH_SCALARS) != -1
 
+
+SCALAR_SUMS = (
+    "  MODULE testkern_multiple_scalar_sums_mod\n"
+    "    IMPLICIT NONE\n"
+    "    CONTAINS\n"
+    "    SUBROUTINE testkern_multiple_scalar_sums_code(nlayers, rscalar_1, "
+    "iscalar_2, field_3_w3, rscalar_4, iscalar_5, ndf_w3, undf_w3, map_w3)\n"
+    "      USE constants_mod, ONLY: r_def\n"
+    "      IMPLICIT NONE\n"
+    "      INTEGER, intent(in) :: nlayers\n"
+    "      REAL(KIND=r_def), intent(inout) :: rscalar_1\n"
+    "      INTEGER, intent(inout) :: iscalar_2\n"
+    "      INTEGER, intent(in) :: undf_w3\n"
+    "      REAL(KIND=r_def), intent(out), dimension(undf_w3) :: field_3_w3\n"
+    "      REAL(KIND=r_def), intent(inout) :: rscalar_4\n"
+    "      INTEGER, intent(inout) :: iscalar_5\n"
+    "      INTEGER, intent(in) :: ndf_w3\n"
+    "      INTEGER, intent(in), dimension(ndf_w3) :: map_w3\n"
+    "    END SUBROUTINE testkern_multiple_scalar_sums_code\n"
+    "  END MODULE testkern_multiple_scalar_sums_mod")
+
+
+def test_stub_generate_with_scalar_sums():
+    ''' check that the stub generate produces the expected output when
+    the kernel has scalar arguments with a reduction operation (gh_sum) '''
+    # hack while DM does not support reductions
+    import config
+    config.DISTRIBUTED_MEMORY=False
+    # end hack
+    result = generate("test_files/dynamo0p3/testkern_multiple_scalar_sums.f90",
+                      api="dynamo0.3")
+    print result
+    assert SCALAR_SUMS in str(result)
+
 # fields : intent
 INTENT = '''
 module dummy_mod
@@ -3408,7 +3442,7 @@ def test_single_scalar_sum_invalid():
     writer to be a field or operator '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "16.1_integer_scalar_sum.f90"),
-        api="dynamo0.3")
+        api="dynamo0.3", distributed_memory=False)
     with pytest.raises(GenerationError) as excinfo:
         psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     assert "we assume there is at least one writer" in str(excinfo.value)
@@ -3418,7 +3452,7 @@ def test_single_integer_scalar_sum():
     '''Test that a single integer scalar generates correct code when it
     is specified with gh_sum'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
-                           api="dynamo0.3")
+                           api="dynamo0.3", distributed_memory=False)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen = str(psy.gen)
     print gen
@@ -3430,7 +3464,7 @@ def test_single_real_scalar_sum():
     '''Test that a single real scalar generates correct code when it is
     specified with gh_sum'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
-                           api="dynamo0.3")
+                           api="dynamo0.3", distributed_memory=False)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen = str(psy.gen)
     print gen
@@ -3442,12 +3476,24 @@ def test_multiple_scalar_sums():
     ''' Test that multiple scalar (gh_sum) reductions generate correct code '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "16.4_multiple_scalar_sums.f90"),
-                           api="dynamo0.3")
+                           api="dynamo0.3", distributed_memory=False)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen = str(psy.gen)
     print gen
-    assert "CALL testkern_code(nlayers, rsum1, isum1, f1_proxy%data, rsum2, " \
-        "isum2, ndf_w3, undf_w3, map_w3)" in gen
+    assert "CALL testkern_multiple_scalar_sums_code(nlayers, rsum1, isum1, " \
+        "f1_proxy%data, rsum2, isum2, ndf_w3, undf_w3, map_w3)" in gen
 
 
-''' Add tests for multiple kernels within an invoke '''
+def test_multiple_kernels_scalar_sums():
+    '''Add a test for multiple kernels within an invoke with scalar
+    (gh_sum) reductions'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "16.5_multiple_kernel_scalar_sums.f90"),
+                           api="dynamo0.3", distributed_memory=False)
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    output = "CALL testkern_code(nlayers, rsum, f1_proxy%data, ndf_w3, " \
+             "undf_w3, map_w3)"
+    assert output in gen
+    assert gen.count(output) == 2

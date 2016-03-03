@@ -3,8 +3,9 @@
 !---------------------------------------------------------
 ! Author R. Ford STFC Daresbury Lab
 
-module testkern
-  type, extends(kernel_type) :: testkern_type
+module testkern_multiple_scalar_sums_mod
+
+  type, extends(kernel_type) :: testkern_multiple_scalar_sums_type
      type(arg_type), dimension(5) :: meta_args = (/ &
              arg_type(gh_rscalar, gh_sum),          &
              arg_type(gh_iscalar, gh_sum),          &
@@ -14,13 +15,15 @@ module testkern
            /)
      integer, parameter :: iterates_over = cells
    contains
-     procedure() :: code => testkern_code
-  end type testkern_type
+     procedure() :: code => testkern_multiple_scalar_sums_code
+  end type testkern_multiple_scalar_sums_type
+
 contains
 
-  subroutine testkern_code(rsum1, isum1, field, rsum2, isum2)
+  subroutine testkern_multiple_scalar_sums_code(rsum1, isum1, field, rsum2, isum2)
     integer, intent(inout) :: isum1, isum2
     real, intent(inout) :: rsum1, rsum2
     real, intent(out) :: field
-  end subroutine testkern_code
-end module testkern
+  end subroutine testkern_multiple_scalar_sums_code
+
+end module testkern_multiple_scalar_sums_mod
