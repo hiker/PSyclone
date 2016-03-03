@@ -59,7 +59,7 @@ VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 # this API
 PSYCLONE_INTRINSIC_NAMES = ["set_field_scalar", "copy_field",
                             "minus_fields", "plus_fields",
-                            "divide_fields", "axpy"]
+                            "divide_fields", "axpy", "multiply_field"]
 
 # The name of the file containing the meta-data describing the
 # intrinsics for this API
@@ -2399,6 +2399,8 @@ class DynInfCallFactory(object):
             pwkern = DynAddFieldsKern()
         elif call.func_name == "divide_fields":
             pwkern = DynDivideFieldsKern()
+        elif call.func_name == "multiply_field":
+            pwkern = DynMultiplyFieldKern()
         elif call.func_name == "axpy":
             pwkern = DynAXPYKern()
         else:
@@ -2596,6 +2598,32 @@ class DynDivideFieldsKern(DynInfKern):
         outvar_name = outproxy_name + "%data(" + idx_name + ")"
         assign = AssignGen(parent, lhs=outvar_name,
                            rhs=invar_name1 + " / " + invar_name2)
+        parent.add(assign)
+        return
+
+
+class DynMultiplyFieldKern(DynInfKern):
+    ''' Multiply the first field by a scalar and return the result as
+    a second field (y = a*x) '''
+
+    def __str__(self):
+        return "Multiply field (by a scalar) infrastructure call"
+
+    def gen_code(self, parent):
+        from f2pygen import AssignGen
+        # Generate the generic part of this pointwise kernel
+        DynInfKern.gen_code(self, parent)
+        idx_name = "df"
+        # and now the specific part - we multiply each element of f1
+        # by the scalar argument and store the result in
+        # f2
+        scalar_name = self._arguments.args[0].name
+        inproxy_name = self._arguments.args[1].proxy_name
+        outproxy_name = self._arguments.args[2].proxy_name
+        invar_name = inproxy_name + "%data(" + idx_name + ")"
+        outvar_name = outproxy_name + "%data(" + idx_name + ")"
+        assign = AssignGen(parent, lhs=outvar_name,
+                           rhs= scalar_name + " * " + invar_name)
         parent.add(assign)
         return
 

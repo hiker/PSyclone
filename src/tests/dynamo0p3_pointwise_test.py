@@ -453,6 +453,53 @@ def test_pw_divide_fields():
     assert output in code
 
 
+def test_pw_multiply_field_str():
+    ''' Test that the str method of DynMultiplyFieldKern returns the
+    expected string '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.7.0_multiply_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].children[0]
+    assert str(kern) == "Multiply field (by a scalar) infrastructure call"
+
+
+def test_pw_multiply_field():
+    ''' Test that we generate correct code for the multiply field
+    (y = a*x) infrastructure kernel '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.7.0_multiply_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    code = str(psy.gen)
+    print code
+    output = (
+        "      f1_proxy = f1%get_proxy()\n"
+        "      f2_proxy = f2%get_proxy()\n"
+        "      !\n"
+        "      ! Initialise number of layers\n"
+        "      !\n"
+        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Create a mesh object\n"
+        "      !\n"
+        "      mesh = f1%get_mesh()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for "
+        "any_space_1\n"
+        "      !\n"
+        "      ndf_any_space_1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_any_space_1 = f1_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Call our kernels\n"
+        "      !\n"
+        "      DO df=1,undf_any_space_1\n"
+        "        f2_proxy%data(df) = a * f1_proxy%data(df)\n"
+        "      END DO")
+    assert output in code
+
+
 def test_pw_axpy_field_str():
     ''' Test that the str method of DynAXPYKern returns the
     expected string '''
