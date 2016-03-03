@@ -300,6 +300,13 @@ class GOKernelArgument(KernelArgument):
         KernelArgument.__init__(self, arg, arg_info, call)
 
     @property
+    def type(self):
+        ''' Return the type of this kernel argument - whether it is a field,
+            a scalar or a grid_property (to be supplied by the PSy layer) '''
+        # gocean0.1 does not have this concept so just return "field"
+        return "field"
+
+    @property
     def function_space(self):
         ''' Returns the expected finite difference space for this
             argument as specified by the kernel argument metadata.'''

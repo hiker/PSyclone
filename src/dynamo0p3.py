@@ -21,6 +21,7 @@ import os
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
     Argument, Inf, NameSpaceFactory, GenerationError, FieldNotFoundError, \
     HaloExchange
+import psyGen
 import config
 
 # first section : Parser specialisations and classes
@@ -52,6 +53,11 @@ VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "edge", "halo", "ncolour",
 # used in this API.
 FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
                     "readwrite": "gh_rw", "inc": "gh_inc"}
+
+# Mapping used by reduction code in psyGen
+psyGen.MAPPING = {"sum": "gh_sum", "iscalar": "gh_iscalar",
+                  "rscalar": "gh_rscalar"}
+
 
 # classes
 

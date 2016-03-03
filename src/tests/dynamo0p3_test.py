@@ -3450,9 +3450,4 @@ def test_multiple_scalar_sums():
         "isum2, ndf_w3, undf_w3, map_w3)" in gen
 
 
-def test_scalar_sum_and_OpenMP_unsupported():
-    ''' Test that we fail if OpenMP and global sums are specified '''
-    assert False
-
-
 ''' Add tests for multiple kernels within an invoke '''

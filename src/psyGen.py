@@ -12,6 +12,7 @@
 
 import abc
 
+MAPPING={} # this should be set by a particular API
 
 class GenerationError(Exception):
     ''' Provides a PSyclone specific error class for errors found during PSy
@@ -732,6 +733,18 @@ class OMPDirective(Directive):
         for entity in self._children:
             entity.view(indent=indent + 1)
 
+    def _get_reductions_list(self, reduction_type):
+        '''Return the name of all scalars within this region that require a
+        reduction or type reduction_type. Returned names will be unique. '''
+        result=[]
+        for call in self.calls():
+            for arg in call.arguments.args:
+                if arg.type == MAPPING["iscalar"] or arg.type == MAPPING["rscalar"]:
+                    if arg.descriptor.access == MAPPING[reduction_type]:
+                        if arg.name not in result:
+                            result.append(arg.name)
+        return result
+
 
 class OMPParallelDirective(OMPDirective):
 
@@ -892,6 +905,11 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # We're not doing nested parallelism so make sure that this
         # omp parallel do is not already within some parallel region
         self._not_within_omp_parallel_region()
+
+        reductions = self._get_reductions_list("sum")
+        if reductions:
+            # reductions are not yet supported so raise an exception
+            raise GenerationError("OpenMP reductions are not yet supported")
 
         private_str = self.list_to_string(self._get_private_list())
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",

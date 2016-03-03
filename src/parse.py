@@ -15,6 +15,7 @@ import expression as expr
 import logging
 import os
 from line_length import FortLineLength
+import config
 
 class ParseError(Exception):
     def __init__(self, value):
@@ -585,7 +586,8 @@ class FileInfo(object):
         return self._calls
 
 def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf", 
-          kernel_path="", line_length=False):
+          kernel_path="", line_length=False,
+          distributed_memory=config.DISTRIBUTED_MEMORY):
     '''Takes a GungHo algorithm specification as input and outputs an AST of this specification and an object containing information about the invocation calls in the algorithm specification and any associated kernel implementations.
 
     :param str alg_filename: The file containing the algorithm specification.
@@ -610,6 +612,11 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
     >>> ast,info=parse("argspec.F90")
 
     '''
+    if distributed_memory not in [True, False]:
+        raise ParseError(
+            "The distributed_memory flag in parse() must be set to"
+            " 'True' or 'False'")
+    config.DISTRIBUTED_MEMORY = distributed_memory
     if api=="":
         from config import DEFAULTAPI
         api=DEFAULTAPI
