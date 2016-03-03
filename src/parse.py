@@ -15,7 +15,26 @@ import expression as expr
 import logging
 import os
 from line_length import FortLineLength
-from config import PSYCLONE_INTRINSICS, INTRINSIC_DEFINITIONS
+
+
+def get_intrinsic_defs(api):
+    '''Get the names of the supported intrinsic/infrastructure kernels
+    and the file containing the associated meta-data for the supplied api '''
+    from config import SUPPORTEDAPIS
+    if api not in SUPPORTEDAPIS:
+        raise ParseError(
+            "get_intrinsic_defs: Unsupported API '{0}' specified. "
+            "Supported types are {1}.".format(api,
+                                              SUPPORTEDAPIS))
+
+    if api == "dynamo0.3":
+        from dynamo0p3 import PSYCLONE_INTRINSIC_NAMES as intrinsics
+        from dynamo0p3 import INTRINSIC_DEFINITIONS_FILE as fname
+    else:
+        # We don't support any intrinsics for this API
+        intrinsics = []
+        fname = None
+    return intrinsics, fname
 
 
 class ParseError(Exception):
@@ -304,20 +323,23 @@ class KernelTypeFactory(object):
 
     def create(self, ast, name=None):
 
-        if name in PSYCLONE_INTRINSICS:
-            # The meta-data for these lives in a Fortran module file in
-            # the psyclone src directory - i.e. in the same
-            # location as this python file. The precise name
-            # of this file for this api is specified in
-            # INTRINSIC_DEFINITIONS in config.py
-            if self._type not in INTRINSIC_DEFINITIONS:
-                raise GenerationError(
-                    "Cannot create an infrastructure call"
-                    " ({0}) because no definitions file is listed for the"
-                    " {1} API in config.py".format(argname, self._type))
+        intrinsic_names, intrinsic_defs_file = get_intrinsic_defs(self._type)
+            
+        if name in intrinsic_names:
+            # The meta-data for these lives in a Fortran module file
+            # in the psyclone src directory - i.e. in the same
+            # location as this python file. The precise name of this
+            # file for this api is specified in INTRINSIC_DEFINITIONS
             fname = os.path.join(
                 os.path.dirname(os.path.abspath(__file__)),
-                INTRINSIC_DEFINITIONS[self._type])
+                intrinsic_defs_file)
+            if not os.path.isfile(fname):
+                raise ParseError(
+                    "Kernel '{0}' is a recognised intrinsic type but "
+                    "cannot file '{1}' containing the meta-data describing "
+                    "the intrinsic kernels for API '{2}'".format(name,
+                                                                 fname,
+                                                                 self._type))
             # Attempt to parse the meta-data
             try:
                 ast = fpapi.parse(fname)
@@ -343,6 +365,7 @@ class KernelTypeFactory(object):
                 "KernelTypeFactory: Internal Error: Unsupported "
                 "kernel type '{0}' found. Should not be possible.".
                 format(self._myType))
+
 
 class KernelType(object):
     """ Kernel Metadata baseclass
@@ -611,7 +634,10 @@ class FileInfo(object):
 
 def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf", 
           kernel_path="", line_length=False):
-    '''Takes a GungHo algorithm specification as input and outputs an AST of this specification and an object containing information about the invocation calls in the algorithm specification and any associated kernel implementations.
+    ''' Takes a GungHo algorithm specification as input and outputs an AST
+    of this specification and an object containing information about the
+    invocation calls in the algorithm specification and any associated kernel
+    implementations.
 
     :param str alg_filename: The file containing the algorithm specification.
     :param str invoke_name: The expected name of the invocation calls in the algorithm specification
@@ -635,6 +661,8 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
     >>> ast,info=parse("argspec.F90")
 
     '''
+    from pyparsing import ParseException
+
     if api=="":
         from config import DEFAULTAPI
         api=DEFAULTAPI
@@ -645,7 +673,9 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                              "Supported types are {1}.".format(api,
                                                                SUPPORTEDAPIS))
 
-    from pyparsing import ParseException
+    # Get the names of the supported intrinsic/infrastructure
+    # operations for this API
+    intrinsic_names, _ = get_intrinsic_defs(api)
 
     # drop cache
     fparser.parsefortran.FortranParser.cache.clear()
@@ -653,7 +683,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
     if not os.path.isfile(alg_filename):
         raise IOError("File %s not found" % alg_filename)
     try:
-        ast = fpapi.parse(alg_filename, ignore_comments = False, analyze = False)
+        ast = fpapi.parse(alg_filename, ignore_comments=False, analyze=False)
         # ast includes an extra comment line which contains file
         # details. This line can be long which can cause line length
         # issues. Therefore set the information (name) to be empty.
@@ -681,9 +711,14 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
             import sys
             python_version=sys.version_info
             if python_version[0]<=2 and python_version[1]<7:
-                raise ParseError("OrderedDict not provided natively pre python 2.7 (you are running {0}. Try installing with 'sudo pip install ordereddict'".format(python_version))
+                raise ParseError(
+                    "OrderedDict not provided natively pre python 2.7 (you"
+                    " are running {0}. Try installing with 'sudo pip install"
+                    " ordereddict'".format(python_version))
             else:
-                raise ParseError("OrderedDict not found which is unexpected as it is meant to be part of the Python library from 2.7 onwards")
+                raise ParseError(
+                    "OrderedDict not found which is unexpected as it is meant"
+                    " to be part of the Python library from 2.7 onwards")
     invokecalls = OrderedDict()
 
     container_name=None
@@ -694,7 +729,8 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
             container_name=child.name
             break
     if container_name is None:
-        raise ParseError("Error, program, module or subroutine not found in ast")
+        raise ParseError(
+            "Error, program, module or subroutine not found in ast")
 
     for statement, depth in fpapi.walk(ast, -1):
         if isinstance(statement, fparser.statements.Use):
@@ -729,7 +765,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                             argargs.append(Arg('variable',
                                                variableName,
                                                variableName))
-                if argname in PSYCLONE_INTRINSICS:
+                if argname in intrinsic_names:
                     # this is an infrastructure call. The KernelTypeFactory
                     # will generate appropriate meta-data
                     statement_kcalls.append(
@@ -744,8 +780,8 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                         raise ParseError(
                             "kernel call '{0}' must either be named in a use "
                             "statement or be a recognised pointwise kernel "
-                            "(one of '{1}')".format(argname,
-                                                    PSYCLONE_INTRINSICS))
+                            "(one of '{1}' for this API)".
+                            format(argname, intrinsic_names))
 
                     # Search for the file containing the kernel source
                     import fnmatch

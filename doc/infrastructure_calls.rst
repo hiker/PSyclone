@@ -58,14 +58,16 @@ All types of field are supported.
 * type(field_type),intent(out) :: *field*
 * real,intent(in) :: *value*
 
-Adding support for additional infrastructure calls
---------------------------------------------------
+Adding support for additional infrastructure calls to a specific API
+--------------------------------------------------------------------
 
- 1. Add the name of the new infrastructure call to the ``PSYCLONE_INTRINSICS``
-    list in ``config.py``.
+ 1. Identify the PSyclone source file for the API to be extended. e.g. for
+    Dynamo 0.3 it is ``src/dynamo0p3.py``.
+ 2. Add the name of the new infrastructure call to the
+    ``PSYCLONE_INTRINSIC_NAMES`` list in that source file.
  2. Add meta-data describing this call to the appropriate file specified in
-    the ``INTRINSIC_DEFINITIONS`` map in ``config.py``. For dynamo0.3 this is
-    ``dynamo0p3_intrinsics_mod.f90``.
+    the ``INTRINSIC_DEFINITIONS_FILE`` in that source file. For dynamo0.3
+    this is ``dynamo0p3_intrinsics_mod.f90``.
  3. Add a hook to create an object for this new call in the ``create()``
     method of the appropriate ``InfCallFactory``. For Dynamo0.3 this is
     ``dynamo0p3.DynInfCallFactory``.
@@ -73,3 +75,13 @@ Adding support for additional infrastructure calls
     API-specific base class for infrastructure calls (``DynInfKern`` for
     Dynamo0.3).
  5. Implement ``__str__`` and ``gen_code()`` methods for this new class.
+
+If the API being extended does not currently support any intrinsics
+then the ``PSYCLONE_INTRINSIC_NAMES`` and
+``INTRINSIC_DEFINITIONS_FILE`` module variables must be added to the
+source file for the API.  A Fortran module file must be created in the
+PSyclone src directory (with the name specified in
+``INTRINSIC_DEFINITIONS_FILE``) containing meta-data describing the
+intrinsic operations. Finally, ``parse.get_intrinsic_defs()`` must be
+extended to import ``PSYCLONE_INTRINSIC_NAMES`` and
+``INTRINSIC_DEFINITIONS_FILE`` for this API.

@@ -11,7 +11,6 @@
     particular API and implementation. '''
 
 import abc
-from config import PSYCLONE_INTRINSICS
 
 
 class GenerationError(Exception):

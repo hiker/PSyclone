@@ -55,6 +55,15 @@ FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
 # horizontal plane).
 VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 
+# The pointwise/infrastructure/intrinsic calls that we support for
+# this API
+PSYCLONE_INTRINSIC_NAMES = ["set_field_scalar", "copy_field",
+                            "minus_fields", "plus_fields", "axpy"]
+
+# Dictionary giving the name of the file containing the meta-data
+# describing the intrinsics for this API
+INTRINSIC_DEFINITIONS_FILE = "dynamo0p3_intrinsics_mod.f90"
+
 # classes
 
 
@@ -2372,11 +2381,11 @@ class DynInfCallFactory(object):
         ''' Create the objects needed for a call to the intrinsic
         described in the call (InfCall) object '''
 
-        if call.func_name not in config.PSYCLONE_INTRINSICS:
+        if call.func_name not in PSYCLONE_INTRINSIC_NAMES:
             raise ParseError(
                 "Unrecognised infrastructure call. Found '{0}' but expected "
                 "one of '{1}'".format(call.func_name,
-                                      config.PSYCLONE_INTRINSICS))
+                                      PSYCLONE_INTRINSIC_NAMES))
 
         # The infrastructure operation itself
         if call.func_name == "set_field_scalar":

@@ -16,13 +16,13 @@
    distributed_memory
    dynamo0p3
    gocean1p0
+   infrastructure_calls
    stub_gen
    line_length
    api
    system_specific_setup
    f2py_install
 ..   developers
-..   infrastructure_calls
 ..   tutorial
 ..   examples
 ..   FAQS
