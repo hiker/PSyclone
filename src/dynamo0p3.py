@@ -60,8 +60,8 @@ VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 PSYCLONE_INTRINSIC_NAMES = ["set_field_scalar", "copy_field",
                             "minus_fields", "plus_fields", "axpy"]
 
-# Dictionary giving the name of the file containing the meta-data
-# describing the intrinsics for this API
+# The name of the file containing the meta-data describing the
+# intrinsics for this API
 INTRINSIC_DEFINITIONS_FILE = "dynamo0p3_intrinsics_mod.f90"
 
 # classes
