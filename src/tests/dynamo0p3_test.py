@@ -1,9 +1,9 @@
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # (c) The copyright relating to this work is owned jointly by the Crown,
 # Met Office and NERC 2015.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
 ''' This module tests the Dynamo 0.3 API using pytest. '''
@@ -56,9 +56,8 @@ def test_scalar_sum_and_dm_unsupported():
     test here as at the end of the file the value of DM is set to
     False and can't be changed for some reason.'''
     with pytest.raises(ParseError) as excinfo:
-        _, invoke_info = parse(os.path.join(BASE_PATH,
-                                            "16.3_real_scalar_sum.f90"),
-                               api="dynamo0.3")
+        _, _ = parse(os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
+                     api="dynamo0.3")
     assert "Scalar reductions are not yet supported with distributed " \
         "memory" in str(excinfo.value)
 
@@ -1880,7 +1879,7 @@ def test_stub_generate_with_scalar_sums():
     the kernel has scalar arguments with a reduction operation (gh_sum) '''
     # hack while DM does not support reductions
     import config
-    config.DISTRIBUTED_MEMORY=False
+    config.DISTRIBUTED_MEMORY = False
     # end hack
     result = generate("test_files/dynamo0p3/testkern_multiple_scalar_sums.f90",
                       api="dynamo0.3")
@@ -3407,6 +3406,7 @@ def test_multi_field_name_halo():
 
 # Check that the new gh_sum access type is supported correctly
 
+
 def test_field_gh_sum_invalid():
     ''' Tests that an error is raised when a field is specified with
     access type gh_sum '''
@@ -3444,14 +3444,16 @@ def test_single_scalar_sum_invalid():
         os.path.join(BASE_PATH, "16.1_integer_scalar_sum.f90"),
         api="dynamo0.3", distributed_memory=False)
     with pytest.raises(GenerationError) as excinfo:
-        psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+        _ = PSyFactory("dynamo0.3", distributed_memory=False).\
+            create(invoke_info)
     assert "we assume there is at least one writer" in str(excinfo.value)
 
 
 def test_single_integer_scalar_sum():
     '''Test that a single integer scalar generates correct code when it
     is specified with gh_sum'''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "16.2_integer_scalar_sum.f90"),
                            api="dynamo0.3", distributed_memory=False)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen = str(psy.gen)
@@ -3487,9 +3489,9 @@ def test_multiple_scalar_sums():
 def test_multiple_kernels_scalar_sums():
     '''Add a test for multiple kernels within an invoke with scalar
     (gh_sum) reductions'''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "16.5_multiple_kernel_scalar_sums.f90"),
-                           api="dynamo0.3", distributed_memory=False)
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "16.5_multiple_kernel_scalar_sums.f90"),
+        api="dynamo0.3", distributed_memory=False)
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen = str(psy.gen)
     print gen

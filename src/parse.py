@@ -12,7 +12,6 @@ import fparser
 from fparser import parsefortran
 from fparser import api as fpapi
 import expression as expr
-import logging
 import os
 from line_length import FortLineLength
 import config
@@ -388,7 +387,7 @@ class KernelType(object):
                 "kernel call does not contain a {0} type".format(var_name))
         try:
             nargs = int(descs.shape[0])
-        except AttributeError as e:
+        except AttributeError:
             raise ParseError(
                 "kernel metadata {0}: {1} variable must be an array".
                 format(self._name, var_name))

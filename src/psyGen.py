@@ -1,9 +1,9 @@
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # (c) The copyright relating to this work is owned jointly by the Crown,
 # Met Office and NERC 2014.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
 ''' This module provides generic support for PSyclone's PSy code optimisation
@@ -12,7 +12,8 @@
 
 import abc
 
-MAPPING = {} # this should be set by a particular API
+MAPPING = {}  # this should be set by a particular API
+
 
 class GenerationError(Exception):
     ''' Provides a PSyclone specific error class for errors found during PSy
@@ -222,8 +223,8 @@ class NameSpaceFactory(object):
 
 
 class NameSpace(object):
-    ''' keeps a record of reserved names and used names for clashes and provides a
-        new name if there is a clash. '''
+    '''keeps a record of reserved names and used names for clashes and
+        provides a new name if there is a clash. '''
 
     def __init__(self, case_sensitive=False):
         self._reserved_names = []
@@ -729,17 +730,18 @@ class Directive(Node):
 class OMPDirective(Directive):
 
     def view(self, indent=0):
-        print self.indent(indent)+"Directive[OMP]"
+        print self.indent(indent) + "Directive[OMP]"
         for entity in self._children:
             entity.view(indent=indent + 1)
 
     def _get_reductions_list(self, reduction_type):
         '''Return the name of all scalars within this region that require a
         reduction or type reduction_type. Returned names will be unique. '''
-        result=[]
+        result = []
         for call in self.calls():
             for arg in call.arguments.args:
-                if arg.type == MAPPING["iscalar"] or arg.type == MAPPING["rscalar"]:
+                if arg.type == MAPPING["iscalar"] or \
+                   arg.type == MAPPING["rscalar"]:
                     if arg.descriptor.access == MAPPING[reduction_type]:
                         if arg.name not in result:
                             result.append(arg.name)

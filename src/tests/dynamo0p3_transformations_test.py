@@ -848,5 +848,5 @@ def test_scalar_sum_and_OpenMP_unsupported():
     invoke.schedule = schedule
     # We should get an error when we try to generate the code
     with pytest.raises(GenerationError) as excinfo:
-        code = str(psy.gen)
+        _ = str(psy.gen)
     assert "OpenMP reductions are not yet supported" in str(excinfo.value)
