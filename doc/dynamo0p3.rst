@@ -107,38 +107,20 @@ fourth is an operator. The third entry is a field vector of size 3.
 
 The second entry to argument-metadata (information contained within
 the brackets of an ``arg_type``) describes how the Kernel makes use of
-the data being passed into it. There are currently 4 possible values
-of this metadata ``GH_WRITE``, ``GH_READ``, ``GH_INC`` and
-``GH_SUM``. However, not all combinations of metadata are valid and
-PSyclone will raise an exception if an invalid combination is
-specified.
+the data being passed into it (the way it is accessed within a
+Kernel). This information is mandatory. There are currently 4 possible
+values of this metadata ``GH_WRITE``, ``GH_READ``, ``GH_INC`` and
+``GH_SUM``. However, not all combinations of metadata entries are
+valid and PSyclone will raise an exception if an invalid combination
+is specified. Valid combinations are specified later in this section.
 
-``GH_WRITE`` indicates the data is modified in the Kernel before
-(optionally) being read. This specification is not valid for scalars
-in Kernels, as Kernels iterate over entities (always ``cells`` at this
-point) so the writing to a scalar multiple times (once for each cell)
-makes no sense. This specification is valid for fields and operators,
-but only if they are discontinuous functions. At the present time this
-means that the field or operator must be on the "w3" (cell centred
-values) function space, see below. For any other function space this
-specification is invalid.
+* ``GH_WRITE`` indicates the data is modified in the Kernel before (optionally) being read.
 
-``GH_READ`` indicates that the data is read and left unmodified. All
-types of argument (scalar, operator and field) and all function spaces
-may have this value.
+* ``GH_READ`` indicates that the data is read and is unmodified.
 
-``GH_INC`` indicates that different iterations of a Kernel may make a contribution to a shared value. This is valid for fields and operators in a  ...
+* ``GH_INC`` indicates that different iterations of a Kernel make contributions to shared values. For example, values at cell faces may receive contributions from cells on either side of the face. This means that such a Kernel needs appropriate synchronisation (or colouring) to run in parallel.
 
-``GH_SUM`` is used to specify scalars that contain a summation of ...
-
-Current implementation not zero'ed (so may be an inout) ...
-
-Table of valid options for modifying arguments ...
-
-GH_{IR}SCALAR GH_SUM
-GH_FIELD DISCONTINUOUS GH_WRITE
-GH_FIELD CONTINUOUS GH_INC
-GH_OPERATOR ???
+* ``GH_SUM`` is an example of a reduction and is the only reduction currently supported in PSyclone. This metadata indicates that values are summed over calls to Kernel code.
 
 For example:
 
@@ -194,6 +176,23 @@ forbid ``ANY_SPACE_1`` and ``ANY_SPACE_2`` from being the same.
        arg_type(GH_FIELD*3, GH_WRITE, ANY_SPACE_2 ),                   &
        arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2)        &
        /)
+
+As mentioned earlier, not all combinations of metadata are
+valid. Valid combinations are summarised here. All types of data
+(``GH_ISCALAR``, ``GH_RSCALAR``, ``GH_FIELD`` and ``GH_OPERATOR``) may
+be read within a Kernel and this is specified in metadata using
+``GH_READ``. If data is modified in a Kernel then the way it is able
+to be modified depend on the type of data it is and the function
+space it is on. Valid values are given in the table below.
+
+=============     =======================    ============
+Argument Type     Function space             Access type
+=============     =======================    ============
+GH_{IR}SCALAR     n/a                        GH_SUM
+GH_FIELD          Discontinuous (w3)         GH_WRITE
+GH_FIELD          Continuous (not w3)        GH_INC
+GH_OPERATOR       any for 'to' and 'from'    GH_WRITE
+=============     =======================    ============
 
 Finally, field metadata supports an optional 4th argument which
 specifies that the field is accessed as a stencil operation within the
