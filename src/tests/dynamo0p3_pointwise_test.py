@@ -116,7 +116,7 @@ def test_pointwise_set_by_ref():
     code = str(psy.gen)
     print code
     output = (
-        "    SUBROUTINE invoke_0(f1, fred)\n"
+        "    SUBROUTINE invoke_0(fred, f1)\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(inout) :: fred\n"
         "      TYPE(field_type), intent(inout) :: f1\n"

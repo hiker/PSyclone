@@ -20,21 +20,9 @@ program single_invoke
   ginger = 40.5_r_def
   
   call invoke(                      &
-       set_field_scalar(f1, fred),  &
-       set_field_scalar(f2, 3.0),   &
-       set_field_scalar(f3, ginger) &
+       set_field_scalar(fred, f1),  &
+       set_field_scalar(3.0, f2),   &
+       set_field_scalar(ginger, f3) &
           )
 
 end program single_invoke
-
-subroutine expected_code(f1, f2, value1, value2)
-  do df = 1, undf_any_space_1
-    f1(df) = value1
-  end do
-  do df = 1, undf_any_space_1
-    f2(df) = 3.0
-  end do
-  do df = 1, undf_any_space_1
-    f3(df) = value2
-  end do
-end subroutine expected_code

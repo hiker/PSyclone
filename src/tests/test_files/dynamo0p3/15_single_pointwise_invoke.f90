@@ -15,7 +15,7 @@ program single_invoke
   type(field_type) :: f1
 
   call invoke(                     &
-       set_field_scalar(f1, 0.0)   &
+       set_field_scalar(0.0, f1)   &
           )
 
 end program single_invoke

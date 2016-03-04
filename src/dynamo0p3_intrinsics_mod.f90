@@ -18,8 +18,8 @@ module dynamo0p3_intrinsics_mod
   type, public, extends(kernel_type) :: set_field_scalar
      private
      type(arg_type) :: meta_args(2) = (/                                &
-          arg_type(GH_FIELD,   GH_WRITE, ANY_SPACE_1),                  &
-          arg_type(GH_RSCALAR, GH_READ)                                 &
+          arg_type(GH_RSCALAR, GH_READ),                                &
+          arg_type(GH_FIELD,   GH_WRITE, ANY_SPACE_1)                   &
           /)
      integer :: iterates_over = CELLS
    contains

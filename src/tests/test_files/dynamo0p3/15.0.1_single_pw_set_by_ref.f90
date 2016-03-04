@@ -19,12 +19,12 @@ program single_invoke
   fred = 20.1_r_def
 
   call invoke(                      &
-       set_field_scalar(f1, fred)   &
+       set_field_scalar(fred, f1)   &
           )
 
 end program single_invoke
 
-subroutine expected_code(fld, value)
+subroutine expected_code(value, fld)
   do df = 1, undf_w3
     fld(df) = value
   end do

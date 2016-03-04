@@ -2483,14 +2483,12 @@ class DynSetFieldScalarKern(DynInfKern):
         from f2pygen import AssignGen
         # Generate the generic part of this pointwise kernel
         DynInfKern.gen_code(self, parent)
-        # Get hold of the name space manager
-        self._name_space_manager = NameSpaceFactory().create()
         idx_name = "df"
         # and now the specific part. In this case we're assigning
         # a single scalar value to all elements of a field.
-        proxy_name = self._arguments.args[0].proxy_name
+        proxy_name = self._arguments.args[1].proxy_name
         var_name = proxy_name + "%data(" + idx_name + ")"
-        value = self._arguments.args[1]
+        value = self._arguments.args[0]
         assign = AssignGen(parent, lhs=var_name, rhs=value)
         parent.add(assign)
         return

@@ -15,20 +15,9 @@ program single_invoke
   type(field_type) :: f1, f2, m1, m2
   real(r_def) :: ginger
   
-  call invoke(                       &
+  call invoke(                                &
        testkern_type(ginger, f1, f2, m1, m2), &
-       set_field_scalar(f1, 0.0)    &
+       set_field_scalar(0.0, f1)              &
           )
 
 end program single_invoke
-
-subroutine expected_code(fld, value)
-  do cell = 1, ncells
-     do k = 1, nlayers
-        do df1 = 1, ndf_w3
-           idx = ((cell-1)*nlayers + (k-1))*ndf_w3 + df1
-           fld(idx) = value
-        end do
-     end do
-  end do
-end subroutine expected_code
