@@ -177,6 +177,22 @@ forbid ``ANY_SPACE_1`` and ``ANY_SPACE_2`` from being the same.
        arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2)        &
        /)
 
+.. note:: A GH_FIELD argument that specifies GH_WRITE as its access
+          pattern must be a discontinuous function in the
+          horizontal. At the moment that means it must be ``w3`` but
+          in the future there will be more discontinuous function
+          spaces. A GH_FIELD that specifies GH_INC as its access
+          pattern may be continuous in the vertical (and discontinuous
+          in the horizontal), continuous in the horizontal (and
+          discontinuous in the vertical), or continuous in both. In
+          each case the code is the same. However, if a field is
+          discontinuous in the horizontal then it will not need
+          colouring and there is currently no way to determine this
+          from the metadata (unless we can statically determine the
+          space of the field being passed in). At the moment this type
+          of Kernel is always treated as if it is continuous in the
+          horizontal, even if it is not.
+
 As mentioned earlier, not all combinations of metadata are
 valid. Valid combinations are summarised here. All types of data
 (``GH_ISCALAR``, ``GH_RSCALAR``, ``GH_FIELD`` and ``GH_OPERATOR``) may
