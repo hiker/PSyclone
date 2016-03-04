@@ -12,13 +12,13 @@ program single_invoke
   use testkern, only: testkern_type
   use inf,      only: field_type
   implicit none
-  type(field_type) :: f2, f3
+  type(field_type) :: f1, f2, f3
   real(r_def) :: a
 
   a = 0.5
 
   call invoke(                  &
-              axpy(a, f2, f3)   &
+              axpy(a, f1, f2, f3)   &
              )
 
 end program single_invoke

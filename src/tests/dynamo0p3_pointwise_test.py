@@ -514,7 +514,7 @@ def test_pw_axpy_field_str():
 
 def test_pw_axpy():
     ''' Test that we generate correct code for the pointwise
-    operation y = a*x '''
+    operation f = a*x + y where 'a' is a scalar '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.3_axpy_invoke.f90"),
                            api="dynamo0.3")
@@ -522,27 +522,28 @@ def test_pw_axpy():
     code = str(psy.gen)
     print code
     output = (
+        "      f1_proxy = f1%get_proxy()\n"
         "      f2_proxy = f2%get_proxy()\n"
         "      f3_proxy = f3%get_proxy()\n"
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
-        "      nlayers = f2_proxy%vspace%get_nlayers()\n"
+        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh = f2%get_mesh()\n"
+        "      mesh = f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise sizes and allocate any basis arrays for "
         "any_space_1\n"
         "      !\n"
-        "      ndf_any_space_1 = f2_proxy%vspace%get_ndf()\n"
-        "      undf_any_space_1 = f2_proxy%vspace%get_undf()\n"
+        "      ndf_any_space_1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_any_space_1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
         "      DO df=1,undf_any_space_1\n"
-        "        f3_proxy%data(df) = a*f2_proxy%data(df)\n"
+        "        f3_proxy%data(df) = a*f1_proxy%data(df) + f2_proxy%data(df)\n"
         "      END DO \n"
         )
     assert output in code
@@ -558,27 +559,29 @@ def test_pw_axpy_by_value():
     code = str(psy.gen)
     print code
     output = (
+        "      f1_proxy = f1%get_proxy()\n"
         "      f2_proxy = f2%get_proxy()\n"
         "      f3_proxy = f3%get_proxy()\n"
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
-        "      nlayers = f2_proxy%vspace%get_nlayers()\n"
+        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
         "      !\n"
         "      ! Create a mesh object\n"
         "      !\n"
-        "      mesh = f2%get_mesh()\n"
+        "      mesh = f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise sizes and allocate any basis arrays for "
         "any_space_1\n"
         "      !\n"
-        "      ndf_any_space_1 = f2_proxy%vspace%get_ndf()\n"
-        "      undf_any_space_1 = f2_proxy%vspace%get_undf()\n"
+        "      ndf_any_space_1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_any_space_1 = f1_proxy%vspace%get_undf()\n"
         "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
         "      DO df=1,undf_any_space_1\n"
-        "        f3_proxy%data(df) = 0.5*f2_proxy%data(df)\n"
+        "        f3_proxy%data(df) = 0.5*f1_proxy%data(df) + "
+        "f2_proxy%data(df)\n"
         "      END DO \n"
         )
     assert output in code

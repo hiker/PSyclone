@@ -93,8 +93,9 @@ module dynamo0p3_intrinsics_mod
   !> field3 = a*field1 + field2
   type, public, extends(kernel_type) :: axpy
      private
-     type(arg_type) :: meta_args(3) = (/                                &
+     type(arg_type) :: meta_args(4) = (/                                &
           arg_type(GH_RSCALAR, GH_READ             ),                   &
+          arg_type(GH_FIELD,   GH_READ, ANY_SPACE_1),                   &
           arg_type(GH_FIELD,   GH_READ, ANY_SPACE_1),                   &
           arg_type(GH_FIELD,  GH_WRITE, ANY_SPACE_1)                    &
           /)
