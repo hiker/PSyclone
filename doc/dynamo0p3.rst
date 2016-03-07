@@ -197,18 +197,18 @@ As mentioned earlier, not all combinations of metadata are
 valid. Valid combinations are summarised here. All types of data
 (``GH_ISCALAR``, ``GH_RSCALAR``, ``GH_FIELD`` and ``GH_OPERATOR``) may
 be read within a Kernel and this is specified in metadata using
-``GH_READ``. If data is modified in a Kernel then the way it is able
-to be modified depend on the type of data it is and the function
+``GH_READ``. If data is modified in a Kernel then the permitted access
+modes depend on the type of data it is and the function
 space it is on. Valid values are given in the table below.
 
-=============     =======================    ============
-Argument Type     Function space             Access type
-=============     =======================    ============
-GH_{IR}SCALAR     n/a                        GH_SUM
-GH_FIELD          Discontinuous (w3)         GH_WRITE
-GH_FIELD          Continuous (not w3)        GH_INC
-GH_OPERATOR       any for 'to' and 'from'    GH_WRITE
-=============     =======================    ============
+=============     ============================    ============
+Argument Type     Function space                  Access type
+=============     ============================    ============
+GH_{IR}SCALAR     n/a                             GH_SUM
+GH_FIELD          Discontinuous (w3)              GH_WRITE
+GH_FIELD          Continuous (not w3)             GH_INC
+GH_OPERATOR       Any for both 'to' and 'from'    GH_WRITE
+=============     ============================    ============
 
 Finally, field metadata supports an optional 4th argument which
 specifies that the field is accessed as a stencil operation within the
