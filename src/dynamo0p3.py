@@ -386,7 +386,6 @@ class DynArgDescriptor03(Descriptor):
         any_space, else returns False. '''
         return self.function_space in VALID_ANY_SPACE_NAMES
 
-
     @property
     def vector_size(self):
         ''' Returns the vector size of the argument. This will be 1 if *n

@@ -18,9 +18,9 @@ class Memento:
         # take copies of the schedule and transformations so that
         # they can not be modified externally and thus we can
         # guarantee to return them without modification.
-        #self._schedule=deepcopy(schedule)
-        #self._transformation=deepcopy(transformation)
-        #self._mylist=deepcopy(mylist)
+        # self._schedule=deepcopy(schedule)
+        # self._transformation=deepcopy(transformation)
+        # self._mylist=deepcopy(mylist)
 
         # We get recursion errors with the nesting going to deep.
         # I need to create a specific deepcopy that copies what
