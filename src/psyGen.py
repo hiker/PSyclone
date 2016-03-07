@@ -12,7 +12,10 @@
 
 import abc
 
-MAPPING = {}  # this should be set by a particular API
+# This mapping will be set by a particular API if supported. We
+# provide a default here for API's which do not have their own mapping
+# (or support this mapping). This allows codes with no support to run.
+MAPPING = {"sum": "sum", "iscalar": "iscalar", "rscalar": "rscalar"}
 
 
 class GenerationError(Exception):
@@ -1463,6 +1466,14 @@ class Argument(object):
     @property
     def access(self):
         return self._access
+
+    @property
+    def type(self):
+        '''Return the type of the argument. API's that do not have this
+        concept (such as gocean0.1 and dynamo0.1) can use this
+        baseclass version which just returns "field" in all
+        cases. API's with this concept can override this method '''
+        return "field"
 
     def set_dependencies(self):
         writers = ["WRITE", "INC", "SUM"]
