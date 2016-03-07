@@ -981,15 +981,15 @@ class DynInvoke(Invoke):
                                            op_name+"("+alloc_args+")"))
                 # add diff basis function variable to list to declare later
                 operator_declarations.append(op_name+"(:,:,:,:)")
-        if var_list != []:
+        if var_list:
             # declare ndf and undf for all function spaces
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    entity_decls=var_list))
-        if var_dim_list != []:
+        if var_dim_list:
             # declare dim and diff_dim for all function spaces
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    entity_decls=var_dim_list))
-        if operator_declarations != []:
+        if operator_declarations:
             # declare the basis function operators
             invoke_sub.add(DeclGen(invoke_sub, datatype="real",
                                    allocatable=True,

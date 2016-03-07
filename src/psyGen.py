@@ -739,7 +739,7 @@ class OMPDirective(Directive):
 
     def _get_reductions_list(self, reduction_type):
         '''Return the name of all scalars within this region that require a
-        reduction or type reduction_type. Returned names will be unique. '''
+        reduction of type reduction_type. Returned names will be unique. '''
         result = []
         for call in self.calls():
             for arg in call.arguments.args:
