@@ -21,7 +21,7 @@ module dynamo0p3_intrinsics_mod
           arg_type(GH_RSCALAR, GH_READ),                                &
           arg_type(GH_FIELD,   GH_WRITE, ANY_SPACE_1)                   &
           /)
-     integer :: iterates_over = CELLS
+     integer :: iterates_over = DOFS
    contains
      procedure, nopass :: set_field_scalar_code
   end type set_field_scalar
@@ -33,7 +33,7 @@ module dynamo0p3_intrinsics_mod
           arg_type(GH_FIELD,   GH_READ, ANY_SPACE_1),                   &
           arg_type(GH_FIELD,  GH_WRITE, ANY_SPACE_1)                    &
           /)
-     integer :: iterates_over = CELLS
+     integer :: iterates_over = DOFS
    contains
      procedure, nopass :: copy_field_code
   end type copy_field
@@ -46,7 +46,7 @@ module dynamo0p3_intrinsics_mod
           arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1),                   &
           arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                    &
           /)
-     integer :: iterates_over = CELLS
+     integer :: iterates_over = DOFS
    contains
      procedure, nopass :: minus_fields_code
   end type minus_fields
@@ -59,7 +59,7 @@ module dynamo0p3_intrinsics_mod
           arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1),                   &
           arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                    &
           /)
-     integer :: iterates_over = CELLS
+     integer :: iterates_over = DOFS
    contains
      procedure, nopass :: plus_fields_code
   end type plus_fields
@@ -72,7 +72,7 @@ module dynamo0p3_intrinsics_mod
           arg_type(GH_FIELD,  GH_READ, ANY_SPACE_1),                   &
           arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                    &
           /)
-     integer :: iterates_over = CELLS
+     integer :: iterates_over = DOFS
    contains
      procedure, nopass :: divide_fields_code
   end type divide_fields
@@ -85,7 +85,7 @@ module dynamo0p3_intrinsics_mod
           arg_type(GH_FIELD,   GH_READ, ANY_SPACE_1),                  &
           arg_type(GH_FIELD,  GH_WRITE, ANY_SPACE_1)                   &
           /)
-     integer :: iterates_over = CELLS
+     integer :: iterates_over = DOFS
    contains
      procedure, nopass :: multiply_field_code
   end type multiply_field
@@ -99,19 +99,19 @@ module dynamo0p3_intrinsics_mod
           arg_type(GH_FIELD,   GH_READ, ANY_SPACE_1),                   &
           arg_type(GH_FIELD,  GH_WRITE, ANY_SPACE_1)                    &
           /)
-     integer :: iterates_over = CELLS
+     integer :: iterates_over = DOFS
    contains
      procedure, nopass :: axpy_code
   end type axpy
 
   type, public, extends(kernel_type) :: inner_prod
      private
-     type(arg_type) :: meta_args(3) = (/                                &
-          arg_type(GH_FIELD,   GH_READ,  ANY_SPACE_1),                  &
-          arg_type(GH_FIELD,   GH_WRITE, ANY_SPACE_1),                  &
-          arg_type(GH_RSCALAR, GH_SUM               )                   &
+     type(arg_type) :: meta_args(3) = (/                               &
+          arg_type(GH_FIELD,   GH_READ, ANY_SPACE_1),                  &
+          arg_type(GH_FIELD,   GH_READ, ANY_SPACE_1),                  &
+          arg_type(GH_RSCALAR, GH_SUM              )                   &
           /)
-     integer :: iterates_over = CELLS
+     integer :: iterates_over = DOFS
    contains
      procedure, nopass :: inner_prod_code
   end type inner_prod
