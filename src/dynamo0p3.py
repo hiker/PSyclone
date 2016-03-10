@@ -1243,38 +1243,34 @@ class DynLoop(Loop):
 
     def unique_fields_with_halo_reads(self):
         ''' Returns all fields in this loop that require at least some
-        of their halo to be clean to work correctly. If the same field
-        name is found more than once then the field with the largest
-        halo is chosen as this will make all other halo's clean for
-        the same field. '''
-        unique_fields = {}
-        for field in self.halo_fields():
-            if field.name not in unique_fields:
-                unique_fields[field.name] = field
-            else:
-                # This case should not arise at this point as we only
-                # use this call to add halo exchange calls and we only
-                # add halo exchange calls to vanilla code where there
-                # is only one kernel per loop See ticket 420 for more
-                # details.
-                raise GenerationError(
-                    "DynLoop:unique_fields_with_halo_reads(): non-unique "
-                    "fields are not expected.")
-        return unique_fields.values()
+        of their halo to be clean to work correctly. '''
 
-    def halo_fields(self):
-        ''' Returns all fields in this loop that require at least some
-        of their halo to be clean to work correctly.'''
-        fields = []
+        unique_fields = []
+        unique_field_names = []
+
         for kern_call in self.kern_calls():
             for arg in kern_call.arguments.args:
-                if arg.type.lower() == "gh_field":
-                    field = arg
-                    if field.descriptor.stencil or \
-                        (field.access.lower() == "gh_inc" and
-                         field.function_space.lower() != "w3"):
-                        fields.append(field)
-        return fields
+                if self._halo_access(arg):
+                    if arg.name not in unique_field_names:
+                        unique_field_names.append(arg.name)
+                        unique_fields.append(arg)
+        return unique_fields
+
+    def _halo_access(self, arg):
+        ''' determines whether this argument reads from the halo for this loop '''
+        if arg.type.lower() == "gh_field":
+            if arg.access.lower() == "gh_inc":
+                return self._upper_bound_name in ["halo", "edge"]
+            elif arg.access.lower() == "gh_read":
+                if not arg.descriptor.stencil:
+                    return self._upper_bound_name == "halo"
+                else:  # stencil
+                    if self._upper_bound_name in ["halo", "edge"]:
+                        return True
+                    elif self._upper_bound_name == "inner":
+                        return self._upper_bound_index < arg.descriptor.stencil_size
+                    else:
+                        raise GenerationError("Unexpected internal error")
 
     def gen_code(self, parent):
         ''' Work out the appropriate loop bounds and variable name
