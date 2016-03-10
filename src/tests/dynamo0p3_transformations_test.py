@@ -823,6 +823,8 @@ def test_module_inline():
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.get('invoke_0')
     schedule = invoke.schedule
+    schedule.view()
+    exit(1)
     kern_call = schedule.children[1].children[0]
     inline_trans = KernelModuleInlineTrans()
     schedule, _ = inline_trans.apply(kern_call)

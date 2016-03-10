@@ -1089,20 +1089,19 @@ class Loop(Node):
                     return True
         return False
 
-    def unique_modified_args(self, mapping, field_type):
+    def unique_modified_args(self, mapping, arg_type):
         '''Return all unique arguments of type field_type from Kernels in this
         loop that are modified'''
-        field_names = []
-        fields = []
-        for kern_call in self.kern_calls():
-            for arg in kern_call.arguments.args:
-                if arg.type.lower() == field_type:
-                    field = arg
-                    if field.access.lower() != mapping["read"]:
-                        if field.name not in field_names:
-                            field_names.append(field.name)
-                            fields.append(field)
-        return fields
+        arg_names = []
+        args = []
+        for call in self.calls():
+            for arg in call.arguments.args:
+                if arg.type.lower() == arg_type:
+                    if arg.access.lower() != mapping["read"]:
+                        if arg.name not in arg_names:
+                            arg_names.append(arg.name)
+                            args.append(arg)
+        return args
 
     def gen_code(self, parent):
         if self._start == "1" and self._stop == "1":  # no need for a loop
