@@ -104,6 +104,22 @@ module dynamo0p3_intrinsics_mod
      procedure, nopass :: axpy_code
   end type axpy
 
+  !> field3 = a*field1 + b*field2
+  type, public, extends(kernel_type) :: axpby
+     private
+     type(arg_type) :: meta_args(5) = (/                                &
+          arg_type(GH_RSCALAR, GH_READ             ),                   &
+          arg_type(GH_FIELD,   GH_READ, ANY_SPACE_1),                   &
+          arg_type(GH_RSCALAR, GH_READ             ),                   &
+          arg_type(GH_FIELD,   GH_READ, ANY_SPACE_1),                   &
+          arg_type(GH_FIELD,  GH_WRITE, ANY_SPACE_1)                    &
+          /)
+     integer :: iterates_over = DOFS
+   contains
+     procedure, nopass :: axpby_code
+  end type axpby
+
+  !> sum = sum + field1(i,j,..) * field2(i,j,...)
   type, public, extends(kernel_type) :: inner_prod
      private
      type(arg_type) :: meta_args(3) = (/                               &
@@ -115,6 +131,18 @@ module dynamo0p3_intrinsics_mod
    contains
      procedure, nopass :: inner_prod_code
   end type inner_prod
+
+  !> scalar = SUM(field1(:,:,...))
+  type, public, extends(kernel_type) :: sum_field
+     private
+     type(arg_type) :: meta_args(2) = (/                               &
+          arg_type(GH_FIELD,   GH_READ, ANY_SPACE_1),                  &
+          arg_type(GH_RSCALAR, GH_SUM              )                   &
+          /)
+     integer :: iterates_over = DOFS
+   contains
+     procedure, nopass :: sum_field_code
+  end type sum_field
 
 contains
 
@@ -139,7 +167,13 @@ contains
   subroutine axpy_code()
   end subroutine axpy_code
 
+  subroutine axpby_code()
+  end subroutine axpby_code
+
   subroutine inner_prod_code()
   end subroutine inner_prod_code
+
+  subroutine sum_field_code()
+  end subroutine sum_field_code
   
 end module dynamo0p3_intrinsics_mod

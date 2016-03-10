@@ -551,7 +551,7 @@ def test_pw_axpy():
 
 def test_pw_axpy_by_value():
     ''' Test that we generate correct code for the pointwise
-    operation y = a*x when a is passed by value'''
+    operation y = a*x + y when a is passed by value'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.3.2_axpy_invoke_by_value.f90"),
                            api="dynamo0.3")
@@ -582,6 +582,94 @@ def test_pw_axpy_by_value():
         "      DO df=1,undf_any_space_1\n"
         "        f3_proxy%data(df) = 0.5*f1_proxy%data(df) + "
         "f2_proxy%data(df)\n"
+        "      END DO \n"
+        )
+    assert output in code
+
+
+def test_pw_axpby_field_str():
+    ''' Test that the str method of DynAXPBYKern returns the
+    expected string '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.8.0_axpby_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].children[0]
+    assert str(kern) == "AXPBY infrastructure call"
+ 
+
+def test_pw_axpby():
+    ''' Test that we generate correct code for the pointwise
+    operation f = a*x + b*y where 'a' and 'b' are scalars '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.8.0_axpby_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    code = str(psy.gen)
+    print code
+    output = (
+        "      f1_proxy = f1%get_proxy()\n"
+        "      f2_proxy = f2%get_proxy()\n"
+        "      f3_proxy = f3%get_proxy()\n"
+        "      !\n"
+        "      ! Initialise number of layers\n"
+        "      !\n"
+        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Create a mesh object\n"
+        "      !\n"
+        "      mesh = f1%get_mesh()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for "
+        "any_space_1\n"
+        "      !\n"
+        "      ndf_any_space_1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_any_space_1 = f1_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Call our kernels\n"
+        "      !\n"
+        "      DO df=1,undf_any_space_1\n"
+        "        f3_proxy%data(df) = a*f1_proxy%data(df) + "
+        "b*f2_proxy%data(df)\n"
+        "      END DO \n"
+        )
+    assert output in code
+ 
+
+def test_pw_axpby_by_value():
+    ''' Test that we generate correct code for the pointwise
+    operation y = a*x + b*y when a and b are passed by value'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.8.1_axpby_invoke_by_value.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    code = str(psy.gen)
+    print code
+    output = (
+        "      f1_proxy = f1%get_proxy()\n"
+        "      f2_proxy = f2%get_proxy()\n"
+        "      f3_proxy = f3%get_proxy()\n"
+        "      !\n"
+        "      ! Initialise number of layers\n"
+        "      !\n"
+        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Create a mesh object\n"
+        "      !\n"
+        "      mesh = f1%get_mesh()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for "
+        "any_space_1\n"
+        "      !\n"
+        "      ndf_any_space_1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_any_space_1 = f1_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Call our kernels\n"
+        "      !\n"
+        "      DO df=1,undf_any_space_1\n"
+        "        f3_proxy%data(df) = 0.5*f1_proxy%data(df) + "
+        "0.8*f2_proxy%data(df)\n"
         "      END DO \n"
         )
     assert output in code

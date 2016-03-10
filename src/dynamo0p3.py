@@ -56,10 +56,15 @@ FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
 VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 
 # The pointwise/infrastructure/intrinsic calls that we support for
-# this API
+# this API. The meta-data describing these kernels is in
+# dynamo0p3_intrinsics_mod.f90.
+# TODO should we generate this list by reading the file containing the
+# meta-data? That way this information would be stored in a single
+# location.
 PSYCLONE_INTRINSIC_NAMES = ["set_field_scalar", "copy_field",
                             "minus_fields", "plus_fields",
-                            "divide_fields", "axpy", "multiply_field"]
+                            "divide_fields", "axpy", "axpby",
+                            "multiply_field"]
 
 # The name of the file containing the meta-data describing the
 # intrinsics for this API
@@ -2403,6 +2408,8 @@ class DynInfCallFactory(object):
             pwkern = DynMultiplyFieldKern()
         elif call.func_name == "axpy":
             pwkern = DynAXPYKern()
+        elif call.func_name == "axpby":
+            pwkern = DynAXPBYKern()
         else:
             # TODO is there a better way of handling this mapping such that
             # it is harder to make this mistake?
@@ -2504,7 +2511,6 @@ class DynCopyFieldKern(DynInfKern):
         from f2pygen import AssignGen
         # Generate the generic part of this pointwise kernel
         DynInfKern.gen_code(self, parent)
-        self._name_space_manager = NameSpaceFactory().create()
         idx_name = "df"
         # and now the specific part - we copy one element of field A (first
         # arg) to the corresponding element of field B (second arg).
@@ -2528,7 +2534,6 @@ class DynSubtractFieldsKern(DynInfKern):
         from f2pygen import AssignGen
         # Generate the generic part of this pointwise kernel
         DynInfKern.gen_code(self, parent)
-        self._name_space_manager = NameSpaceFactory().create()
         idx_name = "df"
         # and now the specific part - we subtract each element of f2
         # from the corresponding element of f1 and store the result in
@@ -2555,7 +2560,6 @@ class DynAddFieldsKern(DynInfKern):
         from f2pygen import AssignGen
         # Generate the generic part of this pointwise kernel
         DynInfKern.gen_code(self, parent)
-        self._name_space_manager = NameSpaceFactory().create()
         idx_name = "df"
         # and now the specific part - we add each element of f2
         # to the corresponding element of f1 and store the result in
@@ -2583,7 +2587,6 @@ class DynDivideFieldsKern(DynInfKern):
         from f2pygen import AssignGen
         # Generate the generic part of this pointwise kernel
         DynInfKern.gen_code(self, parent)
-        self._name_space_manager = NameSpaceFactory().create()
         idx_name = "df"
         # and now the specific part - we divide each element of f1
         # by the corresponding element of f2 and store the result in
@@ -2636,8 +2639,6 @@ class DynAXPYKern(DynInfKern):
         from f2pygen import AssignGen
         # Generate the generic part of this pointwise kernel
         DynInfKern.gen_code(self, parent)
-        
-        self._name_space_manager = NameSpaceFactory().create()
         # and now the specific part - we multiply one element of field
         # f1 (2nd arg) by a scalar (1st arg), add it to the corresponding
         # element of a second field (3rd arg)  and write the value to the
@@ -2651,6 +2652,36 @@ class DynAXPYKern(DynInfKern):
         invar_name2 = inproxy_name2 + "%data(" + idx_name + ")"
         outvar_name = outproxy_name + "%data(" + idx_name + ")"
         rhs_expr = scalar_name + "*" + invar_name1 + " + " + invar_name2
+        assign = AssignGen(parent, lhs=outvar_name, rhs=rhs_expr)
+        parent.add(assign)
+
+
+class DynAXPBYKern(DynInfKern):
+    ''' f = a.x + b.y where 'a' and 'b' are scalars '''
+
+    def __str__(self):
+        return "AXPBY infrastructure call"
+
+    def gen_code(self, parent):
+        from f2pygen import AssignGen
+        # Generate the generic part of this pointwise kernel
+        DynInfKern.gen_code(self, parent)
+        # and now the specific part - we multiply one element of field
+        # f1 (2nd arg) by the first scalar (1st arg), add it to the
+        # product of the corresponding element of a second field (4th
+        # arg) with the second scalar (4rd arg) and write the value to
+        # the corresponding element of field f3 (5th arg).
+        idx_name = "df"
+        scalar_name1 = self._arguments.args[0].name
+        scalar_name2 = self._arguments.args[2].name
+        inproxy_name1 = self._arguments.args[1].proxy_name
+        inproxy_name2 = self._arguments.args[3].proxy_name
+        outproxy_name = self._arguments.args[4].proxy_name
+        invar_name1 = inproxy_name1 + "%data(" + idx_name + ")"
+        invar_name2 = inproxy_name2 + "%data(" + idx_name + ")"
+        outvar_name = outproxy_name + "%data(" + idx_name + ")"
+        rhs_expr = scalar_name1 + "*" + invar_name1 + " + " \
+                   + scalar_name2 + "*" + invar_name2
         assign = AssignGen(parent, lhs=outvar_name, rhs=rhs_expr)
         parent.add(assign)
 
