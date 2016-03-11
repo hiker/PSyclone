@@ -116,20 +116,24 @@ def test_colour_trans():
 
 
 def test_colouring_not_a_loop():
-    ''' Test that we raise an appropriate error if we attempt to
-    colour something that is not a loop '''
+    '''Test that we raise an appropriate error if we attempt to colour
+    something that is not a loop. We test when distributed memory is
+    on or off '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_type')
-    schedule = invoke.schedule
-    ctrans = Dynamo0p3ColourTrans()
+    for dm in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+        invoke = psy.invokes.get('invoke_0_testkern_type')
+        schedule = invoke.schedule
+        ctrans = Dynamo0p3ColourTrans()
 
-    # Erroneously attempt to colour the schedule rather than the loop
-    with pytest.raises(TransformationError):
-        _, _ = ctrans.apply(schedule)
+        # Erroneously attempt to colour the schedule rather than the loop
+        with pytest.raises(TransformationError) as excinfo:
+            _, _ = ctrans.apply(schedule)
+        assert "Error in DynamoColour transformation" in str(excinfo.value)
+        assert "The supplied node is not a loop" in str(excinfo.value)
 
 
 def test_omp_name():
@@ -147,37 +151,45 @@ def test_omp_str():
 
 
 def test_omp_not_a_loop():
-    ''' Test that we raise an appropriate error if we attempt to
-    apply an OpenMP DO transformation to something that is not a loop '''
+    '''Test that we raise an appropriate error if we attempt to apply an
+    OpenMP DO transformation to something that is not a loop. We test
+    when distributed memory is on or off '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_type')
-    schedule = invoke.schedule
-    otrans = Dynamo0p3OMPLoopTrans()
+    for dm in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+        invoke = psy.invokes.get('invoke_0_testkern_type')
+        schedule = invoke.schedule
+        otrans = Dynamo0p3OMPLoopTrans()
 
-    # Erroneously attempt to apply OpenMP to the schedule rather than
-    # the loop
-    with pytest.raises(TransformationError):
-        _, _ = otrans.apply(schedule)
+        # Erroneously attempt to apply OpenMP to the schedule rather than
+        # the loop
+        with pytest.raises(TransformationError) as excinfo:
+            _, _ = otrans.apply(schedule)
+        assert "Error in Dynamo0p3OMPLoopTrans trans" in str(excinfo.value)
+        assert "The node is not a loop" in str(excinfo.value)
 
 
 def test_omp_do_not_over_cells():
-    ''' Test that we raise an appropriate error if we attempt to
-    apply an OpenMP DO transformation to a loop that is not over cells '''
+    '''Test that we raise an appropriate error if we attempt to apply an
+    OpenMP DO transformation to a loop that is not over cells. We test
+    when distributed memory is on or off '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1.4_single_invoke.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_type')
-    schedule = invoke.schedule
-    otrans = Dynamo0p3OMPLoopTrans()
+    for dm in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+        invoke = psy.invokes.get('invoke_0_testkern_type')
+        schedule = invoke.schedule
+        otrans = Dynamo0p3OMPLoopTrans()
 
-    with pytest.raises(TransformationError):
-        _, _ = otrans.apply(schedule.children[0])
+        with pytest.raises(TransformationError) as excinfo:
+            _, _ = otrans.apply(schedule.children[0])
+        assert "Error in Dynamo0p3OMPLoopTrans trans" in str(excinfo.value)
+        assert "The iteration space is not 'cells'" in str(excinfo.value)
 
 
 def test_omp_parallel_do_not_over_cells():
