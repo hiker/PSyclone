@@ -648,7 +648,7 @@ def test_loop_fuse_set_dirty():
     schedule.view()
     # Fuse the loops
     schedule, _ = ftrans.apply(schedule.children[3],
-                                schedule.children[4])
+                               schedule.children[4])
     schedule.view()
     gen = str(psy.gen)
     print gen

@@ -1,9 +1,9 @@
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # (c) The copyright relating to this work is owned jointly by the Crown,
 # Met Office and NERC 2014.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
 ''' This module provides generic support for PSyclone's PSy code optimisation
@@ -221,8 +221,8 @@ class NameSpaceFactory(object):
 
 
 class NameSpace(object):
-    ''' keeps a record of reserved names and used names for clashes and provides a
-        new name if there is a clash. '''
+    '''keeps a record of reserved names and used names for clashes and
+        provides a new name if there is a clash. '''
 
     def __init__(self, case_sensitive=False):
         self._reserved_names = []

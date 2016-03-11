@@ -11,10 +11,10 @@
     function.
 '''
 
+import os
+import pytest
 from generator import generate, GenerationError
 from parse import ParseError
-import pytest
-import os
 
 
 def delete_module(modname):

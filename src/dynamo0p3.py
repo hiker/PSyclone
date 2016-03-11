@@ -1,9 +1,9 @@
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # (c) The copyright relating to this work is owned jointly by the Crown,
 # Met Office and NERC 2015.
 # However, it has been created with the help of the GungHo Consortium,
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
 ''' This module implements the PSyclone Dynamo 0.3 API by 1)
@@ -29,7 +29,7 @@ import config
 DISCONTINUOUS_FUNCTION_SPACES = ["w3"]
 CONTINUOUS_FUNCTION_SPACES = ["w0", "w1", "w2", "wtheta", "w2h", "w2v"]
 VALID_FUNCTION_SPACES = DISCONTINUOUS_FUNCTION_SPACES + \
-                        CONTINUOUS_FUNCTION_SPACES
+    CONTINUOUS_FUNCTION_SPACES
 
 VALID_ANY_SPACE_NAMES = ["any_space_1", "any_space_2", "any_space_3",
                          "any_space_4", "any_space_5", "any_space_6",
@@ -1260,7 +1260,8 @@ class DynLoop(Loop):
         return unique_fields
 
     def _halo_read_access(self, arg):
-        ''' determines whether this argument reads from the halo for this loop '''
+        '''Determines whether this argument reads from the halo for this
+        loop'''
         if arg.descriptor.stencil:
             raise GenerationError(
                 "Stencils are not yet supported with halo exchange call logic")
@@ -1281,6 +1282,7 @@ class DynLoop(Loop):
         else:
             # access is neither a read nor an inc so does not need halo
             return False
+
     def gen_code(self, parent):
         ''' Work out the appropriate loop bounds and variable name
         depending on the loop type and then call the base class to
