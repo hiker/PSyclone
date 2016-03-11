@@ -26,90 +26,91 @@ TEST_API = "dynamo0.3"
 
 
 def test_colour_trans_declarations():
-    ''' Check that we generate the correct variable declarations
-    when doing a colouring transformation '''
+    '''Check that we generate the correct variable declarations when
+    doing a colouring transformation. We check when distributed memory
+    is both off and on '''
     # test of the colouring transformation of a single loop
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_type')
-    schedule = invoke.schedule
-    ctrans = Dynamo0p3ColourTrans()
+    for dm in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+        invoke = psy.invokes.get('invoke_0_testkern_type')
+        schedule = invoke.schedule
+        ctrans = Dynamo0p3ColourTrans()
 
-    # Colour the loop
-    cschedule, _ = ctrans.apply(schedule.children[0])
+        # Colour the loop
+        cschedule, _ = ctrans.apply(schedule.children[0])
 
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = cschedule
+        # Replace the original loop schedule with the transformed one
+        invoke.schedule = cschedule
 
-    # Store the results of applying this code transformation as
-    # a string
-    gen = str(psy.gen)
-    # Fortran is not case sensitive
-    gen = gen.lower()
-    print gen
+        # Store the results of applying this code transformation as
+        # a string
+        gen = str(psy.gen)
+        # Fortran is not case sensitive
+        gen = gen.lower()
+        print gen
 
-    # Check that we've declared the loop-related variables
-    # and colour-map pointers
-    assert "integer ncolour" in gen
-    assert "integer colour" in gen
-    assert "integer, pointer :: cmap(:,:), ncp_colour(:)" in gen
+        # Check that we've declared the loop-related variables
+        # and colour-map pointers
+        assert "integer ncolour" in gen
+        assert "integer colour" in gen
+        assert "integer, pointer :: cmap(:,:), ncp_colour(:)" in gen
 
 
 def test_colour_trans():
-    ''' test of the colouring transformation of a single loop '''
+    '''test of the colouring transformation of a single loop. We test
+    when distributed memory is both off and on'''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_type')
-    schedule = invoke.schedule
-    ctrans = Dynamo0p3ColourTrans()
+    for dm in [False]:
+        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+        invoke = psy.invokes.get('invoke_0_testkern_type')
+        schedule = invoke.schedule
+        ctrans = Dynamo0p3ColourTrans()
 
-    # Colour the loop
-    cschedule, _ = ctrans.apply(schedule.children[0])
+        # Colour the loop
+        cschedule, _ = ctrans.apply(schedule.children[0])
 
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = cschedule
+        # Replace the original loop schedule with the transformed one
+        invoke.schedule = cschedule
 
-    # Store the results of applying this code transformation as
-    # a string
-    gen = str(psy.gen)
-    # Fortran is not case sensitive
-    gen = gen.lower()
-    print "**************************"
-    print gen
-    print "**************************"
+        # Store the results of applying this code transformation as
+        # a string
+        gen = str(psy.gen)
+        # Fortran is not case sensitive
+        gen = gen.lower()
+        print gen
+        # Check that we're calling the API to get the no. of colours
+        assert "f1_proxy%vspace%get_colours(" in gen
 
-    # Check that we're calling the API to get the no. of colours
-    assert "f1_proxy%vspace%get_colours(" in gen
+        col_loop_idx = -1
+        cell_loop_idx = -1
+        for idx, line in enumerate(gen.split('\n')):
+            if "do colour=1,ncolour" in line:
+                col_loop_idx = idx
+            if "do cell=1,ncp_colour(colour)" in line:
+                cell_loop_idx = idx
 
-    col_loop_idx = -1
-    cell_loop_idx = -1
-    for idx, line in enumerate(gen.split('\n')):
-        if "do colour=1,ncolour" in line:
-            col_loop_idx = idx
-        if "do cell=1,ncp_colour(colour)" in line:
-            cell_loop_idx = idx
+        assert cell_loop_idx - col_loop_idx == 1
 
-    assert cell_loop_idx - col_loop_idx == 1
+        # Check that we're using the colour map when getting the cell dof maps
+        assert "get_cell_dofmap(cmap(colour, cell))" in gen
 
-    # Check that we're using the colour map when getting the cell dof maps
-    assert "get_cell_dofmap(cmap(colour, cell))" in gen
+        # Check that we get the right number of set_dirty halo calls in
+        # the correct location
+        # dirty_str = (
+        #    "      !\n"
+        #    "      ! set halos dirty for fields modified in the above loop\n"
+        #    "      !\n"
+        #    "      call f1_proxy%set_dirty()")
 
-    # Check that we get the right number of set_dirty halo calls in
-    # the correct location
-    # dirty_str = (
-    #    "      !\n"
-    #    "      ! set halos dirty for fields modified in the above loop\n"
-    #    "      !\n"
-    #    "      call f1_proxy%set_dirty()")
-
-    # assert dirty_str in gen
-    # assert gen.count("set_dirty()") == 1
+        # assert dirty_str in gen
+        # assert gen.count("set_dirty()") == 1
 
 
 def test_colouring_not_a_loop():

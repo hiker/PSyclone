@@ -1065,6 +1065,15 @@ class DynSchedule(Schedule):
     def __init__(self, arg):
         Schedule.__init__(self, DynLoop, DynInf, arg)
 
+    def view(self, indent=0):
+        '''a method implemented by all classes in a schedule which display the
+        tree in a textual form. This method overrides the default view
+        method to include distributed memory information '''
+        print self.indent(indent) + "Schedule[invoke='" + self.invoke.name + \
+            "' dm="+str(config.DISTRIBUTED_MEMORY)+"]"
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
 
 class DynHaloExchange(HaloExchange):
 
@@ -1121,12 +1130,6 @@ class DynLoop(Loop):
         Loop.__init__(self, DynInf, DynKern, call=call, parent=parent,
                       valid_loop_types=["colours", "colour", ""])
         self.loop_type = loop_type
-
-        if config.DISTRIBUTED_MEMORY and self._loop_type in ["colour",
-                                                             "colours"]:
-            # the API has not yet been defined and implemented
-            raise GenerationError(
-                "distributed memory and colours not yet supported")
 
         # set our variable name at initialisation as it might be
         # required by other classes before code generation
