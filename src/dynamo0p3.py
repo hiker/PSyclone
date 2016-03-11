@@ -1214,10 +1214,16 @@ class DynLoop(Loop):
 
     def _upper_bound_fortran(self):
         ''' Create the associated fortran code for the type of upper bound '''
-        if not config.DISTRIBUTED_MEMORY:
+        if self._upper_bound_name == "ncolours":
+            return "ncolour"
+        elif self._upper_bound_name == "ncolour":
+            return "ncp_colour(colour)"
+        elif not config.DISTRIBUTED_MEMORY:
             if self._upper_bound_name == "cells":
                 return self.field.proxy_name_indexed + "%" + \
                     self.field.ref_name() + "%get_ncell()"
+            # keep ncolours and ncolour here as options as we will
+            # need them again when the DM colouring API is implemented
             elif self._upper_bound_name == "ncolours":
                 return "ncolour"
             elif self._upper_bound_name == "ncolour":

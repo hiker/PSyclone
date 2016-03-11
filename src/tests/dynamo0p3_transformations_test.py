@@ -67,7 +67,7 @@ def test_colour_trans():
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    for dm in [False]:
+    for dm in [False, True]:
         psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
         invoke = psy.invokes.get('invoke_0_testkern_type')
         schedule = invoke.schedule
@@ -101,16 +101,18 @@ def test_colour_trans():
         # Check that we're using the colour map when getting the cell dof maps
         assert "get_cell_dofmap(cmap(colour, cell))" in gen
 
-        # Check that we get the right number of set_dirty halo calls in
-        # the correct location
-        # dirty_str = (
-        #    "      !\n"
-        #    "      ! set halos dirty for fields modified in the above loop\n"
-        #    "      !\n"
-        #    "      call f1_proxy%set_dirty()")
-
-        # assert dirty_str in gen
-        # assert gen.count("set_dirty()") == 1
+        if dm:
+            # Check that we get the right number of set_dirty halo calls in
+            # the correct location
+            dirty_str = (
+                "      end do \n"
+                "      !\n"
+                "      ! set halos dirty for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      call f1_proxy%set_dirty()\n")
+            assert dirty_str in gen
+            assert gen.count("set_dirty()") == 1
 
 
 def test_colouring_not_a_loop():
