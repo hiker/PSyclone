@@ -67,8 +67,9 @@ interactively from the ``PSyFactory`` class by setting the optional
 
     psy = PSyFactory(api=api, distributed_memory=False)
 
-At this time there is no way to switch distributed memory support off
-from the ``generator`` function.
+SImilarly the distributed memory option can be changed interactively from the ``generator`` function by setting the optional ``distributed_memory`` flag; for example: ::
+
+    psy, alg = generate("file.f90", distributed_memory=False).
 
 Status
 ------
