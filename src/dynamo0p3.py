@@ -61,7 +61,7 @@ VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 # TODO should we generate this list by reading the file containing the
 # meta-data? That way this information would be stored in a single
 # location.
-PSYCLONE_INTRINSIC_NAMES = ["set_field_scalar", "copy_field",
+INTRINSIC_NAMES = ["set_field_scalar", "copy_field",
                             "minus_fields", "plus_fields",
                             "divide_fields", "axpy", "axpby",
                             "multiply_field"]
@@ -2387,11 +2387,11 @@ class DynInfCallFactory(object):
         ''' Create the objects needed for a call to the intrinsic
         described in the call (InfCall) object '''
 
-        if call.func_name not in PSYCLONE_INTRINSIC_NAMES:
+        if call.func_name not in INTRINSIC_NAMES:
             raise ParseError(
                 "Unrecognised infrastructure call. Found '{0}' but expected "
                 "one of '{1}'".format(call.func_name,
-                                      PSYCLONE_INTRINSIC_NAMES))
+                                      INTRINSIC_NAMES))
 
         # The infrastructure operation itself
         if call.func_name == "set_field_scalar":

@@ -14,9 +14,9 @@
    psy_layer
    transformations
    distributed_memory
+   infrastructure_calls
    dynamo0p3
    gocean1p0
-   infrastructure_calls
    stub_gen
    line_length
    api

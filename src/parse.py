@@ -30,7 +30,7 @@ def get_intrinsic_defs(api):
     if api == "dynamo0.3":
         # TODO consider replacing this with module-scope variables
         # whose values are set in the API-specific modules.
-        from dynamo0p3 import PSYCLONE_INTRINSIC_NAMES as intrinsics
+        from dynamo0p3 import INTRINSIC_NAMES as intrinsics
         from dynamo0p3 import INTRINSIC_DEFINITIONS_FILE as fname
     else:
         # We don't support any intrinsics for this API

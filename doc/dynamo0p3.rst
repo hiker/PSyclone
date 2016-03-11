@@ -307,6 +307,53 @@ rules, along with PSyclone's naming conventions, are:
     4) include ``wv``. This is a real array of kind r_def with intent ``in``. It has one dimension of size ``nqp_v``.
 
 
+Supported Infrastructure Calls
+------------------------------
+
+In the Dynamo 0.3 API, infrastructure calls follow a convention that
+the field/scalar written to comes last in the argument list. The
+supported infrastructure calls are described (in alphabetical order)
+below.
+
+axpy
+++++
+
+axpby
++++++
+
+copy_field
+++++++++++
+
+divide_fields
++++++++++++++
+
+inner_product
++++++++++++++
+
+minus_fields
+++++++++++++
+
+multiply_field
+++++++++++++++
+
+plus_fields
++++++++++++
+
+set_field_scalar
+++++++++++++++++
+
+**set_field_scalar** ( *value*, *field* )
+
+Set all elements of the field *field* to the value *value*.
+The field may be on any function space.
+
+* type(field_type), intent(out) :: *field*
+* real(r_def), intent(in) :: *value*
+
+sum_field
++++++++++
+
+
 Conventions
 -----------
 

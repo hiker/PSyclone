@@ -19,7 +19,8 @@ data expected in their metadata description). Therefore infrastructure
 calls may be polymorphic with respect to functionspaces (they may
 support different functionspaces through the same api).
 
-.. note:: In general, psyclone will need to know the types of fields being passed to the infrastructure calls. The parser currently does not provide this information. At the moment this is not an issue as the ``set`` infrastructure call can be generated in a generic way (by using array notation).
+.. note:: In general, psyclone will need to know the types of fields being passed to the infrastructure calls. The parser obtains this information from an API-specifc file that contains the meta-data for all supported infrastructure calls.
+
 
 Example
 -------
@@ -47,16 +48,8 @@ See the full :ref:`examples-infrastructure-label` example in the
 Supported infrastructure calls
 ------------------------------
 
-set
-^^^
-
-**set** ( *field* , *value* )
-
-Set all elements of the field *field* to the value *value*.
-All types of field are supported.
-
-* type(field_type),intent(out) :: *field*
-* real,intent(in) :: *value*
+The list of supported infrastructure calls is API-specific and
+therefore is described under the documentation of each API.
 
 Adding support for additional infrastructure calls to a specific API
 --------------------------------------------------------------------
@@ -64,7 +57,7 @@ Adding support for additional infrastructure calls to a specific API
  1. Identify the PSyclone source file for the API to be extended. e.g. for
     Dynamo 0.3 it is ``src/dynamo0p3.py``.
  2. Add the name of the new infrastructure call to the
-    ``PSYCLONE_INTRINSIC_NAMES`` list in that source file.
+    ``INTRINSIC_NAMES`` list in that source file.
  2. Add meta-data describing this call to the appropriate file specified in
     the ``INTRINSIC_DEFINITIONS_FILE`` in that source file. For dynamo0.3
     this is ``dynamo0p3_intrinsics_mod.f90``.
@@ -77,7 +70,7 @@ Adding support for additional infrastructure calls to a specific API
  5. Implement ``__str__`` and ``gen_code()`` methods for this new class.
 
 If the API being extended does not currently support any intrinsics
-then the ``PSYCLONE_INTRINSIC_NAMES`` and
+then the ``INTRINSIC_NAMES`` and
 ``INTRINSIC_DEFINITIONS_FILE`` module variables must be added to the
 source file for the API.  A Fortran module file must be created in the
 PSyclone src directory (with the name specified in
