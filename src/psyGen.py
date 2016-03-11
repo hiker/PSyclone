@@ -1094,7 +1094,7 @@ class Loop(Node):
         loop that are modified'''
         arg_names = []
         args = []
-        for call in self.calls():
+        for call in self.walk(self.children, Call):
             for arg in call.arguments.args:
                 if arg.type.lower() == arg_type:
                     if arg.access.lower() != mapping["read"]:
