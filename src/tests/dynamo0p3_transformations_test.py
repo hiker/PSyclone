@@ -193,40 +193,45 @@ def test_omp_do_not_over_cells():
 
 
 def test_omp_parallel_do_not_over_cells():
-    ''' Test that we raise an appropriate error if we attempt to apply
-    an OpenMP PARALLEL DO transformation to a loop that is not over cells '''
+    '''Test that we raise an appropriate error if we attempt to apply an
+    OpenMP PARALLEL DO transformation to a loop that is not over
+    cells. We test when distributed memory is on or off '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1.4_single_invoke.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_type')
-    schedule = invoke.schedule
-    otrans = DynamoOMPParallelLoopTrans()
+    for dm in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+        invoke = psy.invokes.get('invoke_0_testkern_type')
+        schedule = invoke.schedule
+        otrans = DynamoOMPParallelLoopTrans()
 
-    with pytest.raises(TransformationError):
-        _, _ = otrans.apply(schedule.children[0])
+        with pytest.raises(TransformationError) as excinfo:
+            _, _ = otrans.apply(schedule.children[0])
+        assert "Error in DynamoOMPParallelLoopTrans tra" in str(excinfo.value)
+        assert "The iteration space is not 'cells'" in str(excinfo.value)
 
 
 def test_omp_parallel_not_a_loop():
     '''Test that we raise an appropriate error if we attempt to apply an
-    OpenMP PARALLEL DO transformation to something that is not a loop
-
-    '''
+    OpenMP PARALLEL DO transformation to something that is not a
+    loop. We test when distributed memory is on or off '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_type')
-    schedule = invoke.schedule
-    otrans = DynamoOMPParallelLoopTrans()
+    for dm in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+        invoke = psy.invokes.get('invoke_0_testkern_type')
+        schedule = invoke.schedule
+        otrans = DynamoOMPParallelLoopTrans()
 
-    # Erroneously attempt to apply OpenMP to the schedule rather than
-    # the loop
-    with pytest.raises(TransformationError):
-        _, _ = otrans.apply(schedule)
-
+        # Erroneously attempt to apply OpenMP to the schedule rather than
+        # the loop
+        with pytest.raises(TransformationError) as excinfo:
+            _, _ = otrans.apply(schedule)
+        assert "Error in DynamoOMPParallelLoopTrans tra" in str(excinfo.value)
+        assert "The node is not a loop" in str(excinfo.value)
 
 def test_colour_name():
     ''' Test the name property of the Dynamo0p3ColourTrans class '''
@@ -243,170 +248,192 @@ def test_colour_str():
 
 
 def test_omp_colour_trans():
-    ''' Test the OpenMP transformation applied to a coloured loop '''
+    '''Test the OpenMP transformation applied to a coloured loop. We test
+    when distributed memory is on or off '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_type')
-    schedule = invoke.schedule
+    for dm in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+        invoke = psy.invokes.get('invoke_0_testkern_type')
+        schedule = invoke.schedule
 
-    ctrans = Dynamo0p3ColourTrans()
-    otrans = DynamoOMPParallelLoopTrans()
+        ctrans = Dynamo0p3ColourTrans()
+        otrans = DynamoOMPParallelLoopTrans()
 
-    # Colour the loop
-    cschedule, _ = ctrans.apply(schedule.children[0])
+        # Colour the loop
+        cschedule, _ = ctrans.apply(schedule.children[0])
 
-    # Then apply OpenMP to the inner loop
-    schedule, _ = otrans.apply(cschedule.children[0].children[0])
+        # Then apply OpenMP to the inner loop
+        schedule, _ = otrans.apply(cschedule.children[0].children[0])
 
-    invoke.schedule = schedule
-    code = str(psy.gen)
+        invoke.schedule = schedule
+        code = str(psy.gen)
 
-    col_loop_idx = -1
-    omp_idx = -1
-    cell_loop_idx = -1
-    for idx, line in enumerate(code.split('\n')):
-        if "DO colour=1,ncolour" in line:
-            col_loop_idx = idx
-        if "DO cell=1,ncp_colour(colour)" in line:
-            cell_loop_idx = idx
-        if "!$omp parallel do" in line:
-            omp_idx = idx
+        col_loop_idx = -1
+        omp_idx = -1
+        cell_loop_idx = -1
+        for idx, line in enumerate(code.split('\n')):
+            if "DO colour=1,ncolour" in line:
+                col_loop_idx = idx
+            if "DO cell=1,ncp_colour(colour)" in line:
+                cell_loop_idx = idx
+            if "!$omp parallel do" in line:
+                omp_idx = idx
 
-    assert cell_loop_idx - omp_idx == 1
-    assert omp_idx - col_loop_idx == 1
+        assert cell_loop_idx - omp_idx == 1
+        assert omp_idx - col_loop_idx == 1
 
-    # Check that the list of private variables is correct
-    assert "private(cell,map_w1,map_w2,map_w3)" in code
+        # Check that the list of private variables is correct
+        assert "private(cell,map_w1,map_w2,map_w3)" in code
 
 
 def test_omp_colour_orient_trans():
-    ''' Test the OpenMP transformation applied to a coloured loop
-        when the kernel expects orientation information '''
+    '''Test the OpenMP transformation applied to a coloured loop when the
+    kernel expects orientation information. We test when distributed
+    memory is on or off '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "9_orientation.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
-    schedule = invoke.schedule
+    for dm in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+        invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
+        schedule = invoke.schedule
 
-    ctrans = Dynamo0p3ColourTrans()
-    otrans = DynamoOMPParallelLoopTrans()
+        ctrans = Dynamo0p3ColourTrans()
+        otrans = DynamoOMPParallelLoopTrans()
 
-    # Colour the loop
-    cschedule, _ = ctrans.apply(schedule.children[0])
+        # Colour the loop
+        cschedule, _ = ctrans.apply(schedule.children[0])
 
-    # Then apply OpenMP to the inner loop
-    schedule, _ = otrans.apply(cschedule.children[0].children[0])
+        # Then apply OpenMP to the inner loop
+        schedule, _ = otrans.apply(cschedule.children[0].children[0])
 
-    invoke.schedule = schedule
-    code = str(psy.gen)
+        invoke.schedule = schedule
+        code = str(psy.gen)
 
-    # Check that we're using the colour map when getting the orientation
-    assert "get_cell_orientation(cmap(colour, cell))" in code
+        # Check that we're using the colour map when getting the orientation
+        assert "get_cell_orientation(cmap(colour, cell))" in code
 
-    # Check that the list of private variables is correct
-    assert "private(cell,map_w3,map_w2,map_w0,orientation_w2)" in code
+        # Check that the list of private variables is correct
+        assert "private(cell,map_w3,map_w2,map_w0,orientation_w2)" in code
 
 
 def test_omp_parallel_colouring_needed():
     '''Test that we raise an error when applying an OpenMP PARALLEL DO
     transformation to a loop that requires colouring (i.e. has a field
-    with 'INC' access) but is not coloured.
-
-    '''
+    with 'INC' access) but is not coloured. We test when distributed
+    memory is on or off '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "11_any_space.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_any_space_1_type')
-    schedule = invoke.schedule
-
-    otrans = DynamoOMPParallelLoopTrans()
-    # Apply OpenMP to the loop
-    with pytest.raises(TransformationError):
-        schedule, _ = otrans.apply(schedule.children[0])
+    for dm in [False, True]:
+        if dm:
+            index = 1
+        else:
+            index = 0
+        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+        invoke = psy.invokes.get('invoke_0_testkern_any_space_1_type')
+        schedule = invoke.schedule
+        otrans = DynamoOMPParallelLoopTrans()
+        # Apply OpenMP to the loop
+        with pytest.raises(TransformationError) as excinfo:
+            schedule, _ = otrans.apply(schedule.children[index])
+        assert "Error in DynamoOMPParallelLoopTrans" in str(excinfo.value)
+        assert "kernel has an argument with INC access" in str(excinfo.value)
+        assert "Colouring is required" in str(excinfo.value)
 
 
 def test_omp_colouring_needed():
     '''Test that we raise an error when applying an OpenMP DO
     transformation to a loop that requires colouring (i.e. has a field
-    with 'INC' access) but is not coloured.
-
-    '''
+    with 'INC' access) but is not coloured. We test when distributed
+    memory is on or off '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "11_any_space.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_any_space_1_type')
-    schedule = invoke.schedule
+    for dm in [True]:
+        if dm:
+            index = 1
+        else:
+            index = 0
+        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+        invoke = psy.invokes.get('invoke_0_testkern_any_space_1_type')
+        schedule = invoke.schedule
 
-    otrans = Dynamo0p3OMPLoopTrans()
-    # Apply OpenMP to the loop
-    with pytest.raises(TransformationError):
-        schedule, _ = otrans.apply(schedule.children[0])
+        otrans = Dynamo0p3OMPLoopTrans()
+        # Apply OpenMP to the loop
+        with pytest.raises(TransformationError) as excinfo:
+            schedule, _ = otrans.apply(schedule.children[index])
+        assert "Error in Dynamo0p3OMPLoopTrans transfo" in str(excinfo.value)
+        assert "kernel has an argument with INC access" in str(excinfo.value)
+        assert "Colouring is required" in str(excinfo.value)
 
 
 def test_check_seq_colours_omp_parallel_do():
-    '''Test that we raise an error if the user attempts to apply an
-    OpenMP PARALLEL DO transformation to a loop over colours (since
-    any such loop must be sequential)
-
-    '''
+    '''Test that we raise an error if the user attempts to apply an OpenMP
+    PARALLEL DO transformation to a loop over colours (since any such
+    loop must be sequential). We test when distributed memory is on or
+    off '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "9_orientation.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
-    schedule = invoke.schedule
+    for dm in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+        invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
+        schedule = invoke.schedule
 
-    ctrans = Dynamo0p3ColourTrans()
-    otrans = DynamoOMPParallelLoopTrans()
+        ctrans = Dynamo0p3ColourTrans()
+        otrans = DynamoOMPParallelLoopTrans()
 
-    # Colour the loop
-    cschedule, _ = ctrans.apply(schedule.children[0])
+        # Colour the loop
+        cschedule, _ = ctrans.apply(schedule.children[0])
 
-    # Then erroneously attempt to apply OpenMP to the loop over
-    # colours
-    with pytest.raises(TransformationError):
-        schedule, _ = otrans.apply(cschedule.children[0])
-
+        # Then erroneously attempt to apply OpenMP to the loop over
+        # colours
+        with pytest.raises(TransformationError) as excinfo:
+            schedule, _ = otrans.apply(cschedule.children[0])
+        assert "Error in DynamoOMPParallelLoopTrans" in str(excinfo.value)
+        assert "requested loop is over colours" in str(excinfo.value)
+        assert "must be computed serially" in str(excinfo.value)
 
 def test_check_seq_colours_omp_do():
     '''Test that we raise an error if the user attempts to apply an OpenMP
     DO transformation to a loop over colours (since any such loop must
-    be sequential)
-
-    '''
+    be sequential). We test when distributed memory is on or off '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "9_orientation.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
-    schedule = invoke.schedule
+    for dm in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+        invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
+        schedule = invoke.schedule
 
-    ctrans = Dynamo0p3ColourTrans()
-    otrans = Dynamo0p3OMPLoopTrans()
+        ctrans = Dynamo0p3ColourTrans()
+        otrans = Dynamo0p3OMPLoopTrans()
 
-    # Colour the loop
-    cschedule, _ = ctrans.apply(schedule.children[0])
+        # Colour the loop
+        cschedule, _ = ctrans.apply(schedule.children[0])
 
-    # Then erroneously attempt to apply OpenMP to the loop over
-    # colours
-    with pytest.raises(TransformationError):
-        schedule, _ = otrans.apply(cschedule.children[0])
+        # Then erroneously attempt to apply OpenMP to the loop over
+        # colours
+        with pytest.raises(TransformationError) as excinfo:
+            schedule, _ = otrans.apply(cschedule.children[0])
+        assert "Error in Dynamo0p3OMPLoopTrans" in str(excinfo.value)
+        assert "target loop is over colours" in str(excinfo.value)
+        assert "must be computed serially" in str(excinfo.value)
 
 
 def test_colouring_after_openmp():
-    ''' Test that we raise an error if the user attempts to
-    colour a loop that is already within an OpenMP parallel region '''
+    '''Test that we raise an error if the user attempts to colour a loop
+    that is already within an OpenMP parallel region. We test when
+    distributed memory is on or off '''
     # For this test we must use a kernel that doesn't actually require
     # colouring as otherwise PSyclone won't let us apply the OpenMP
     # transformation first!
@@ -414,95 +441,117 @@ def test_colouring_after_openmp():
                                  "test_files", "dynamo0p3",
                                  "9_orientation.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
-    schedule = invoke.schedule
+    for dm in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+        invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
+        schedule = invoke.schedule
 
-    ctrans = Dynamo0p3ColourTrans()
-    otrans = DynamoOMPParallelLoopTrans()
+        ctrans = Dynamo0p3ColourTrans()
+        otrans = DynamoOMPParallelLoopTrans()
 
-    # Apply OpenMP to the loop
-    schedule, _ = otrans.apply(schedule.children[0])
+        # Apply OpenMP to the loop
+        schedule, _ = otrans.apply(schedule.children[0])
 
-    # Now attempt to colour the loop within this OpenMP region
-    with pytest.raises(TransformationError):
-        schedule, _ = ctrans.apply(schedule.children[0].children[0])
+        # Now attempt to colour the loop within this OpenMP region
+        with pytest.raises(TransformationError) as excinfo:
+            schedule, _ = ctrans.apply(schedule.children[0].children[0])
+        assert "Cannot have a loop over colours" in str(excinfo.value)
+        assert "within an OpenMP parallel region" in str(excinfo.value)
 
 
 def test_colouring_multi_kernel():
-    ''' Test that we correctly generate all the map-lookups etc.
-    when an invoke contains more than one kernel '''
+    '''Test that we correctly generate all the map-lookups etc.  when an
+    invoke contains more than one kernel. We test when distributed
+    memory is on or off '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4.6_multikernel_invokes.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
-    invoke = psy.invokes.get('invoke_0')
-    schedule = invoke.schedule
+    for dm in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+        invoke = psy.invokes.get('invoke_0')
+        schedule = invoke.schedule
 
-    ctrans = Dynamo0p3ColourTrans()
-    otrans = DynamoOMPParallelLoopTrans()
+        ctrans = Dynamo0p3ColourTrans()
+        otrans = DynamoOMPParallelLoopTrans()
 
-    for child in schedule.children:
-        newsched, _ = ctrans.apply(child)
+        if dm:
+            # We have a halo exchange before each of the 2 loops.  For
+            # simplicity, move the 2nd halo exchange call from before
+            # the 2nd loop to before 1st loop. This sounds invalid but
+            # is actually correct in this case (not that it matters
+            # for this test). In the future we will have
+            # transformations to move elements around with checks for
+            # validity.
+            schedule.children.insert(1, schedule.children.pop(2))
+            # index will be after the two haloexchange calls
+            index = 2
+        else:
+            index = 0
 
-    # Apply OpenMP to each of the colour loops
-    schedule = newsched
-    for child in schedule.children:
-        newsched, _ = otrans.apply(child.children[0])
+        # colour each loop
+        schedule, _ = ctrans.apply(schedule.children[index])
+        schedule, _ = ctrans.apply(schedule.children[index+1])
 
-    invoke.schedule = newsched
-    gen = str(psy.gen)
-    print gen
+        # Apply OpenMP to each of the colour loops
+        schedule, _ = otrans.apply(schedule.children[index].children[0])
+        schedule, _ = otrans.apply(schedule.children[index+1].children[0])
 
-    # Check that we're calling the API to get the no. of colours
-    assert "a_proxy%vspace%get_colours(" in gen
-    assert "f_proxy%vspace%get_colours(" in gen
-    assert gen.count("_proxy%vspace%get_colours(") == 2
-    assert "private(cell,map_w2,map_w3,map_w0)" in gen
-    assert gen.count("private(cell,map_w2,map_w3,map_w0)") == 2
+        gen = str(psy.gen)
+        print gen
+
+        # Check that we're calling the API to get the no. of colours
+        assert "a_proxy%vspace%get_colours(" in gen
+        assert "f_proxy%vspace%get_colours(" in gen
+        assert gen.count("_proxy%vspace%get_colours(") == 2
+        assert "private(cell,map_w2,map_w3,map_w0)" in gen
+        assert gen.count("private(cell,map_w2,map_w3,map_w0)") == 2
 
 
 def test_omp_region_omp_do():
-    ''' Test that we correctly generate code for the case of a single
-    OMP DO within an OMP PARALLEL region without colouring '''
+    '''Test that we correctly generate code for the case of a single OMP
+    DO within an OMP PARALLEL region without colouring. We test when
+    distributed memory is on or off '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_type')
-    schedule = invoke.schedule
-    olooptrans = Dynamo0p3OMPLoopTrans()
-    ptrans = OMPParallelTrans()
+    for dm in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+        invoke = psy.invokes.get('invoke_0_testkern_type')
+        schedule = invoke.schedule
+        olooptrans = Dynamo0p3OMPLoopTrans()
+        ptrans = OMPParallelTrans()
 
-    # Put an OMP PARALLEL around this loop
-    child = schedule.children[0]
-    oschedule, _ = ptrans.apply(child)
+        # Put an OMP PARALLEL around this loop
+        child = schedule.children[0]
+        oschedule, _ = ptrans.apply(child)
 
-    # Put an OMP DO around this loop
-    schedule, _ = olooptrans.apply(oschedule.children[0].children[0])
+        # Put an OMP DO around this loop
+        schedule, _ = olooptrans.apply(oschedule.children[0].children[0])
 
-    # Replace the original loop schedule with the transformed one
-    invoke.schedule = schedule
+        # Replace the original loop schedule with the transformed one
+        invoke.schedule = schedule
 
-    # Store the results of applying this code transformation as
-    # a string
-    code = str(psy.gen)
+        # Store the results of applying this code transformation as
+        # a string
+        code = str(psy.gen)
 
-    omp_do_idx = -1
-    omp_para_idx = -1
-    cell_loop_idx = -1
-    for idx, line in enumerate(code.split('\n')):
-        if "DO cell=1,f1_proxy%vspace%get_ncell()" in line:
-            cell_loop_idx = idx
-        if "!$omp do" in line:
-            omp_do_idx = idx
-        if "!$omp parallel default" in line:
-            omp_para_idx = idx
+        print code
 
-    assert (omp_do_idx - omp_para_idx) == 1
-    assert (cell_loop_idx - omp_do_idx) == 1
+        omp_do_idx = -1
+        omp_para_idx = -1
+        cell_loop_idx = -1
+        for idx, line in enumerate(code.split('\n')):
+            if "DO cell=1,f1_proxy%vspace%get_ncell()" in line:
+                cell_loop_idx = idx
+            if "!$omp do" in line:
+                omp_do_idx = idx
+            if "!$omp parallel default" in line:
+                omp_para_idx = idx
+
+        assert (omp_do_idx - omp_para_idx) == 1
+        assert (cell_loop_idx - omp_do_idx) == 1
 
 
 def test_multi_kernel_single_omp_region():
