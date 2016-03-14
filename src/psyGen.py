@@ -1090,7 +1090,7 @@ class Loop(Node):
         return False
 
     def unique_modified_args(self, mapping, arg_type):
-        '''Return all unique arguments of type field_type from Kernels in this
+        '''Return all unique arguments of type arg_type from Kernels in this
         loop that are modified'''
         arg_names = []
         args = []
