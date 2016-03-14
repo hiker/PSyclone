@@ -572,46 +572,54 @@ def test_multi_kernel_single_omp_region():
                                  "test_files", "dynamo0p3",
                                  "4_multikernel_invokes.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
-    invoke = psy.invokes.get('invoke_0')
-    schedule = invoke.schedule
+    for dm in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+        invoke = psy.invokes.get('invoke_0')
+        schedule = invoke.schedule
 
-    otrans = Dynamo0p3OMPLoopTrans()
-    rtrans = OMPParallelTrans()
+        otrans = Dynamo0p3OMPLoopTrans()
+        rtrans = OMPParallelTrans()
 
-    # Apply OpenMP to each of the loops
-    for child in schedule.children:
-        newsched, _ = otrans.apply(child)
+        # Apply OpenMP to each of the loops
+        for child in schedule.children:
+            newsched, _ = otrans.apply(child)
 
-    # Enclose all of these OpenMP'd loops within a single region
-    newsched, _ = rtrans.apply(newsched.children)
+        # Enclose all of these OpenMP'd loops within a single region
+        newsched, _ = rtrans.apply(newsched.children)
 
-    invoke.schedule = newsched
-    code = str(psy.gen)
-    print code
+        invoke.schedule = newsched
+        code = str(psy.gen)
+        print code
 
-    omp_do_idx = -1
-    omp_end_do_idx = -1
-    omp_para_idx = -1
-    omp_end_para_idx = -1
-    cell_loop_idx = -1
-    for idx, line in enumerate(code.split('\n')):
-        if (cell_loop_idx == -1) and\
-           ("DO cell=1,f1_proxy%vspace%get_ncell()" in line):
-            cell_loop_idx = idx
-        if (omp_do_idx == -1) and ("!$omp do" in line):
-            omp_do_idx = idx
-        if "!$omp end do" in line:
-            omp_end_do_idx = idx
-        if "!$omp parallel default(shared), " +\
-           "private(cell,map_w1,map_w2,map_w3)" in line:
-            omp_para_idx = idx
-        if "!$omp end parallel" in line:
-            omp_end_para_idx = idx
+        omp_do_idx = -1
+        omp_end_do_idx = -1
+        omp_para_idx = -1
+        omp_end_para_idx = -1
+        cell_loop_idx = -1
+        end_do_idx = -1
+        if dm:
+            loop_str = "DO cell=1,mesh%get_last_halo_cell(1)"
+        else:
+            loop_str = "DO cell=1,f1_proxy%vspace%get_ncell()"
+        for idx, line in enumerate(code.split('\n')):
+            if (cell_loop_idx == -1) and (loop_str in line):
+                cell_loop_idx = idx
+            if (omp_do_idx == -1) and ("!$omp do" in line):
+                omp_do_idx = idx
+            if "!$omp end do" in line:
+                omp_end_do_idx = idx
+            if "!$omp parallel default(shared), " +\
+               "private(cell,map_w1,map_w2,map_w3)" in line:
+                omp_para_idx = idx
+            if "END DO" in line:
+                end_do_idx = idx
+            if "!$omp end parallel" in line:
+                omp_end_para_idx = idx
 
-    assert (omp_do_idx - omp_para_idx) == 1
-    assert (cell_loop_idx - omp_do_idx) == 1
-    assert (omp_end_para_idx - omp_end_do_idx) == 1
+        assert (omp_do_idx - omp_para_idx) == 1
+        assert (cell_loop_idx - omp_do_idx) == 1
+        assert (omp_end_para_idx - omp_end_do_idx) > 0
+        assert (omp_end_do_idx - end_do_idx) == 1
 
 
 def test_loop_fuse_different_spaces():
@@ -621,15 +629,24 @@ def test_loop_fuse_different_spaces():
                                  "test_files", "dynamo0p3",
                                  "4.7_multikernel_invokes.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
-    invoke = psy.invokes.get('invoke_0')
-    schedule = invoke.schedule
+    for dm in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+        invoke = psy.invokes.get('invoke_0')
+        schedule = invoke.schedule
 
-    ftrans = DynamoLoopFuseTrans()
+        ftrans = DynamoLoopFuseTrans()
+        if dm:
+            # the first child is a haloexchange
+            index = 1
+        else:
+            index = 0
 
-    with pytest.raises(TransformationError):
-        _, _ = ftrans.apply(schedule.children[0],
-                            schedule.children[1])
+        with pytest.raises(TransformationError) as excinfo:
+            _, _ = ftrans.apply(schedule.children[index],
+                                schedule.children[index+1])
+        assert "Error in DynamoLoopFuse transformation" in str(excinfo.value)
+        assert "Cannot fuse loops" in str(excinfo.value)
+        assert "over different spaces: w2 w1" in str(excinfo.value)
 
 
 def test_loop_fuse_unexpected_error():
@@ -638,19 +655,20 @@ def test_loop_fuse_unexpected_error():
                                  "test_files", "dynamo0p3",
                                  "4_multikernel_invokes.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
-    invoke = psy.invokes.get('invoke_0')
-    schedule = invoke.schedule
+    for dm in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+        invoke = psy.invokes.get('invoke_0')
+        schedule = invoke.schedule
 
-    ftrans = DynamoLoopFuseTrans()
+        ftrans = DynamoLoopFuseTrans()
 
-    # cause an unexpected error
-    schedule.children[0].children = None
+        # cause an unexpected error
+        schedule.children[0].children = None
 
-    with pytest.raises(TransformationError) as excinfo:
-        _, _ = ftrans.apply(schedule.children[0],
-                            schedule.children[1])
-    assert 'Unexpected exception' in str(excinfo.value)
+        with pytest.raises(TransformationError) as excinfo:
+            _, _ = ftrans.apply(schedule.children[0],
+                                schedule.children[1])
+        assert 'Unexpected exception' in str(excinfo.value)
 
 
 def test_loop_fuse():
@@ -659,43 +677,48 @@ def test_loop_fuse():
                                  "test_files", "dynamo0p3",
                                  "4_multikernel_invokes.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
-    invoke = psy.invokes.get('invoke_0')
-    schedule = invoke.schedule
+    for dm in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+        invoke = psy.invokes.get('invoke_0')
+        schedule = invoke.schedule
 
-    ftrans = DynamoLoopFuseTrans()
+        ftrans = DynamoLoopFuseTrans()
 
-    # Fuse the loops
-    nchildren = len(schedule.children)
-    idx = 1
-    fschedule = schedule
-    while idx < nchildren:
-        fschedule, _ = ftrans.apply(fschedule.children[idx-1],
-                                    fschedule.children[idx])
-        idx += 1
+        # Fuse the loops
+        nchildren = len(schedule.children)
+        idx = 1
+        fschedule = schedule
+        while idx < nchildren:
+            fschedule, _ = ftrans.apply(fschedule.children[idx-1],
+                                        fschedule.children[idx])
+            idx += 1
 
-    invoke.schedule = fschedule
-    gen = str(psy.gen)
+        invoke.schedule = fschedule
+        gen = str(psy.gen)
 
-    cell_loop_idx = -1
-    end_loop_idx = -1
-    call_idx1 = -1
-    call_idx2 = -1
-    for idx, line in enumerate(gen.split('\n')):
-        if "DO cell=1,f1_proxy%vspace%get_ncell()" in line:
-            cell_loop_idx = idx
-        if "CALL testkern_code" in line:
-            if call_idx1 == -1:
-                call_idx1 = idx
-            else:
-                call_idx2 = idx
-        if "END DO" in line:
-            end_loop_idx = idx
+        cell_loop_idx = -1
+        end_loop_idx = -1
+        call_idx1 = -1
+        call_idx2 = -1
+        if dm:
+            loop_str = "DO cell=1,mesh%get_last_halo_cell(1)"
+        else:
+            loop_str = "DO cell=1,f1_proxy%vspace%get_ncell()"
+        for idx, line in enumerate(gen.split('\n')):
+            if loop_str in line:
+                cell_loop_idx = idx
+            if "CALL testkern_code" in line:
+                if call_idx1 == -1:
+                    call_idx1 = idx
+                else:
+                    call_idx2 = idx
+            if "END DO" in line:
+                end_loop_idx = idx
 
-    assert cell_loop_idx != -1
-    assert cell_loop_idx < call_idx1
-    assert call_idx1 < call_idx2
-    assert call_idx2 < end_loop_idx
+        assert cell_loop_idx != -1
+        assert cell_loop_idx < call_idx1
+        assert call_idx1 < call_idx2
+        assert call_idx2 < end_loop_idx
 
 
 def test_loop_fuse_set_dirty():
@@ -733,56 +756,61 @@ def test_loop_fuse_omp():
                                  "test_files", "dynamo0p3",
                                  "4_multikernel_invokes.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
-    invoke = psy.invokes.get('invoke_0')
-    schedule = invoke.schedule
+    for dm in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+        invoke = psy.invokes.get('invoke_0')
+        schedule = invoke.schedule
 
-    ftrans = DynamoLoopFuseTrans()
-    otrans = DynamoOMPParallelLoopTrans()
+        ftrans = DynamoLoopFuseTrans()
+        otrans = DynamoOMPParallelLoopTrans()
 
-    # Fuse the loops
-    nchildren = len(schedule.children)
-    idx = 1
-    fschedule = schedule
-    while idx < nchildren:
-        fschedule, _ = ftrans.apply(fschedule.children[idx-1],
-                                    fschedule.children[idx])
-        idx += 1
+        # Fuse the loops
+        nchildren = len(schedule.children)
+        idx = 1
+        fschedule = schedule
+        while idx < nchildren:
+            fschedule, _ = ftrans.apply(fschedule.children[idx-1],
+                                        fschedule.children[idx])
+            idx += 1
 
-    fschedule, _ = otrans.apply(fschedule.children[0])
+        fschedule, _ = otrans.apply(fschedule.children[0])
 
-    invoke.schedule = fschedule
-    code = str(psy.gen)
-    print code
+        invoke.schedule = fschedule
+        code = str(psy.gen)
+        print code
 
-    # Check generated code
-    omp_para_idx = -1
-    omp_endpara_idx = -1
-    cell_do_idx = -1
-    cell_enddo_idx = -1
-    call1_idx = -1
-    call2_idx = -1
-    for idx, line in enumerate(code.split('\n')):
-        if "DO cell=1,f1_proxy%vspace%get_ncell()" in line:
-            cell_do_idx = idx
-        if "!$omp parallel do default(shared), " +\
-           "private(cell,map_w1,map_w2,map_w3), schedule(static)" in line:
-            omp_para_idx = idx
-        if "CALL testkern_code" in line:
-            if call1_idx == -1:
-                call1_idx = idx
-            else:
-                call2_idx = idx
-        if "END DO" in line:
-            cell_enddo_idx = idx
-        if "!$omp end parallel do" in line:
-            omp_endpara_idx = idx
+        # Check generated code
+        omp_para_idx = -1
+        omp_endpara_idx = -1
+        cell_do_idx = -1
+        cell_enddo_idx = -1
+        call1_idx = -1
+        call2_idx = -1
+        if dm:
+            loop_str = "DO cell=1,mesh%get_last_halo_cell(1)"
+        else:
+            loop_str = "DO cell=1,f1_proxy%vspace%get_ncell()"
+        for idx, line in enumerate(code.split('\n')):
+            if loop_str in line:
+                cell_do_idx = idx
+            if "!$omp parallel do default(shared), " +\
+               "private(cell,map_w1,map_w2,map_w3), schedule(static)" in line:
+                omp_para_idx = idx
+            if "CALL testkern_code" in line:
+                if call1_idx == -1:
+                    call1_idx = idx
+                else:
+                    call2_idx = idx
+            if "END DO" in line:
+                cell_enddo_idx = idx
+            if "!$omp end parallel do" in line:
+                omp_endpara_idx = idx
 
-    assert cell_do_idx - omp_para_idx == 1
-    assert call1_idx > cell_do_idx
-    assert call2_idx > call1_idx
-    assert cell_enddo_idx > call2_idx
-    assert omp_endpara_idx - cell_enddo_idx == 1
+        assert cell_do_idx - omp_para_idx == 1
+        assert call1_idx > cell_do_idx
+        assert call2_idx > call1_idx
+        assert cell_enddo_idx > call2_idx
+        assert omp_endpara_idx - cell_enddo_idx == 1
 
 
 def test_fuse_colour_loops():
@@ -793,97 +821,105 @@ def test_fuse_colour_loops():
                                  "test_files", "dynamo0p3",
                                  "4.6_multikernel_invokes.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
-    invoke = psy.invokes.get('invoke_0')
-    schedule = invoke.schedule
+    for dm in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+        invoke = psy.invokes.get('invoke_0')
+        schedule = invoke.schedule
 
-    ctrans = Dynamo0p3ColourTrans()
-    otrans = Dynamo0p3OMPLoopTrans()
-    rtrans = OMPParallelTrans()
-    ftrans = DynamoLoopFuseTrans()
+        ctrans = Dynamo0p3ColourTrans()
+        otrans = Dynamo0p3OMPLoopTrans()
+        rtrans = OMPParallelTrans()
+        ftrans = DynamoLoopFuseTrans()
 
-    # Colour each of the loops
-    for child in schedule.children:
-        newsched, _ = ctrans.apply(child)
+        if dm:
+            # We have a halo exchange before each of the 2 loops.  For
+            # simplicity, move the 2nd halo exchange call from before
+            # the 2nd loop to before 1st loop. This sounds invalid but
+            # is actually correct in this case (not that it matters
+            # for this test). In the future we will have
+            # transformations to move elements around with checks for
+            # validity.
+            schedule.children.insert(1, schedule.children.pop(2))
+            # index will be after the two haloexchange calls
+            index = 2
+        else:
+            index = 0
 
-    # Fuse the (sequential) loops over colours
-    nchildren = len(newsched.children)
-    idx = 1
-    fschedule = newsched
-    while idx < nchildren:
-        fschedule, _ = ftrans.apply(fschedule.children[idx-1],
-                                    fschedule.children[idx])
-        idx += 1
+        # colour each loop
+        schedule, _ = ctrans.apply(schedule.children[index])
+        schedule, _ = ctrans.apply(schedule.children[index+1])
 
-    # Enclose the colour loops within an OMP parallel region
-    newsched, _ = rtrans.apply(fschedule.children[0].children)
+        # fuse the sequential colours loop
+        schedule, _ = ftrans.apply(schedule.children[index],
+                                   schedule.children[index+1])
 
-    # Put an OMP DO around each of the colour loops
-    for child in newsched.children[0].children[0].children:
-        newsched, _ = otrans.apply(child)
+        # Enclose the colour loops within an OMP parallel region
+        schedule, _ = rtrans.apply(schedule.children[index].children)
 
-    # Replace the original schedule with the transformed one and
-    # generate the code
-    invoke.schedule = newsched
-    code = str(psy.gen)
-    print code
+        # Put an OMP DO around each of the colour loops
+        for loop in schedule.children[index].children[0].children:
+            schedule, _ = otrans.apply(loop)
 
-    # Test that the generated code is as expected
-    omp_para_idx = -1
-    omp_do_idx1 = -1
-    omp_do_idx2 = -1
-    cell_loop_idx1 = -1
-    cell_loop_idx2 = -1
-    end_loop_idx1 = -1
-    end_loop_idx2 = -1
-    end_loop_idx3 = -1
-    call_idx1 = -1
-    call_idx2 = -1
-    for idx, line in enumerate(code.split('\n')):
-        if "END DO" in line:
-            if end_loop_idx1 == -1:
-                end_loop_idx1 = idx
-            elif end_loop_idx2 == -1:
-                end_loop_idx2 = idx
-            else:
-                end_loop_idx3 = idx
-        if "DO cell=1,ncp_colour(colour)" in line:
-            if cell_loop_idx1 == -1:
-                cell_loop_idx1 = idx
-            else:
-                cell_loop_idx2 = idx
-        if "DO colour=1,ncolour" in line:
-            col_loop_idx = idx
-        if "CALL ru_code(nlayers," in line:
-            if call_idx1 == -1:
-                call_idx1 = idx
-            else:
-                call_idx2 = idx
-        if "!$omp parallel default(shared), " +\
-           "private(cell,map_w2,map_w3,map_w0)" in line:
-            omp_para_idx = idx
-        if "!$omp do schedule(static)" in line:
-            if omp_do_idx1 == -1:
-                omp_do_idx1 = idx
-            else:
-                omp_do_idx2 = idx
+        code = str(psy.gen)
+        print code
 
-    assert (omp_para_idx - col_loop_idx) == 1
-    assert (omp_do_idx1 - omp_para_idx) == 1
-    assert (cell_loop_idx1 - omp_do_idx1) == 1
-    assert (cell_loop_idx2 - omp_do_idx2) == 1
-    assert (end_loop_idx3 - end_loop_idx2) == 3
-    assert call_idx2 > call_idx1
-    assert call_idx1 < end_loop_idx1
-    assert call_idx2 < end_loop_idx2
+        # Test that the generated code is as expected
+        omp_para_idx = -1
+        omp_do_idx1 = -1
+        omp_do_idx2 = -1
+        cell_loop_idx1 = -1
+        cell_loop_idx2 = -1
+        end_loop_idx1 = -1
+        end_loop_idx2 = -1
+        end_loop_idx3 = -1
+        call_idx1 = -1
+        call_idx2 = -1
+        for idx, line in enumerate(code.split('\n')):
+            if "END DO" in line:
+                if end_loop_idx1 == -1:
+                    end_loop_idx1 = idx
+                elif end_loop_idx2 == -1:
+                    end_loop_idx2 = idx
+                else:
+                    end_loop_idx3 = idx
+            if "DO cell=1,ncp_colour(colour)" in line:
+                if cell_loop_idx1 == -1:
+                    cell_loop_idx1 = idx
+                else:
+                    cell_loop_idx2 = idx
+            if "DO colour=1,ncolour" in line:
+                col_loop_idx = idx
+            if "CALL ru_code(nlayers," in line:
+                if call_idx1 == -1:
+                    call_idx1 = idx
+                else:
+                    call_idx2 = idx
+            if "!$omp parallel default(shared), " +\
+               "private(cell,map_w2,map_w3,map_w0)" in line:
+                omp_para_idx = idx
+            if "!$omp do schedule(static)" in line:
+                if omp_do_idx1 == -1:
+                    omp_do_idx1 = idx
+                else:
+                    omp_do_idx2 = idx
 
-    # limiting to sequential test for the moment
-    # set_dirty_str = (
-    #    "      ! Set halos dirty for fields modified in the above loop\n"
-    #    "      !\n"
-    #    "      CALL f1_proxy%set_dirty()\n")
-    # assert set_dirty_str in code
-    # assert code.count("set_dirty()") == 1
+        assert (omp_para_idx - col_loop_idx) == 1
+        assert (omp_do_idx1 - omp_para_idx) == 1
+        assert (cell_loop_idx1 - omp_do_idx1) == 1
+        assert (cell_loop_idx2 - omp_do_idx2) == 1
+        assert (end_loop_idx3 - end_loop_idx2) == 3
+        assert call_idx2 > call_idx1
+        assert call_idx1 < end_loop_idx1
+        assert call_idx2 < end_loop_idx2
+
+        if dm:
+            set_dirty_str = (
+                "      ! Set halos dirty for fields modified in the above loop\n"
+                "      !\n"
+                "      CALL a_proxy%set_dirty()\n"
+                "      CALL f_proxy%set_dirty()\n")
+            assert set_dirty_str in code
+            assert code.count("set_dirty()") == 2
 
 
 def test_module_inline():
@@ -894,14 +930,15 @@ def test_module_inline():
                                  "test_files", "dynamo0p3",
                                  "4.6_multikernel_invokes.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
-    invoke = psy.invokes.get('invoke_0')
-    schedule = invoke.schedule
-    kern_call = schedule.children[1].children[0]
-    inline_trans = KernelModuleInlineTrans()
-    schedule, _ = inline_trans.apply(kern_call)
-    gen = str(psy.gen)
-    # check that the subroutine has been inlined
-    assert 'SUBROUTINE ru_code()' in gen
-    # check that the associated psy "use" does not exist
-    assert 'USE ru_kernel_mod, only : ru_code' not in gen
+    for dm in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+        invoke = psy.invokes.get('invoke_0')
+        schedule = invoke.schedule
+        kern_call = schedule.children[1].children[0]
+        inline_trans = KernelModuleInlineTrans()
+        schedule, _ = inline_trans.apply(kern_call)
+        gen = str(psy.gen)
+        # check that the subroutine has been inlined
+        assert 'SUBROUTINE ru_code()' in gen
+        # check that the associated psy "use" does not exist
+        assert 'USE ru_kernel_mod, only : ru_code' not in gen

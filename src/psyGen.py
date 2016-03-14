@@ -904,7 +904,10 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         for child in self.children:
             child.gen_code(parent)
 
-        parent.add(DirectiveGen(parent, "omp", "end", "parallel do", ""))
+        # make sure the directive occurs straight after the loop body
+        position = parent.previous_loop()
+        parent.add(DirectiveGen(parent, "omp", "end", "parallel do", ""),
+                   position=["after", position])
 
 
 class HaloExchange(Node):
