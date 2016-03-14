@@ -542,16 +542,26 @@ def test_omp_region_omp_do():
         omp_do_idx = -1
         omp_para_idx = -1
         cell_loop_idx = -1
+        omp_enddo_idx = -1
+        if dm:
+            loop_str = "DO cell=1,mesh%get_last_halo_cell(1)"
+        else:
+            loop_str = "DO cell=1,f1_proxy%vspace%get_ncell()"
         for idx, line in enumerate(code.split('\n')):
-            if "DO cell=1,f1_proxy%vspace%get_ncell()" in line:
+            if loop_str in line:
                 cell_loop_idx = idx
             if "!$omp do" in line:
                 omp_do_idx = idx
             if "!$omp parallel default" in line:
                 omp_para_idx = idx
+            if "!$omp end do" in line:
+                omp_enddo_idx = idx
+            if "END DO" in line:
+                cell_end_loop_idx = idx
 
         assert (omp_do_idx - omp_para_idx) == 1
         assert (cell_loop_idx - omp_do_idx) == 1
+        assert (omp_enddo_idx - cell_end_loop_idx) == 1
 
 
 def test_multi_kernel_single_omp_region():
