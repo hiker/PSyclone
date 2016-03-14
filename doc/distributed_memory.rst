@@ -67,7 +67,7 @@ interactively from the ``PSyFactory`` class by setting the optional
 
     psy = PSyFactory(api=api, distributed_memory=False)
 
-SImilarly the distributed memory option can be changed interactively from the ``generator`` function by setting the optional ``distributed_memory`` flag; for example: ::
+Similarly the distributed memory option can be changed interactively from the ``generate`` function by setting the optional ``distributed_memory`` flag, e.g.: ::
 
     psy, alg = generate("file.f90", distributed_memory=False).
 
