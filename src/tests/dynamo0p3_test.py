@@ -3168,7 +3168,7 @@ def test_halo_exchange_inc():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     result = str(psy.gen)
     print result
-    OUTPUT1 = (
+    output1 = (
         "      IF (a_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL a_proxy%halo_exchange(depth=1)\n"
         "      END IF \n"
@@ -3194,7 +3194,7 @@ def test_halo_exchange_inc():
         "      END IF \n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n")
-    OUTPUT2 = (
+    output2 = (
         "      IF (f_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f_proxy%halo_exchange(depth=1)\n"
         "      END IF \n"
@@ -3220,8 +3220,8 @@ def test_halo_exchange_inc():
         "      END IF \n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n")
-    assert OUTPUT1 in result
-    assert OUTPUT2 in result
+    assert output1 in result
+    assert output2 in result
     assert result.count("halo_exchange") == 12
 
 
