@@ -449,8 +449,14 @@ def test_colouring_after_openmp():
         ctrans = Dynamo0p3ColourTrans()
         otrans = DynamoOMPParallelLoopTrans()
 
+        print "this will probably fail so check"
+        # I think it will be if dm then index=4 else index=0
+        exit(1)
+
         # Apply OpenMP to the loop
         schedule, _ = otrans.apply(schedule.children[0])
+        #### Apply OpenMP to the loop
+        ###schedule, _ = otrans.apply(schedule.children[4])
 
         # Now attempt to colour the loop within this OpenMP region
         with pytest.raises(TransformationError) as excinfo:
@@ -660,15 +666,25 @@ def test_loop_fuse_unexpected_error():
         invoke = psy.invokes.get('invoke_0')
         schedule = invoke.schedule
 
+        print "this needs looking at"
+        exit(1)
+        ### remove unecessary halos between loops. At the moment we have no
+        ### intra halo analysis so we add them before all loops just in
+        ### case.
+        ##del schedule.children[4:7]
+
         ftrans = DynamoLoopFuseTrans()
 
         # cause an unexpected error
         schedule.children[0].children = None
+        #### schedule.children[3].children = None
 
         with pytest.raises(TransformationError) as excinfo:
             _, _ = ftrans.apply(schedule.children[0],
                                 schedule.children[1])
         assert 'Unexpected exception' in str(excinfo.value)
+        #_, _ = ftrans.apply(schedule.children[3],
+        #                    schedule.children[4])
 
 
 def test_loop_fuse():
@@ -731,21 +747,19 @@ def test_loop_fuse_set_dirty():
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.get('invoke_0')
     schedule = invoke.schedule
-
     ftrans = DynamoLoopFuseTrans()
-
+    schedule.view()
+    # remove unecessary halos between loops. At the moment we have no
+    # intra halo analysis so we add them before all loops just in
+    # case.
+    del schedule.children[4:7]
+    schedule.view()
     # Fuse the loops
-    nchildren = len(schedule.children)
-    idx = 1
-    fschedule = schedule
-    while idx < nchildren:
-        fschedule, _ = ftrans.apply(fschedule.children[idx-1],
-                                    fschedule.children[idx])
-        idx += 1
-
-    invoke.schedule = fschedule
+    schedule, _ = ftrans.apply(schedule.children[3],
+                               schedule.children[4])
+    schedule.view()
     gen = str(psy.gen)
-
+    print gen
     assert gen.count("set_dirty()") == 1
 
 
@@ -934,6 +948,9 @@ def test_module_inline():
         psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
         invoke = psy.invokes.get('invoke_0')
         schedule = invoke.schedule
+        print "needs checking"
+        exit(1)
+        #####kern_call = schedule.children[6].children[0]
         kern_call = schedule.children[1].children[0]
         inline_trans = KernelModuleInlineTrans()
         schedule, _ = inline_trans.apply(kern_call)
