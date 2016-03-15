@@ -1031,7 +1031,11 @@ class DynInvoke(Invoke):
                                 arg.ref_name(function_space) +
                                 "%compute_diff_basis_function", args=args))
         invoke_sub.add(CommentGen(invoke_sub, ""))
-        invoke_sub.add(CommentGen(invoke_sub, " Call our kernels"))
+        if config.DISTRIBUTED_MEMORY:
+            invoke_sub.add(CommentGen(invoke_sub, " Call kernels and "
+                                      "communication routines"))
+        else:
+            invoke_sub.add(CommentGen(invoke_sub, " Call our kernels"))
         invoke_sub.add(CommentGen(invoke_sub, ""))
         # add content from the schedule
         self.schedule.gen_code(invoke_sub)
