@@ -567,7 +567,6 @@ def test_loop_fuse_unexpected_error():
     psy = PSyFactory(TEST_API).create(info)
     invoke = psy.invokes.get('invoke_0')
     schedule = invoke.schedule
-    print type(schedule.children)
     # remove unecessary halos between loops. At the moment we have no
     # intra halo analysis so we add them before all loops just in
     # case.
