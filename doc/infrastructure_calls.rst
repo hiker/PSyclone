@@ -1,3 +1,5 @@
+.. _infrastructure-calls:
+
 Infrastructure calls
 ====================
 
