@@ -313,31 +313,24 @@ Supported Infrastructure Calls
 The basic concept of a PSyclone infrastructure call is described in
 the :ref:`infrastructure-calls` section.  In the Dynamo 0.3 API,
 infrastructure calls follow a convention that the field/scalar written
-to comes last in the argument list. The supported infrastructure calls
-are described (in alphabetical order) below.
+to comes last in the argument list. Although field arguments to
+infrastructure calls may be on any space, the arguments to any given
+call must all be on the same space.
 
-axpy
-++++
-
-**axpy** (*a*, *field1*, *field2*, *field3*)
-
-Performs:
-::
-   field3(:) = a*field1(:) + field2(:)
-
-where:
-
-* real(r_def), intent(in) :: *a*
-* type(field_type), intent(in) :: *field1*, *field2*
-* type(field_type), intent(out) :: *field3*
+The infrastructure calls supported for the Dynamo 0.3 API are
+described (in alphabetical order) below. For clarity, the calculation
+performed by each call is described using Fortran array syntax; this
+does not necessarily reflect the actual implementation of the
+infrastructure call (*e.g.* it could be implemented by PSyclone
+generating a call to an optimised math library).
 
 axpby
 +++++
 
 **axpby** (*a*, *field1*, *b*, *field2*, *field3*)
 
-Performs:
-::
+Performs: ::
+   
    field3(:) = a*field1(:) + b*field2(:)
 
 where:
@@ -346,13 +339,28 @@ where:
 * type(field_type), intent(in) :: *field1*, *field2*
 * type(field_type), intent(out) :: *field3*
 
+axpy
+++++
+
+**axpy** (*a*, *field1*, *field2*, *field3*)
+
+Performs: ::
+   
+   field3(:) = a*field1(:) + field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *a*
+* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(out) :: *field3*
+
 copy_field
 ++++++++++
 
 **copy_field** (*field1*, *field2*)
 
-Copy the values from *field1* into *field2*:
-::
+Copy the values from *field1* into *field2*: ::
+
    field2(:) = field(1)
 
 where:
@@ -365,8 +373,8 @@ divide_fields
 
 **divide_fields** (*field1*, *field2*, *field3*)
 
-Divides the first field by the second:
-::
+Divides the first field by the second: ::
+
    field3(:) = field1(:) / field2(:)
 
 where:
@@ -377,15 +385,26 @@ where:
 inner_product
 +++++++++++++
 
+**inner_product** (*field1*, *field2*, *sumval*)
+
+Computes the inner product of the fields *field1* and *field2*, *i.e.*: ::
+
+  sumval = SUM(field1(:)*field2(:))
+
+where:
+
+* type(field_type), intent(in) :: *field1*, *field2*
+* real(r_def), intent(out) :: *sumval*
+
 minus_fields
 ++++++++++++
 
 **minus_fields** (*field1*, *field2*, *field3*)
 
 Subtracts the second field from the first and stores the result in
-the third. i.e. performs the operation:
-::
-   field3(:) = field1(:) - field2(:)
+the third. *i.e.* performs the operation: ::
+  
+  field3(:) = field1(:) - field2(:)
 
 where:
 
@@ -398,8 +417,8 @@ multiply_field
 
 **multiply_field** (*value*, *field1*, *field2*)
 
-Multiplies a field by a scalar:
-::
+Multiplies a field by a scalar: ::
+  
   field2(:) = value * field1(:)
 
 where:
@@ -413,9 +432,9 @@ plus_fields
 
 **plus_fields** (*field1*, *field2*, *field3*)
 
-Sums two fields:
-::
-   field3(:) = field1(:) + field2(:)
+Sums two fields: ::
+  
+  field3(:) = field1(:) + field2(:)
 
 where:
 
@@ -434,7 +453,7 @@ The field may be on any function space.
 * type(field_type), intent(out) :: *field*
 * real(r_def), intent(in) :: *value*
 
-.. note:: The Fortran parser used by PSyclone cannot currently cope with numerical constants containing an explicit kind paramer (e.g. ``1.0_r_def``). This limitation may be worked around by passing the quantity by argument instead of by value.
+.. note:: The Fortran parser used by PSyclone cannot currently cope with numerical constants containing an explicit kind paramer (e.g. ``1.0_r_def``). This limitation may be worked around by passing the scalar quantity by argument instead of by value.
 
 sum_field
 +++++++++
@@ -442,9 +461,9 @@ sum_field
 **sum_field** (*field*, *sumval*)
 
 Sums all of the elements of the field *field* and returns the result
-in the scalar variable *sumval*:
-::
-   sumval = SUM(field(:))
+in the scalar variable *sumval*: ::
+  
+  sumval = SUM(field(:))
 
 where:
 
