@@ -330,11 +330,16 @@ def test_omp_colour_orient_trans():
         ctrans = Dynamo0p3ColourTrans()
         otrans = DynamoOMPParallelLoopTrans()
 
+        if dm:
+            index = 4
+        else:
+            index = 0
+
         # Colour the loop
-        cschedule, _ = ctrans.apply(schedule.children[0])
+        cschedule, _ = ctrans.apply(schedule.children[index])
 
         # Then apply OpenMP to the inner loop
-        schedule, _ = otrans.apply(cschedule.children[0].children[0])
+        schedule, _ = otrans.apply(cschedule.children[index].children[0])
 
         invoke.schedule = schedule
         code = str(psy.gen)
@@ -355,9 +360,9 @@ def test_omp_parallel_colouring_needed():
                                  "test_files", "dynamo0p3",
                                  "11_any_space.f90"),
                     api=TEST_API)
-    for dm in [False, True]:
+    for dm in [True]:
         if dm:
-            index = 1
+            index = 5
         else:
             index = 0
         psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
@@ -381,9 +386,9 @@ def test_omp_colouring_needed():
                                  "test_files", "dynamo0p3",
                                  "11_any_space.f90"),
                     api=TEST_API)
-    for dm in [True]:
+    for dm in [False, True]:
         if dm:
-            index = 1
+            index = 5
         else:
             index = 0
         psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
@@ -412,17 +417,21 @@ def test_check_seq_colours_omp_parallel_do():
         psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
         invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
         schedule = invoke.schedule
+        if dm:
+            index = 4
+        else:
+            index = 0
 
         ctrans = Dynamo0p3ColourTrans()
         otrans = DynamoOMPParallelLoopTrans()
 
         # Colour the loop
-        cschedule, _ = ctrans.apply(schedule.children[0])
+        cschedule, _ = ctrans.apply(schedule.children[index])
 
         # Then erroneously attempt to apply OpenMP to the loop over
         # colours
         with pytest.raises(TransformationError) as excinfo:
-            schedule, _ = otrans.apply(cschedule.children[0])
+            schedule, _ = otrans.apply(cschedule.children[index])
         assert "Error in DynamoOMPParallelLoopTrans" in str(excinfo.value)
         assert "requested loop is over colours" in str(excinfo.value)
         assert "must be computed serially" in str(excinfo.value)
@@ -439,17 +448,21 @@ def test_check_seq_colours_omp_do():
         psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
         invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
         schedule = invoke.schedule
+        if dm:
+            index = 4
+        else:
+            index = 0
 
         ctrans = Dynamo0p3ColourTrans()
         otrans = Dynamo0p3OMPLoopTrans()
 
         # Colour the loop
-        cschedule, _ = ctrans.apply(schedule.children[0])
+        cschedule, _ = ctrans.apply(schedule.children[index])
 
         # Then erroneously attempt to apply OpenMP to the loop over
         # colours
         with pytest.raises(TransformationError) as excinfo:
-            schedule, _ = otrans.apply(cschedule.children[0])
+            schedule, _ = otrans.apply(cschedule.children[index])
         assert "Error in Dynamo0p3OMPLoopTrans" in str(excinfo.value)
         assert "target loop is over colours" in str(excinfo.value)
         assert "must be computed serially" in str(excinfo.value)
@@ -474,18 +487,17 @@ def test_colouring_after_openmp():
         ctrans = Dynamo0p3ColourTrans()
         otrans = DynamoOMPParallelLoopTrans()
 
-        print "this will probably fail so check"
-        # I think it will be if dm then index=4 else index=0
-        exit(1)
+        if dm:
+            index = 4
+        else:
+            index = 0
 
         # Apply OpenMP to the loop
-        schedule, _ = otrans.apply(schedule.children[0])
-        #### Apply OpenMP to the loop
-        ###schedule, _ = otrans.apply(schedule.children[4])
+        schedule, _ = otrans.apply(schedule.children[index])
 
         # Now attempt to colour the loop within this OpenMP region
         with pytest.raises(TransformationError) as excinfo:
-            schedule, _ = ctrans.apply(schedule.children[0].children[0])
+            schedule, _ = ctrans.apply(schedule.children[index].children[0])
         assert "Cannot have a loop over colours" in str(excinfo.value)
         assert "within an OpenMP parallel region" in str(excinfo.value)
 
@@ -507,16 +519,16 @@ def test_colouring_multi_kernel():
         otrans = DynamoOMPParallelLoopTrans()
 
         if dm:
-            # We have a halo exchange before each of the 2 loops.  For
-            # simplicity, move the 2nd halo exchange call from before
-            # the 2nd loop to before 1st loop. This sounds invalid but
-            # is actually correct in this case (not that it matters
-            # for this test). In the future we will have
-            # transformations to move elements around with checks for
-            # validity.
-            schedule.children.insert(1, schedule.children.pop(2))
-            # index will be after the two haloexchange calls
-            index = 2
+            # We have halo exchanges inbetween the two loops which we
+            # are going to get rid of for simplicity. Fields b, d and
+            # the 3e's are already covered before the first loop so
+            # can be removed
+            del schedule.children[8:13]
+            # f is required but can be moved before the first loop
+            schedule.children.insert(6, schedule.children.pop(7))
+            # In the future we will have transformations to move
+            # elements around with checks for validity.
+            index = 7
         else:
             index = 0
 
@@ -554,12 +566,17 @@ def test_omp_region_omp_do():
         olooptrans = Dynamo0p3OMPLoopTrans()
         ptrans = OMPParallelTrans()
 
+        if dm:
+            index = 3
+        else:
+            index = 0
+
         # Put an OMP PARALLEL around this loop
-        child = schedule.children[0]
+        child = schedule.children[index]
         oschedule, _ = ptrans.apply(child)
 
         # Put an OMP DO around this loop
-        schedule, _ = olooptrans.apply(oschedule.children[0].children[0])
+        schedule, _ = olooptrans.apply(oschedule.children[index].children[0])
 
         # Replace the original loop schedule with the transformed one
         invoke.schedule = schedule
@@ -608,17 +625,26 @@ def test_multi_kernel_single_omp_region():
         invoke = psy.invokes.get('invoke_0')
         schedule = invoke.schedule
 
+        if dm:
+            # We have halo exchanges inbetween the two loops which we
+            # are going to get rid of for simplicity. Fields f2, m1 and m2
+            # are already covered before the first loop so
+            # can be removed
+            del schedule.children[4:7]
+            index = 3
+        else:
+            index = 0
+
         otrans = Dynamo0p3OMPLoopTrans()
         rtrans = OMPParallelTrans()
 
         # Apply OpenMP to each of the loops
-        for child in schedule.children:
-            newsched, _ = otrans.apply(child)
+        schedule, _ = otrans.apply(schedule.children[index])
+        schedule, _ = otrans.apply(schedule.children[index+1])
 
         # Enclose all of these OpenMP'd loops within a single region
-        newsched, _ = rtrans.apply(newsched.children)
+        schedule, _ = rtrans.apply(schedule.children[index:index+2])
 
-        invoke.schedule = newsched
         code = str(psy.gen)
         print code
 
@@ -667,8 +693,15 @@ def test_loop_fuse_different_spaces():
 
         ftrans = DynamoLoopFuseTrans()
         if dm:
-            # the first child is a haloexchange
-            index = 1
+            # b halo exchange between loops can be removed as access
+            # in both loops is read and it is already covered by the
+            # first loop
+            del schedule.children[7]
+            # c and g halo exchange between loops can be moved before
+            # 1st loop as they are not accessed in first loop
+            schedule.children.insert(6, schedule.children.pop(7))
+            schedule.children.insert(7, schedule.children.pop(8))
+            index = 8
         else:
             index = 0
 
@@ -691,25 +724,24 @@ def test_loop_fuse_unexpected_error():
         invoke = psy.invokes.get('invoke_0')
         schedule = invoke.schedule
 
-        print "this needs looking at"
-        exit(1)
-        ### remove unecessary halos between loops. At the moment we have no
-        ### intra halo analysis so we add them before all loops just in
-        ### case.
-        ##del schedule.children[4:7]
+        if dm:
+            # remove unecessary halos between loops. At the moment we have no
+            # intra halo analysis so we add them before all loops just in
+            # case.
+            del schedule.children[4:7]
+            index = 3
+        else:
+            index = 0
 
         ftrans = DynamoLoopFuseTrans()
 
         # cause an unexpected error
-        schedule.children[0].children = None
-        #### schedule.children[3].children = None
+        schedule.children[index].children = None
 
         with pytest.raises(TransformationError) as excinfo:
-            _, _ = ftrans.apply(schedule.children[0],
-                                schedule.children[1])
+            _, _ = ftrans.apply(schedule.children[index],
+                                schedule.children[index+1])
         assert 'Unexpected exception' in str(excinfo.value)
-        #_, _ = ftrans.apply(schedule.children[3],
-        #                    schedule.children[4])
 
 
 def test_loop_fuse():
@@ -723,18 +755,21 @@ def test_loop_fuse():
         invoke = psy.invokes.get('invoke_0')
         schedule = invoke.schedule
 
+        if dm:
+            # remove unecessary halos between loops. At the moment we have no
+            # intra halo analysis so we add them before all loops just in
+            # case.
+            del schedule.children[4:7]
+            index = 3
+        else:
+            index = 0
+
         ftrans = DynamoLoopFuseTrans()
 
-        # Fuse the loops
-        nchildren = len(schedule.children)
-        idx = 1
-        fschedule = schedule
-        while idx < nchildren:
-            fschedule, _ = ftrans.apply(fschedule.children[idx-1],
-                                        fschedule.children[idx])
-            idx += 1
+        # fuse the loops
+        schedule, _ = ftrans.apply(schedule.children[index],
+                                   schedule.children[index+1])
 
-        invoke.schedule = fschedule
         gen = str(psy.gen)
 
         cell_loop_idx = -1
@@ -800,21 +835,23 @@ def test_loop_fuse_omp():
         invoke = psy.invokes.get('invoke_0')
         schedule = invoke.schedule
 
+        if dm:
+            # remove unecessary halos between loops. At the moment we have no
+            # intra halo analysis so we add them before all loops just in
+            # case.
+            del schedule.children[4:7]
+            index = 3
+        else:
+            index = 0
+
         ftrans = DynamoLoopFuseTrans()
         otrans = DynamoOMPParallelLoopTrans()
 
-        # Fuse the loops
-        nchildren = len(schedule.children)
-        idx = 1
-        fschedule = schedule
-        while idx < nchildren:
-            fschedule, _ = ftrans.apply(fschedule.children[idx-1],
-                                        fschedule.children[idx])
-            idx += 1
+        schedule, _ = ftrans.apply(schedule.children[index],
+                                   schedule.children[index+1])
 
-        fschedule, _ = otrans.apply(fschedule.children[0])
+        schedule, _ = otrans.apply(schedule.children[index])
 
-        invoke.schedule = fschedule
         code = str(psy.gen)
         print code
 
@@ -871,16 +908,16 @@ def test_fuse_colour_loops():
         ftrans = DynamoLoopFuseTrans()
 
         if dm:
-            # We have a halo exchange before each of the 2 loops.  For
-            # simplicity, move the 2nd halo exchange call from before
-            # the 2nd loop to before 1st loop. This sounds invalid but
-            # is actually correct in this case (not that it matters
-            # for this test). In the future we will have
-            # transformations to move elements around with checks for
-            # validity.
-            schedule.children.insert(1, schedule.children.pop(2))
-            # index will be after the two haloexchange calls
-            index = 2
+            # We have halo exchanges inbetween the two loops which we
+            # are going to get rid of for simplicity. Fields b, d and
+            # the 3e's are already covered before the first loop so
+            # can be removed
+            del schedule.children[8:13]
+            # f is required but can be moved before the first loop
+            schedule.children.insert(6, schedule.children.pop(7))
+            # In the future we will have transformations to move
+            # elements around with checks for validity.
+            index = 7
         else:
             index = 0
 
@@ -973,10 +1010,12 @@ def test_module_inline():
         psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
         invoke = psy.invokes.get('invoke_0')
         schedule = invoke.schedule
-        print "needs checking"
-        exit(1)
-        #####kern_call = schedule.children[6].children[0]
-        kern_call = schedule.children[1].children[0]
+        if dm:
+            schedule.view()
+            index = 13
+        else:
+            index = 1
+        kern_call = schedule.children[index].children[0]
         inline_trans = KernelModuleInlineTrans()
         schedule, _ = inline_trans.apply(kern_call)
         gen = str(psy.gen)
