@@ -998,6 +998,33 @@ def test_fuse_colour_loops():
             assert code.count("set_dirty()") == 2
 
 
+def test_omp_parallel_and_halo_exchange_error():
+    '''Tests that we raise an error if we try to apply an omp parallel
+    transformation a list containing halo_exchange calls. If this is
+    allowed then it is likely that we will get incorrect results, or the
+    code will fail. Fixing this problem is the subjec of ticket #526'''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "4_multikernel_invokes.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
+    invoke = psy.invokes.get('invoke_0')
+    schedule = invoke.schedule
+
+    otrans = Dynamo0p3OMPLoopTrans()
+    rtrans = OMPParallelTrans()
+
+    # Apply OpenMP to each of the loops
+    schedule, _ = otrans.apply(schedule.children[3])
+    schedule, _ = otrans.apply(schedule.children[7])
+
+    # Enclose the invoke code within a single region
+    with pytest.raises(TransformationError) as excinfo:
+        schedule, _ = rtrans.apply(schedule.children)
+    assert "A halo exchange within a parallel region is not supported" \
+        in str(excinfo.value)
+
+
 def test_module_inline():
     '''Tests that correct results are obtained when a kernel is inlined
     into the psy-layer in the dynamo0.3 API. More in-depth tests can be
