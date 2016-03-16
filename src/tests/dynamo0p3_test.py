@@ -3426,25 +3426,6 @@ def test_mesh_mod():
 # object from an operator
 
 
-def test_no_dm_and_colour():
-    '''test that we raise an exception if colouring and distributed
-    memory are attempted together, as there are a few bugs and there is
-    currently no agreed API for the colouring'''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
-                                 "1_single_invoke.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_type')
-    schedule = invoke.schedule
-    ctrans = ColourTrans()
-    with pytest.raises(GenerationError) as excinfo:
-        # try to Colour the loop
-        _, _ = ctrans.apply(schedule.children[3])
-    assert 'distributed memory and colours not yet supported' in \
-        str(excinfo.value)
-
-
 def test_no_stencil_support():
     '''test that we raise an exception if we encounter a stencil kernel
     as the infrastructure API for this is not yet decided '''

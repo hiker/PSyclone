@@ -34,14 +34,19 @@ def test_colour_trans_declarations():
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    for dm in [False, True]:
+    for dm in [True]:
         psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
         invoke = psy.invokes.get('invoke_0_testkern_type')
         schedule = invoke.schedule
         ctrans = Dynamo0p3ColourTrans()
 
+        if dm:
+            index = 3
+        else:
+            index = 0
+
         # Colour the loop
-        cschedule, _ = ctrans.apply(schedule.children[0])
+        cschedule, _ = ctrans.apply(schedule.children[index])
 
         # Replace the original loop schedule with the transformed one
         invoke.schedule = cschedule
@@ -73,8 +78,13 @@ def test_colour_trans():
         schedule = invoke.schedule
         ctrans = Dynamo0p3ColourTrans()
 
+        if dm:
+            index = 3
+        else:
+            index = 0
+
         # Colour the loop
-        cschedule, _ = ctrans.apply(schedule.children[0])
+        cschedule, _ = ctrans.apply(schedule.children[index])
 
         # Replace the original loop schedule with the transformed one
         invoke.schedule = cschedule
@@ -180,14 +190,19 @@ def test_omp_do_not_over_cells():
                                  "test_files", "dynamo0p3",
                                  "1.4_single_invoke.f90"),
                     api=TEST_API)
-    for dm in [False, True]:
+    for dm in [True]:
         psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
         invoke = psy.invokes.get('invoke_0_testkern_type')
         schedule = invoke.schedule
         otrans = Dynamo0p3OMPLoopTrans()
 
+        if dm:
+            index = 3
+        else:
+            index = 0
+
         with pytest.raises(TransformationError) as excinfo:
-            _, _ = otrans.apply(schedule.children[0])
+            _, _ = otrans.apply(schedule.children[index])
         assert "Error in Dynamo0p3OMPLoopTrans trans" in str(excinfo.value)
         assert "The iteration space is not 'cells'" in str(excinfo.value)
 
@@ -200,14 +215,19 @@ def test_omp_parallel_do_not_over_cells():
                                  "test_files", "dynamo0p3",
                                  "1.4_single_invoke.f90"),
                     api=TEST_API)
-    for dm in [False, True]:
+    for dm in [True]:
         psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
         invoke = psy.invokes.get('invoke_0_testkern_type')
         schedule = invoke.schedule
         otrans = DynamoOMPParallelLoopTrans()
 
+        if dm:
+            index = 3
+        else:
+            index = 0
+
         with pytest.raises(TransformationError) as excinfo:
-            _, _ = otrans.apply(schedule.children[0])
+            _, _ = otrans.apply(schedule.children[index])
         assert "Error in DynamoOMPParallelLoopTrans tra" in str(excinfo.value)
         assert "The iteration space is not 'cells'" in str(excinfo.value)
 
@@ -254,7 +274,7 @@ def test_omp_colour_trans():
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    for dm in [False, True]:
+    for dm in [True]:
         psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
         invoke = psy.invokes.get('invoke_0_testkern_type')
         schedule = invoke.schedule
@@ -262,11 +282,16 @@ def test_omp_colour_trans():
         ctrans = Dynamo0p3ColourTrans()
         otrans = DynamoOMPParallelLoopTrans()
 
+        if dm:
+            index = 3
+        else:
+            index = 0
+
         # Colour the loop
-        cschedule, _ = ctrans.apply(schedule.children[0])
+        cschedule, _ = ctrans.apply(schedule.children[index])
 
         # Then apply OpenMP to the inner loop
-        schedule, _ = otrans.apply(cschedule.children[0].children[0])
+        schedule, _ = otrans.apply(cschedule.children[index].children[0])
 
         invoke.schedule = schedule
         code = str(psy.gen)
