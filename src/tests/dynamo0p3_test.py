@@ -16,7 +16,7 @@ from psyGen import PSyFactory, GenerationError
 import fparser
 from fparser import api as fpapi
 from dynamo0p3 import DynKernMetadata, DynKern, DynLoop
-from transformations import LoopFuseTrans, ColourTrans
+from transformations import LoopFuseTrans
 from genkernelstub import generate
 
 # constants

@@ -34,13 +34,13 @@ def test_colour_trans_declarations():
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    for dm in [True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0_testkern_type')
         schedule = invoke.schedule
         ctrans = Dynamo0p3ColourTrans()
 
-        if dm:
+        if dist_mem:
             index = 3
         else:
             index = 0
@@ -72,13 +72,13 @@ def test_colour_trans():
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    for dm in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0_testkern_type')
         schedule = invoke.schedule
         ctrans = Dynamo0p3ColourTrans()
 
-        if dm:
+        if dist_mem:
             index = 3
         else:
             index = 0
@@ -111,7 +111,7 @@ def test_colour_trans():
         # Check that we're using the colour map when getting the cell dof maps
         assert "get_cell_dofmap(cmap(colour, cell))" in gen
 
-        if dm:
+        if dist_mem:
             # Check that we get the right number of set_dirty halo calls in
             # the correct location
             dirty_str = (
@@ -133,8 +133,8 @@ def test_colouring_not_a_loop():
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    for dm in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0_testkern_type')
         schedule = invoke.schedule
         ctrans = Dynamo0p3ColourTrans()
@@ -168,8 +168,8 @@ def test_omp_not_a_loop():
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    for dm in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0_testkern_type')
         schedule = invoke.schedule
         otrans = Dynamo0p3OMPLoopTrans()
@@ -190,13 +190,13 @@ def test_omp_do_not_over_cells():
                                  "test_files", "dynamo0p3",
                                  "1.4_single_invoke.f90"),
                     api=TEST_API)
-    for dm in [True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+    for dist_mem in [True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0_testkern_type')
         schedule = invoke.schedule
         otrans = Dynamo0p3OMPLoopTrans()
 
-        if dm:
+        if dist_mem:
             index = 3
         else:
             index = 0
@@ -215,13 +215,13 @@ def test_omp_parallel_do_not_over_cells():
                                  "test_files", "dynamo0p3",
                                  "1.4_single_invoke.f90"),
                     api=TEST_API)
-    for dm in [True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0_testkern_type')
         schedule = invoke.schedule
         otrans = DynamoOMPParallelLoopTrans()
 
-        if dm:
+        if dist_mem:
             index = 3
         else:
             index = 0
@@ -240,8 +240,8 @@ def test_omp_parallel_not_a_loop():
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    for dm in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0_testkern_type')
         schedule = invoke.schedule
         otrans = DynamoOMPParallelLoopTrans()
@@ -252,6 +252,7 @@ def test_omp_parallel_not_a_loop():
             _, _ = otrans.apply(schedule)
         assert "Error in DynamoOMPParallelLoopTrans tra" in str(excinfo.value)
         assert "The node is not a loop" in str(excinfo.value)
+
 
 def test_colour_name():
     ''' Test the name property of the Dynamo0p3ColourTrans class '''
@@ -274,15 +275,15 @@ def test_omp_colour_trans():
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    for dm in [True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0_testkern_type')
         schedule = invoke.schedule
 
         ctrans = Dynamo0p3ColourTrans()
         otrans = DynamoOMPParallelLoopTrans()
 
-        if dm:
+        if dist_mem:
             index = 3
         else:
             index = 0
@@ -322,15 +323,15 @@ def test_omp_colour_orient_trans():
                                  "test_files", "dynamo0p3",
                                  "9_orientation.f90"),
                     api=TEST_API)
-    for dm in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
         schedule = invoke.schedule
 
         ctrans = Dynamo0p3ColourTrans()
         otrans = DynamoOMPParallelLoopTrans()
 
-        if dm:
+        if dist_mem:
             index = 4
         else:
             index = 0
@@ -360,12 +361,12 @@ def test_omp_parallel_colouring_needed():
                                  "test_files", "dynamo0p3",
                                  "11_any_space.f90"),
                     api=TEST_API)
-    for dm in [True]:
-        if dm:
+    for dist_mem in [False, True]:
+        if dist_mem:
             index = 5
         else:
             index = 0
-        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0_testkern_any_space_1_type')
         schedule = invoke.schedule
         otrans = DynamoOMPParallelLoopTrans()
@@ -386,12 +387,12 @@ def test_omp_colouring_needed():
                                  "test_files", "dynamo0p3",
                                  "11_any_space.f90"),
                     api=TEST_API)
-    for dm in [False, True]:
-        if dm:
+    for dist_mem in [False, True]:
+        if dist_mem:
             index = 5
         else:
             index = 0
-        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0_testkern_any_space_1_type')
         schedule = invoke.schedule
 
@@ -413,11 +414,11 @@ def test_check_seq_colours_omp_parallel_do():
                                  "test_files", "dynamo0p3",
                                  "9_orientation.f90"),
                     api=TEST_API)
-    for dm in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
         schedule = invoke.schedule
-        if dm:
+        if dist_mem:
             index = 4
         else:
             index = 0
@@ -436,6 +437,7 @@ def test_check_seq_colours_omp_parallel_do():
         assert "requested loop is over colours" in str(excinfo.value)
         assert "must be computed serially" in str(excinfo.value)
 
+
 def test_check_seq_colours_omp_do():
     '''Test that we raise an error if the user attempts to apply an OpenMP
     DO transformation to a loop over colours (since any such loop must
@@ -444,11 +446,11 @@ def test_check_seq_colours_omp_do():
                                  "test_files", "dynamo0p3",
                                  "9_orientation.f90"),
                     api=TEST_API)
-    for dm in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
         schedule = invoke.schedule
-        if dm:
+        if dist_mem:
             index = 4
         else:
             index = 0
@@ -479,15 +481,15 @@ def test_colouring_after_openmp():
                                  "test_files", "dynamo0p3",
                                  "9_orientation.f90"),
                     api=TEST_API)
-    for dm in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0_testkern_orientation_type')
         schedule = invoke.schedule
 
         ctrans = Dynamo0p3ColourTrans()
         otrans = DynamoOMPParallelLoopTrans()
 
-        if dm:
+        if dist_mem:
             index = 4
         else:
             index = 0
@@ -510,15 +512,15 @@ def test_colouring_multi_kernel():
                                  "test_files", "dynamo0p3",
                                  "4.6_multikernel_invokes.f90"),
                     api=TEST_API)
-    for dm in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0')
         schedule = invoke.schedule
 
         ctrans = Dynamo0p3ColourTrans()
         otrans = DynamoOMPParallelLoopTrans()
 
-        if dm:
+        if dist_mem:
             # We have halo exchanges inbetween the two loops which we
             # are going to get rid of for simplicity. Fields b, d and
             # the 3e's are already covered before the first loop so
@@ -559,14 +561,14 @@ def test_omp_region_omp_do():
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    for dm in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0_testkern_type')
         schedule = invoke.schedule
         olooptrans = Dynamo0p3OMPLoopTrans()
         ptrans = OMPParallelTrans()
 
-        if dm:
+        if dist_mem:
             index = 3
         else:
             index = 0
@@ -591,7 +593,7 @@ def test_omp_region_omp_do():
         omp_para_idx = -1
         cell_loop_idx = -1
         omp_enddo_idx = -1
-        if dm:
+        if dist_mem:
             loop_str = "DO cell=1,mesh%get_last_halo_cell(1)"
         else:
             loop_str = "DO cell=1,f1_proxy%vspace%get_ncell()"
@@ -620,12 +622,12 @@ def test_multi_kernel_single_omp_region():
                                  "test_files", "dynamo0p3",
                                  "4_multikernel_invokes.f90"),
                     api=TEST_API)
-    for dm in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0')
         schedule = invoke.schedule
 
-        if dm:
+        if dist_mem:
             # We have halo exchanges inbetween the two loops which we
             # are going to get rid of for simplicity. Fields f2, m1 and m2
             # are already covered before the first loop so
@@ -654,7 +656,7 @@ def test_multi_kernel_single_omp_region():
         omp_end_para_idx = -1
         cell_loop_idx = -1
         end_do_idx = -1
-        if dm:
+        if dist_mem:
             loop_str = "DO cell=1,mesh%get_last_halo_cell(1)"
         else:
             loop_str = "DO cell=1,f1_proxy%vspace%get_ncell()"
@@ -686,13 +688,13 @@ def test_loop_fuse_different_spaces():
                                  "test_files", "dynamo0p3",
                                  "4.7_multikernel_invokes.f90"),
                     api=TEST_API)
-    for dm in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0')
         schedule = invoke.schedule
 
         ftrans = DynamoLoopFuseTrans()
-        if dm:
+        if dist_mem:
             # b halo exchange between loops can be removed as access
             # in both loops is read and it is already covered by the
             # first loop
@@ -719,12 +721,12 @@ def test_loop_fuse_unexpected_error():
                                  "test_files", "dynamo0p3",
                                  "4_multikernel_invokes.f90"),
                     api=TEST_API)
-    for dm in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0')
         schedule = invoke.schedule
 
-        if dm:
+        if dist_mem:
             # remove unecessary halos between loops. At the moment we have no
             # intra halo analysis so we add them before all loops just in
             # case.
@@ -750,12 +752,12 @@ def test_loop_fuse():
                                  "test_files", "dynamo0p3",
                                  "4_multikernel_invokes.f90"),
                     api=TEST_API)
-    for dm in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0')
         schedule = invoke.schedule
 
-        if dm:
+        if dist_mem:
             # remove unecessary halos between loops. At the moment we have no
             # intra halo analysis so we add them before all loops just in
             # case.
@@ -776,7 +778,7 @@ def test_loop_fuse():
         end_loop_idx = -1
         call_idx1 = -1
         call_idx2 = -1
-        if dm:
+        if dist_mem:
             loop_str = "DO cell=1,mesh%get_last_halo_cell(1)"
         else:
             loop_str = "DO cell=1,f1_proxy%vspace%get_ncell()"
@@ -830,12 +832,12 @@ def test_loop_fuse_omp():
                                  "test_files", "dynamo0p3",
                                  "4_multikernel_invokes.f90"),
                     api=TEST_API)
-    for dm in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0')
         schedule = invoke.schedule
 
-        if dm:
+        if dist_mem:
             # remove unecessary halos between loops. At the moment we have no
             # intra halo analysis so we add them before all loops just in
             # case.
@@ -862,7 +864,7 @@ def test_loop_fuse_omp():
         cell_enddo_idx = -1
         call1_idx = -1
         call2_idx = -1
-        if dm:
+        if dist_mem:
             loop_str = "DO cell=1,mesh%get_last_halo_cell(1)"
         else:
             loop_str = "DO cell=1,f1_proxy%vspace%get_ncell()"
@@ -897,8 +899,8 @@ def test_fuse_colour_loops():
                                  "test_files", "dynamo0p3",
                                  "4.6_multikernel_invokes.f90"),
                     api=TEST_API)
-    for dm in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0')
         schedule = invoke.schedule
 
@@ -907,7 +909,7 @@ def test_fuse_colour_loops():
         rtrans = OMPParallelTrans()
         ftrans = DynamoLoopFuseTrans()
 
-        if dm:
+        if dist_mem:
             # We have halo exchanges inbetween the two loops which we
             # are going to get rid of for simplicity. Fields b, d and
             # the 3e's are already covered before the first loop so
@@ -988,9 +990,10 @@ def test_fuse_colour_loops():
         assert call_idx1 < end_loop_idx1
         assert call_idx2 < end_loop_idx2
 
-        if dm:
+        if dist_mem:
             set_dirty_str = (
-                "      ! Set halos dirty for fields modified in the above loop\n"
+                "      ! Set halos dirty for fields modified in the above "
+                "loop\n"
                 "      !\n"
                 "      CALL a_proxy%set_dirty()\n"
                 "      CALL f_proxy%set_dirty()\n")
@@ -1033,11 +1036,11 @@ def test_module_inline():
                                  "test_files", "dynamo0p3",
                                  "4.6_multikernel_invokes.f90"),
                     api=TEST_API)
-    for dm in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dm).create(info)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0')
         schedule = invoke.schedule
-        if dm:
+        if dist_mem:
             schedule.view()
             index = 13
         else:
