@@ -894,7 +894,7 @@ def test_loop_fuse_omp():
 def test_fuse_colour_loops():
     '''Test that we can fuse colour loops , enclose them in an OpenMP
     parallel region and preceed each by an OpenMP PARALLEL DO for
-    single node (non MPI) code '''
+    both sequential and distributed-memory code '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4.6_multikernel_invokes.f90"),
@@ -1003,9 +1003,9 @@ def test_fuse_colour_loops():
 
 def test_omp_parallel_and_halo_exchange_error():
     '''Tests that we raise an error if we try to apply an omp parallel
-    transformation a list containing halo_exchange calls. If this is
-    allowed then it is likely that we will get incorrect results, or the
-    code will fail. Fixing this problem is the subjec of ticket #526'''
+    transformation to a list containing halo_exchange calls. If this is
+    allowed then it is likely that we will get incorrect results, or that
+    the code will fail. Fixing this problem is the subject of ticket #526'''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4_multikernel_invokes.f90"),

@@ -161,7 +161,7 @@ class BaseGen(object):
             if isinstance(sibling, Do):
                 return sibling
 
-        raise RuntimeError("Error, no end of loop found")
+        raise RuntimeError("Error, no loop found - there is no previous loop")
 
     def last_declaration(self):
         '''Returns the *last* occurrence of a Declaration in the list of
