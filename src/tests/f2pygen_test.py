@@ -1025,4 +1025,4 @@ def test_basegen_previous_loop_no_loop():
     # even though we haven't got one
     with pytest.raises(RuntimeError) as err:
         sub.previous_loop()
-    assert "no end of loop found" in str(err)
+    assert "no loop found - there is no previous loop" in str(err)
