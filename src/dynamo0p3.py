@@ -497,8 +497,10 @@ class DynamoPSy(PSy):
         psy_module.add(UseGen(psy_module, name="operator_mod", only=True,
                               funcnames=["operator_type",
                                          "operator_proxy_type"]))
-        psy_module.add(UseGen(psy_module, name="quadrature_mod", only=True,
-                              funcnames=["quadrature_type"]))
+        psy_module.add(UseGen(psy_module, name="quadrature_3d_xyoz_mod",
+                              only=True,
+                              funcnames=["quadrature_3d_xyoz_type",
+                                         "quadrature_3d_xyoz_proxy_type"]))
         psy_module.add(UseGen(psy_module, name="constants_mod", only=True,
                               funcnames=["r_def"]))
         # add all invoke specific information
@@ -788,9 +790,11 @@ class DynInvoke(Invoke):
         # Add the subroutine argument declarations for qr (quadrature
         # rules)
         if len(self._psy_unique_qr_vars) > 0:
-            invoke_sub.add(TypeDeclGen(invoke_sub, datatype="quadrature_type",
+            invoke_sub.add(TypeDeclGen(invoke_sub,
+                                       datatype="quadrature_3d_xyoz_type",
                                        entity_decls=self._psy_unique_qr_vars,
                                        intent="in"))
+
         # declare and initialise proxies for each of the (non-scalar)
         # arguments
         invoke_sub.add(CommentGen(invoke_sub, ""))
@@ -825,6 +829,25 @@ class DynInvoke(Invoke):
                 TypeDeclGen(invoke_sub,
                             datatype="operator_proxy_type",
                             entity_decls=op_proxy_decs))
+
+        # declare and initialise proxies for any quadrature arguments
+        if self.qr_required:
+            invoke_sub.add(CommentGen(invoke_sub, ""))
+            invoke_sub.add(CommentGen(invoke_sub,
+                                      " Initialise quadrature proxies"))
+            invoke_sub.add(CommentGen(invoke_sub, ""))
+            qr_proxy_decs = []
+            for qr_var in self._psy_unique_qr_vars:
+                proxy_name = qr_var + "_proxy"
+                invoke_sub.add(AssignGen(invoke_sub, lhs=proxy_name,
+                                         rhs=qr_var + "%get_proxy()"))
+                qr_proxy_decs.append(proxy_name)
+
+            invoke_sub.add(
+                TypeDeclGen(invoke_sub,
+                            datatype="quadrature_3d_xyoz_proxy_type",
+                            entity_decls=qr_proxy_decs))
+ 
         # Initialise the number of layers
         invoke_sub.add(CommentGen(invoke_sub, ""))
         invoke_sub.add(CommentGen(invoke_sub, " Initialise number of layers"))
@@ -875,12 +898,12 @@ class DynInvoke(Invoke):
             invoke_sub.add(CommentGen(invoke_sub, ""))
             invoke_sub.add(
                 DeclGen(invoke_sub, datatype="integer",
-                        entity_decls=["nqp_h", "nqp_v"]))
+                        entity_decls=["nqp_xy", "nqp_z"]))
             invoke_sub.add(
                 DeclGen(invoke_sub, datatype="real", pointer=True,
-                        kind="r_def", entity_decls=["xp(:,:) => null()"]))
-            decl_list = ["zp(:) => null()", "wh(:) => null()",
-                         "wv(:) => null()"]
+                        kind="r_def", entity_decls=["xqp_xy(:,:) => null()"]))
+            decl_list = ["xqp_z(:) => null()", "wqp_xy(:) => null()",
+                         "wqp_z(:) => null()"]
             invoke_sub.add(
                 DeclGen(invoke_sub, datatype="real", pointer=True,
                         kind="r_def", entity_decls=decl_list))
@@ -888,18 +911,16 @@ class DynInvoke(Invoke):
                 raise GenerationError(
                     "Oops, not yet coded for multiple qr values")
             qr_var_name = self._psy_unique_qr_vars[0]
-            qr_ptr_vars = {"zp": "xqp_v", "xp": "xqp_h", "wh": "wqp_h",
-                           "wv": "wqp_v"}
-            qr_vars = ["nqp_h", "nqp_v"]
-            for qr_var in qr_ptr_vars.keys():
+            qr_ptr_vars = ["xqp_xy", "xqp_z", "wqp_xy", "wqp_z"]
+            qr_vars = ["nqp_xy", "nqp_z"]
+            for qr_var in qr_ptr_vars:
                 invoke_sub.add(
                     AssignGen(invoke_sub, pointer=True, lhs=qr_var,
-                              rhs=qr_var_name + "%get_" +
-                              qr_ptr_vars[qr_var] + "()"))
+                              rhs=qr_var_name + "_proxy%" + qr_var))
             for qr_var in qr_vars:
                 invoke_sub.add(
                     AssignGen(invoke_sub, lhs=qr_var,
-                              rhs=qr_var_name + "%get_" + qr_var + "()"))
+                              rhs=qr_var_name + "_proxy%" + qr_var))
         operator_declarations = []
         var_list = []
         var_dim_list = []
@@ -941,7 +962,7 @@ class DynInvoke(Invoke):
                 invoke_sub.add(AssignGen(invoke_sub, lhs=lhs, rhs=rhs))
                 # allocate the basis function variable
                 alloc_args = "dim_" + function_space + ", " + \
-                             self.ndf_name(function_space) + ", nqp_h, nqp_v"
+                             self.ndf_name(function_space) + ", nqp_xy, nqp_z"
                 op_name = self.get_operator_name("gh_basis", function_space)
                 invoke_sub.add(AllocateGen(invoke_sub,
                                            op_name+"("+alloc_args+")"))
@@ -957,7 +978,7 @@ class DynInvoke(Invoke):
                 invoke_sub.add(AssignGen(invoke_sub, lhs=lhs, rhs=rhs))
                 # allocate the diff basis function variable
                 alloc_args = "diff_dim_" + function_space + ", " + \
-                             self.ndf_name(function_space) + ", nqp_h, nqp_v"
+                             self.ndf_name(function_space) + ", nqp_xy, nqp_z"
                 op_name = self.get_operator_name("gh_diff_basis",
                                                  function_space)
                 invoke_sub.add(AllocateGen(invoke_sub,
@@ -1006,7 +1027,7 @@ class DynInvoke(Invoke):
                                                      function_space)
                     args.append(op_name)
                     args.append(self.ndf_name(function_space))
-                    args.extend(["nqp_h", "nqp_v", "xp", "zp"])
+                    args.extend(["nqp_xy", "nqp_z", "xqp_xy", "xqp_z"])
                     # find an appropriate field to access
                     arg = self.arg_for_funcspace(function_space)
                     name = arg.proxy_name_indexed
@@ -1014,7 +1035,7 @@ class DynInvoke(Invoke):
                     invoke_sub.add(CallGen(invoke_sub,
                                            name=name + "%" +
                                            arg.ref_name(function_space) +
-                                           "%compute_basis_function",
+                                           "%compute_basis_function_3d_xyoz",
                                            args=args))
                 if self.diff_basis_required(function_space):
                     # Create the argument list
@@ -1023,7 +1044,7 @@ class DynInvoke(Invoke):
                                                      function_space)
                     args.append(op_name)
                     args.append(self.ndf_name(function_space))
-                    args.extend(["nqp_h", "nqp_v", "xp", "zp"])
+                    args.extend(["nqp_xy", "nqp_z", "xqp_xy", "xqp_z"])
                     # find an appropriate field to access
                     arg = self.arg_for_funcspace(function_space)
                     name = arg.proxy_name_indexed
@@ -1031,7 +1052,8 @@ class DynInvoke(Invoke):
                     invoke_sub.add(
                         CallGen(invoke_sub, name=name + "%" +
                                 arg.ref_name(function_space) +
-                                "%compute_diff_basis_function", args=args))
+                                "%compute_diff_basis_function_3d_xyoz",
+                                args=args))
         invoke_sub.add(CommentGen(invoke_sub, ""))
         if config.DISTRIBUTED_MEMORY:
             invoke_sub.add(CommentGen(invoke_sub, " Call kernels and "
@@ -1427,7 +1449,8 @@ class DynKern(Kern):
         self._fs_descriptors = FSDescriptors(ktype.func_descriptors)
         # dynamo 0.3 api kernels require quadrature rule arguments to be
         # passed in if one or more basis functions are used by the kernel.
-        self._qr_args = {"nh": "nqp_h", "nv": "nqp_v", "h": "wh", "v": "wv"}
+        self._qr_args = {"nh": "nqp_xy", "nv": "nqp_z", "h": "wqp_xy",
+                         "v": "wqp_z"}
         # perform some consistency checks as we have switched these
         # off in the base class
         if self._qr_required:

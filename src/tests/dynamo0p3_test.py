@@ -429,7 +429,7 @@ def test_field():
     output = (
         "  MODULE psy_single_invoke\n"
         "    USE constants_mod, ONLY: r_def\n"
-        "    USE quadrature_3d_xyoz_mod, ONLY : quadrature_3d_xyoz_type, "
+        "    USE quadrature_3d_xyoz_mod, ONLY: quadrature_3d_xyoz_type, "
         "quadrature_3d_xyoz_proxy_type\n"
         "    USE operator_mod, ONLY: operator_type, operator_proxy_type\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
@@ -502,7 +502,7 @@ def test_field_fs():
     output = (
         "  MODULE psy_single_invoke_fs\n"
         "    USE constants_mod, ONLY: r_def\n"
-        "    USE quadrature_3d_xyoz_mod, ONLY : quadrature_3d_xyoz_type, "
+        "    USE quadrature_3d_xyoz_mod, ONLY: quadrature_3d_xyoz_type, "
         "quadrature_3d_xyoz_proxy_type\n"
         "    USE operator_mod, ONLY: operator_type, operator_proxy_type\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
@@ -648,15 +648,14 @@ def test_field_qr():
         "diff_basis_w2(:,:,:,:), basis_w3(:,:,:,:), diff_basis_w3(:,:,:,:)\n"
         "      INTEGER dim_w1, diff_dim_w2, dim_w3, diff_dim_w3\n"
         "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
-        "      REAL(KIND=r_def), pointer :: xqp_xy(:,:) => null(), "
-        "xqp_z(:) => null()\n"
-        "      REAL(KIND=r_def), pointer :: wqp_xy(:) => null(), "
-        "wqp_z(:) => null()\n"
-        "      INTEGER nqp_h, nqp_v\n"
+        "      REAL(KIND=r_def), pointer :: xqp_z(:) => null(), "
+        "wqp_xy(:) => null(), wqp_z(:) => null()\n"
+        "      REAL(KIND=r_def), pointer :: xqp_xy(:,:) => null()\n"
+        "      INTEGER nqp_xy, nqp_z\n"
         "      TYPE(mesh_type) mesh\n"
         "      INTEGER nlayers\n"
-        "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      TYPE(quadrature_3d_xyoz_proxy_type) qr_proxy\n"
+        "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      !\n"
         "      ! Initialise field proxies\n"
         "      !\n"
@@ -1250,7 +1249,7 @@ def test_operator():
         "CALL testkern_operator_code(cell, nlayers, mm_w0_proxy%ncell_3d, mm_"
         "w0_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data, chi_pr"
         "oxy(3)%data, a, ndf_w0, undf_w0, map_w0, basis_w0, diff_basis_w0, "
-        "nqp_h, nqp_v, wh, wv)") != -1
+        "nqp_xy, nqp_z, wqp_xy, wqp_z)") != -1
 
 
 def test_operator_different_spaces():
@@ -1277,15 +1276,15 @@ def test_operator_different_spaces():
         "diff_basis_w2(:,:,:,:), diff_basis_w0(:,:,:,:)\n"
         "      INTEGER dim_w3, diff_dim_w2, diff_dim_w0\n"
         "      INTEGER ndf_w3, ndf_w2, ndf_w0, undf_w0\n"
-        "      REAL(KIND=r_def), pointer :: xqp_z(:) => null(), wqp_xy(:) => null(), "
-        "wqp_z(:) => null()\n"
+        "      REAL(KIND=r_def), pointer :: xqp_z(:) => null(), "
+        "wqp_xy(:) => null(), wqp_z(:) => null()\n"
         "      REAL(KIND=r_def), pointer :: xqp_xy(:,:) => null()\n"
         "      INTEGER nqp_xy, nqp_z\n"
         "      TYPE(mesh_type) mesh\n"
         "      INTEGER nlayers\n"
+        "      TYPE(quadrature_3d_xyoz_proxy_type) qr_proxy\n"
         "      TYPE(operator_proxy_type) mapping_proxy\n"
         "      TYPE(field_proxy_type) chi_proxy(3)\n"
-        "      TYPE(quadrature_3d_xyoz_proxy_type) qr_proxy\n"
         "      !\n"
         "      ! Initialise field proxies\n"
         "      !\n"
@@ -1402,7 +1401,7 @@ def test_operator_nofield():
         "CALL testkern_operator_code(cell, nlayers, mm_w2_proxy%ncell_3d,"
         " mm_w2_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data"
         ", chi_proxy(3)%data, ndf_w2, basis_w2, ndf_w0, undf_w0, map_w0, "
-        "diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
+        "diff_basis_w0, nqp_xy, nqp_z, wqp_xy, wqp_z)") != -1
 
 
 def test_operator_nofield_different_space():
