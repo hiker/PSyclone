@@ -1536,7 +1536,7 @@ class DynKern(Kern):
                 if self.is_coloured():
                     arglist.append("cmap(colour, cell)")
                 else:
-                    arglist.append("cell")                    
+                    arglist.append("cell")
             else:
                 arglist.append("cell")
             if my_type == "subroutine":
