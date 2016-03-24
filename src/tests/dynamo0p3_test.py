@@ -1438,7 +1438,8 @@ def test_operator_nofield_scalar():
     assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
     assert (
         "(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
-        "local_stencil, b, ndf_w2, basis_w2, nqp_h, nqp_v, wh, wv)" in gen)
+        "local_stencil, b, ndf_w2, basis_w2, nqp_xy, nqp_z, wqp_xy, wqp_z)"
+        in gen)
 
 
 def test_operator_orientation():
@@ -1464,7 +1465,7 @@ def test_operator_orientation():
         "CALL testkern_operator_orient_code(cell, nlayers, mm_w1_proxy%ncell_"
         "3d, mm_w1_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data,"
         " chi_proxy(3)%data, ndf_w1, basis_w1, orientation_w1, ndf_w0, undf_w"
-        "0, map_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)") != -1
+        "0, map_w0, diff_basis_w0, nqp_xy, nqp_z, wqp_xy, wqp_z)") != -1
 
 
 def test_operator_orientation_different_space():
@@ -1496,7 +1497,8 @@ def test_operator_orientation_different_space():
         "(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%local_"
         "stencil, chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, "
         "ndf_w1, basis_w1, orientation_w1, ndf_w2, orientation_w2, ndf_w0, "
-        "undf_w0, map_w0, diff_basis_w0, nqp_h, nqp_v, wh, wv)" in gen_str)
+        "undf_w0, map_w0, diff_basis_w0, nqp_xy, nqp_z, wqp_xy, wqp_z)"
+        in gen_str)
 
 
 def test_any_space_1():
@@ -1515,10 +1517,10 @@ def test_any_space_1():
         "basis_any_space_2(:,:,:,:)") != -1
     assert str(generated_code).find(
         "ALLOCATE (basis_any_space_1(dim_any_space_1, ndf_any_space_1, "
-        "nqp_h, nqp_v))") != -1
+        "nqp_xy, nqp_z))") != -1
     assert str(generated_code).find(
         "ALLOCATE (basis_any_space_2(dim_any_space_2, ndf_any_space_2, "
-        "nqp_h, nqp_v))") != -1
+        "nqp_xy, nqp_z))") != -1
     assert str(generated_code).find(
         "map_any_space_1 => a_proxy%vspace%get_cell_dofmap(cell)") != -1
     assert str(generated_code).find(
@@ -1528,8 +1530,8 @@ def test_any_space_1():
         "data, c_proxy(1)%data, c_proxy(2)%data, c_proxy(3)%data, ndf_a"
         "ny_space_1, undf_any_space_1, map_any_space_1, basis_any_space"
         "_1, ndf_any_space_2, undf_any_space_2, map_any_space_2, basis_"
-        "any_space_2, ndf_w0, undf_w0, map_w0, diff_basis_w0, nqp_h, nq"
-        "p_v, wh, wv)") != -1
+        "any_space_2, ndf_w0, undf_w0, map_w0, diff_basis_w0, nqp_xy, "
+        "nqp_z, wqp_xy, wqp_z)") != -1
     assert str(generated_code).find(
         "DEALLOCATE (basis_any_space_1, basis_any_space_2, diff_basis_w"
         "0)") != -1
@@ -2302,7 +2304,7 @@ def test_basis():
         "basis_w0, ndf_w1, basis_w1, ndf_w2, undf_w2, map_w2, basis_w2, "
         "ndf_w3, basis_w3, ndf_wtheta, undf_wtheta, map_wtheta, "
         "basis_wtheta, ndf_w2h, basis_w2h, ndf_w2v, undf_w2v, map_w2v, "
-        "basis_w2v, nqp_h, nqp_v, wh, wv)\n"
+        "basis_w2v, nqp_xy, nqp_z, wqp_xy, wqp_z)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: cell\n"
@@ -2330,32 +2332,32 @@ def test_basis():
         "field_7_w2v\n"
         "      INTEGER, intent(in) :: ndf_w0\n"
         "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,nqp_h,nqp_v) "
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,nqp_xy,nqp_z) "
         ":: basis_w0\n"
         "      INTEGER, intent(in) :: ndf_w1\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,nqp_h,nqp_v) "
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,nqp_xy,nqp_z) "
         ":: basis_w1\n"
         "      INTEGER, intent(in) :: ndf_w2\n"
         "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2,nqp_h,nqp_v) "
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2,nqp_xy,nqp_z) "
         ":: basis_w2\n"
         "      INTEGER, intent(in) :: ndf_w3\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) "
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,nqp_xy,nqp_z) "
         ":: basis_w3\n"
         "      INTEGER, intent(in) :: ndf_wtheta\n"
         "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_wtheta,nqp_h,"
-        "nqp_v) :: basis_wtheta\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_wtheta,nqp_xy,"
+        "nqp_z) :: basis_wtheta\n"
         "      INTEGER, intent(in) :: ndf_w2h\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2h,nqp_h,nqp_v) "
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2h,nqp_xy,nqp_z) "
         ":: basis_w2h\n"
         "      INTEGER, intent(in) :: ndf_w2v\n"
         "      INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2v,nqp_h,nqp_v) "
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2v,nqp_xy,nqp_z) "
         ":: basis_w2v\n"
-        "      INTEGER, intent(in) :: nqp_h, nqp_v\n"
-        "      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh\n"
-        "      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv\n"
+        "      INTEGER, intent(in) :: nqp_xy, nqp_z\n"
+        "      REAL(KIND=r_def), intent(in), dimension(nqp_xy) :: wqp_xy\n"
+        "      REAL(KIND=r_def), intent(in), dimension(nqp_z) :: wqp_z\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
 
@@ -2445,7 +2447,7 @@ def test_diff_basis():
         "diff_basis_w0, ndf_w1, diff_basis_w1, ndf_w2, undf_w2, map_w2, "
         "diff_basis_w2, ndf_w3, diff_basis_w3, ndf_wtheta, undf_wtheta, "
         "map_wtheta, diff_basis_wtheta, ndf_w2h, diff_basis_w2h, ndf_w2v, "
-        "undf_w2v, map_w2v, diff_basis_w2v, nqp_h, nqp_v, wh, wv)\n"
+        "undf_w2v, map_w2v, diff_basis_w2v, nqp_xy, nqp_z, wqp_xy, wqp_z)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: cell\n"
@@ -2473,32 +2475,32 @@ def test_diff_basis():
         "field_7_w2v\n"
         "      INTEGER, intent(in) :: ndf_w0\n"
         "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,nqp_h,nqp_v) "
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,nqp_xy,nqp_z) "
         ":: diff_basis_w0\n"
         "      INTEGER, intent(in) :: ndf_w1\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,nqp_h,nqp_v) "
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,nqp_xy,nqp_z) "
         ":: diff_basis_w1\n"
         "      INTEGER, intent(in) :: ndf_w2\n"
         "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,nqp_h,nqp_v) "
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,nqp_xy,nqp_z) "
         ":: diff_basis_w2\n"
         "      INTEGER, intent(in) :: ndf_w3\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,nqp_h,nqp_v) "
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,nqp_xy,nqp_z) "
         ":: diff_basis_w3\n"
         "      INTEGER, intent(in) :: ndf_wtheta\n"
         "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_wtheta,nqp_h,"
-        "nqp_v) :: diff_basis_wtheta\n"
+        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_wtheta,nqp_xy,"
+        "nqp_z) :: diff_basis_wtheta\n"
         "      INTEGER, intent(in) :: ndf_w2h\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2h,nqp_h,nqp_v) "
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2h,nqp_xy,nqp_z) "
         ":: diff_basis_w2h\n"
         "      INTEGER, intent(in) :: ndf_w2v\n"
         "      INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2v,nqp_h,nqp_v) "
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2v,nqp_xy,nqp_z) "
         ":: diff_basis_w2v\n"
-        "      INTEGER, intent(in) :: nqp_h, nqp_v\n"
-        "      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh\n"
-        "      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv\n"
+        "      INTEGER, intent(in) :: nqp_xy, nqp_z\n"
+        "      REAL(KIND=r_def), intent(in), dimension(nqp_xy) :: wqp_xy\n"
+        "      REAL(KIND=r_def), intent(in), dimension(nqp_z) :: wqp_z\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     print output
@@ -2543,8 +2545,8 @@ ORIENTATION_OUTPUT = (
     "    SUBROUTINE dummy_orientation_code(cell, nlayers, field_1_w0, "
     "op_2_ncell_3d, op_2, field_3_w2, op_4_ncell_3d, op_4, ndf_w0, "
     "undf_w0, map_w0, orientation_w0, ndf_w1, orientation_w1, ndf_w2, "
-    "undf_w2, map_w2, orientation_w2, ndf_w3, orientation_w3, nqp_h, "
-    "nqp_v, wh, wv)\n"
+    "undf_w2, map_w2, orientation_w2, ndf_w3, orientation_w3, nqp_xy, "
+    "nqp_z, wqp_xy, wqp_z)\n"
     "      USE constants_mod, ONLY: r_def\n"
     "      IMPLICIT NONE\n"
     "      INTEGER, intent(in) :: cell\n"
@@ -2571,9 +2573,9 @@ ORIENTATION_OUTPUT = (
     "      INTEGER, intent(in), dimension(ndf_w2) :: orientation_w2\n"
     "      INTEGER, intent(in) :: ndf_w3\n"
     "      INTEGER, intent(in), dimension(ndf_w3) :: orientation_w3\n"
-    "      INTEGER, intent(in) :: nqp_h, nqp_v\n"
-    "      REAL(KIND=r_def), intent(in), dimension(nqp_h) :: wh\n"
-    "      REAL(KIND=r_def), intent(in), dimension(nqp_v) :: wv\n"
+    "      INTEGER, intent(in) :: nqp_xy, nqp_z\n"
+    "      REAL(KIND=r_def), intent(in), dimension(nqp_xy) :: wqp_xy\n"
+    "      REAL(KIND=r_def), intent(in), dimension(nqp_z) :: wqp_z\n"
     "    END SUBROUTINE dummy_orientation_code\n"
     "  END MODULE dummy_orientation_mod")
 
