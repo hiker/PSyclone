@@ -23,10 +23,9 @@ def trans(psy):
             print "child is of type ",type(child)
             if isinstance(child, Loop):
                 if child.loop_type == "colours":
-                    newsched, _ = otrans.apply(child.children[0])
+                    schedule, _ = otrans.apply(child.children[0])
                 else:
-                    newsched, _ = otrans.apply(child)
-            schedule = newsched
+                    schedule, _ = otrans.apply(child)
 
         schedule.view()
         invoke.schedule = schedule
