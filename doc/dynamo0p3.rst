@@ -398,6 +398,21 @@ where:
 * type(field_type), intent(in) :: *field1*
 * type(field_type), intent(out) :: *field2*
 
+copy_scaled_field
+++++++++++++++
+
+**copy_scaled_field** (*value*, *field1*, *field2*)
+
+Multiplies a field by a scalar and stores the result in a second field: ::
+  
+  field2(:) = value * field1(:)
+
+where:
+
+* real(r_def), intent(in) :: *value*
+* type(field_type), intent(in) :: *field1*
+* type(field_type), intent(out) :: *field2*
+
 divide_field
 ++++++++++++
 
@@ -440,6 +455,20 @@ where:
 * type(field_type), intent(in) :: *field1*, *field2*
 * real(r_def), intent(out) :: *sumval*
 
+inc_field
++++++++++
+
+**inc_field** (*field1*, *field2*)
+
+Adds the second field to the first and returns it: ::
+
+  field1(:) = field1(:) + field2(:)
+
+where:
+
+* type(field_type), intent(inout) :: *field1*
+* type(field_type),    intent(in) :: *field2*
+
 minus_fields
 ++++++++++++
 
@@ -456,20 +485,19 @@ where:
 * type(field_type), intent(in) :: *field2*
 * type(field_type), intent(out) :: *field3*
 
-multiply_field
-++++++++++++++
+multiply_fields
++++++++++++++++
 
-**multiply_field** (*value*, *field1*, *field2*)
+**multiply_fields** (*field1*, *field2*, *field3*)
 
-Multiplies a field by a scalar: ::
-  
-  field2(:) = value * field1(:)
+Multiplies two fields together and returns the result in a third field: ::
+
+  field3(:) = field1(:)*field2(:)
 
 where:
 
-* real(r_def), intent(in) :: *value*
-* type(field_type), intent(in) :: *field1*
-* type(field_type), intent(out) :: *field2*
+* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(out) :: *field3*
 
 plus_fields
 +++++++++++
