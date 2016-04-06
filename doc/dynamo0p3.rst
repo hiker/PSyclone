@@ -339,6 +339,21 @@ where:
 * type(field_type), intent(in) :: *field1*, *field2*
 * type(field_type), intent(out) :: *field3*
 
+inc_axpby
++++++++++
+
+**inc_axpby** (*a*, *field1*, *b*, *field2*)
+
+Performs: ::
+   
+   field1(:) = a*field1(:) + b*field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *a*, *b*
+* type(field_type), intent(inout) :: *field1*
+* type(field_type),    intent(in) :: *field2*
+
 axpy
 ++++
 
@@ -354,6 +369,21 @@ where:
 * type(field_type), intent(in) :: *field1*, *field2*
 * type(field_type), intent(out) :: *field3*
 
+inc_axpy
+++++++++
+
+**inc_axpy** (*a*, *field1*, *field2*)
+
+Performs: ::
+   
+   field1(:) = a*field1(:) + field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *a*
+* type(field_type), intent(inout) :: *field1*
+* type(field_type),    intent(in) :: *field2*
+
 copy_field
 ++++++++++
 
@@ -368,12 +398,26 @@ where:
 * type(field_type), intent(in) :: *field1*
 * type(field_type), intent(out) :: *field2*
 
+divide_field
+++++++++++++
+
+**divide_field** (*field1*, *field2*)
+
+Divides the first field by the second and returns it: ::
+
+   field1(:) = field1(:) / field2(:)
+
+where:
+
+* type(field_type), intent(inout) :: *field1*
+* type(field_type),    intent(in) :: *field2*
+
 divide_fields
 +++++++++++++
 
 **divide_fields** (*field1*, *field2*, *field3*)
 
-Divides the first field by the second: ::
+Divides the first field by the second and returns the result in the third: ::
 
    field3(:) = field1(:) / field2(:)
 

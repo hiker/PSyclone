@@ -753,10 +753,17 @@ def test_pw_inc_field():
     assert False
 
 def test_pw_div_field():
+    ''' Test that we generate correct code for the intrinsic x = x/y
+    where x and y are both fields '''
     assert False
 
-def test_pw_mult_field():
+def test_pw_mult_fields():
+    ''' Test that we generate correct code for the intrinsic z = x*y
+    where x, y and z are fields '''
     assert False
 
 def test_pw_inc_axpby():
+    ''' Test that we generate correct code for the intrinsic
+    operation x = a*x + b*y where x and y are fields and a and b are
+    scalars. '''
     assert False
