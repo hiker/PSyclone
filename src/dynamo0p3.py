@@ -55,20 +55,19 @@ FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
 # horizontal plane).
 VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 
-# The pointwise/infrastructure/intrinsic calls that we support for
-# this API. The meta-data describing these kernels is in
-# dynamo0p3_intrinsics_mod.f90.
-# TODO should we generate this list by reading the file containing the
+# The built-in operations that we support for this API. The meta-data
+# describing these kernels is in dynamo0p3_builtins_mod.f90.
+#TODO should we generate this list by reading the file containing the
 # meta-data? That way this information would be stored in a single
 # location.
-INTRINSIC_NAMES = ["set_field_scalar", "copy_field",
-                            "minus_fields", "plus_fields",
-                            "divide_fields", "axpy", "axpby",
-                            "multiply_field"]
+BUILTIN_NAMES = ["set_field_scalar", "copy_field",
+                 "minus_fields", "plus_fields",
+                 "divide_fields", "axpy", "axpby",
+                 "multiply_field"]
 
 # The name of the file containing the meta-data describing the
-# intrinsics for this API
-INTRINSIC_DEFINITIONS_FILE = "dynamo0p3_intrinsics_mod.f90"
+# built-in operations for this API
+BUILTIN_DEFINITIONS_FILE = "dynamo0p3_builtins_mod.f90"
 
 # classes
 
@@ -2387,11 +2386,11 @@ class DynInfCallFactory(object):
         ''' Create the objects needed for a call to the intrinsic
         described in the call (InfCall) object '''
 
-        if call.func_name not in INTRINSIC_NAMES:
+        if call.func_name not in BUILTIN_NAMES:
             raise ParseError(
-                "Unrecognised infrastructure call. Found '{0}' but expected "
+                "Unrecognised Built-in. Found '{0}' but expected "
                 "one of '{1}'".format(call.func_name,
-                                      INTRINSIC_NAMES))
+                                      BUILTIN_NAMES))
 
         # The infrastructure operation itself
         if call.func_name == "set_field_scalar":

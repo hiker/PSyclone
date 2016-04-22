@@ -17,26 +17,26 @@ import os
 from line_length import FortLineLength
 
 
-def get_intrinsic_defs(api):
-    '''Get the names of the supported intrinsic/infrastructure kernels
-    and the file containing the associated meta-data for the supplied api '''
+def get_builtin_defs(api):
+    '''Get the names of the supported built-in operations
+    and the file containing the associated meta-data for the supplied API '''
     from config import SUPPORTEDAPIS
     if api not in SUPPORTEDAPIS:
         raise ParseError(
-            "get_intrinsic_defs: Unsupported API '{0}' specified. "
+            "get_builtin_defs: Unsupported API '{0}' specified. "
             "Supported types are {1}.".format(api,
                                               SUPPORTEDAPIS))
 
     if api == "dynamo0.3":
         # TODO consider replacing this with module-scope variables
         # whose values are set in the API-specific modules.
-        from dynamo0p3 import INTRINSIC_NAMES as intrinsics
-        from dynamo0p3 import INTRINSIC_DEFINITIONS_FILE as fname
+        from dynamo0p3 import BUILTIN_NAMES as builtins
+        from dynamo0p3 import BUILTIN_DEFINITIONS_FILE as fname
     else:
-        # We don't support any intrinsics for this API
-        intrinsics = []
+        # We don't support any built-ins for this API
+        builtins = []
         fname = None
-    return intrinsics, fname
+    return builtins, fname
 
 
 class ParseError(Exception):
@@ -325,23 +325,23 @@ class KernelTypeFactory(object):
 
     def create(self, ast, name=None):
 
-        intrinsic_names, intrinsic_defs_file = get_intrinsic_defs(self._type)
+        builtin_names, builtin_defs_file = get_builtin_defs(self._type)
             
-        if name in intrinsic_names:
+        if name in builtin_names:
             # The meta-data for these lives in a Fortran module file
             # in the psyclone src directory - i.e. in the same
             # location as this python file. The precise name of this
-            # file for this api is specified in INTRINSIC_DEFINITIONS
+            # file for this api is specified in BUILTIN_DEFINITIONS
             fname = os.path.join(
                 os.path.dirname(os.path.abspath(__file__)),
-                intrinsic_defs_file)
+                builtin_defs_file)
             if not os.path.isfile(fname):
                 raise ParseError(
-                    "Kernel '{0}' is a recognised intrinsic type but "
+                    "Kernel '{0}' is a recognised Built-in but "
                     "cannot file '{1}' containing the meta-data describing "
-                    "the intrinsic kernels for API '{2}'".format(name,
-                                                                 fname,
-                                                                 self._type))
+                    "the Built-in operations for API '{2}'".format(name,
+                                                                   fname,
+                                                                   self._type))
             # Attempt to parse the meta-data
             try:
                 ast = fpapi.parse(fname)
@@ -675,9 +675,8 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                              "Supported types are {1}.".format(api,
                                                                SUPPORTEDAPIS))
 
-    # Get the names of the supported intrinsic/infrastructure
-    # operations for this API
-    intrinsic_names, _ = get_intrinsic_defs(api)
+    # Get the names of the supported Built-in operations for this API
+    builtin_names, _ = get_builtin_defs(api)
 
     # drop cache
     fparser.parsefortran.FortranParser.cache.clear()
@@ -767,9 +766,9 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                             argargs.append(Arg('variable',
                                                variableName,
                                                variableName))
-                if argname in intrinsic_names:
-                    # this is an infrastructure call. The KernelTypeFactory
-                    # will generate appropriate meta-data
+                if argname in builtin_names:
+                    # this is a call to a built-in operation. The
+                    # KernelTypeFactory will generate appropriate meta-data
                     statement_kcalls.append(
                         InfCall(argname,
                                 KernelTypeFactory(api=api).create(
@@ -781,9 +780,9 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                     except KeyError:
                         raise ParseError(
                             "kernel call '{0}' must either be named in a use "
-                            "statement or be a recognised pointwise kernel "
+                            "statement or be a recognised Built-in "
                             "(one of '{1}' for this API)".
-                            format(argname, intrinsic_names))
+                            format(argname, builtin_names))
 
                     # Search for the file containing the kernel source
                     import fnmatch
