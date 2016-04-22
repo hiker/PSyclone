@@ -847,7 +847,7 @@ class DynInvoke(Invoke):
                 TypeDeclGen(invoke_sub,
                             datatype="quadrature_3d_xyoz_proxy_type",
                             entity_decls=qr_proxy_decs))
- 
+
         # Initialise the number of layers
         invoke_sub.add(CommentGen(invoke_sub, ""))
         invoke_sub.add(CommentGen(invoke_sub, " Initialise number of layers"))
