@@ -307,21 +307,21 @@ rules, along with PSyclone's naming conventions, are:
     4) include ``wv``. This is a real array of kind r_def with intent ``in``. It has one dimension of size ``nqp_v``.
 
 
-Supported Infrastructure Calls
-------------------------------
+Supported Built-ins
+-------------------
 
-The basic concept of a PSyclone infrastructure call is described in
-the :ref:`infrastructure-calls` section.  In the Dynamo 0.3 API,
-infrastructure calls follow a convention that the field/scalar written
+The basic concept of a PSyclone Built-in is described in the
+:ref:`built-ins` section.  In the Dynamo 0.3 API, calls to
+built-ins generally follow a convention that the field/scalar written
 to comes last in the argument list. Although field arguments to
-infrastructure calls may be on any space, the arguments to any given
+built-ins may be on any space, the arguments to any given
 call must all be on the same space.
 
-The infrastructure calls supported for the Dynamo 0.3 API are
+The built-ins supported for the Dynamo 0.3 API are
 described (in alphabetical order) below. For clarity, the calculation
-performed by each call is described using Fortran array syntax; this
+performed by each built-in is described using Fortran array syntax; this
 does not necessarily reflect the actual implementation of the
-infrastructure call (*e.g.* it could be implemented by PSyclone
+built-in (*e.g.* it could be implemented by PSyclone
 generating a call to an optimised math library).
 
 axpby
@@ -374,7 +374,8 @@ inc_axpy
 
 **inc_axpy** (*a*, *field1*, *field2*)
 
-Performs: ::
+Performs an AXPY and returns the result as an increment to the first
+field: ::
    
    field1(:) = a*field1(:) + field2(:)
 
@@ -391,7 +392,7 @@ copy_field
 
 Copy the values from *field1* into *field2*: ::
 
-   field2(:) = field(1)
+   field2(:) = field1(:)
 
 where:
 
@@ -399,7 +400,7 @@ where:
 * type(field_type), intent(out) :: *field2*
 
 copy_scaled_field
-++++++++++++++
++++++++++++++++++
 
 **copy_scaled_field** (*value*, *field1*, *field2*)
 

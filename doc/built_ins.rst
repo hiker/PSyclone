@@ -1,40 +1,35 @@
-.. _infrastructure-calls:
+.. _built-ins:
 
-Infrastructure calls
-====================
+Built-ins
+=========
 
-Infrastructure calls are calls which can be specified within an invoke
-call in the algorithm layer but do not require an associated kernel to
-be implemented as they are supported directly by the infrastructure.
+Built-ins (named by analogy with the native functionality provided by
+Python) are operations which can be specified within an invoke call in
+the algorithm layer but do not require an associated kernel to be
+implemented as they are provided directly by the infrastructure.
 
-One use of infrastructure calls is for commonly used operations. In
-this case infrastructure calls simplify the use of the system as users
-do not need to write kernel routines. Infrastructure routines also
+One use of built-ins is for commonly used operations. In
+this case built-ins simplify the use of the system as users
+do not need to write kernel routines. Built-ins also
 offer a potential performance advantage as they provide a
 specification of what is required without an implementation. Therefore
-the PSy layer is free to implement these routines in whatever way it
+the PSy layer is free to implement these operations in whatever way it
 chooses.
 
-As infrastructure calls have no kernel implementation, they do not
-need to specify a particular type of data (kernels specify the type of
-data expected in their metadata description). Therefore infrastructure
-calls may be polymorphic with respect to functionspaces (they may
-support different functionspaces through the same api).
-
-.. note:: In general, psyclone will need to know the types of the arguments being passed to the infrastructure calls. The parser obtains this information from an API-specifc file that contains the meta-data for all supported infrastructure calls.
-
+.. note:: In general, PSyclone will need to know the types of the arguments being passed to any built-ins. The parser obtains this information from an API-specifc file that contains the meta-data for all built-in operations supported for that API.
 
 Example
 -------
-     
+
 .. highlight:: fortran
 
-In the following example the invoke call includes an infrastructure
-call (``set_field_scalar``) and a kernel call
+In the following example, the invoke call includes a call to a built-in
+(``set_field_scalar``) and a user-supplied kernel
 (``matrix_vector_kernel_mm_type``). The
-infrastructure call sets all values in the field ``Ax`` to
+built-in sets all values in the field ``Ax`` to
 ``0.0``. Notice that, unlike the kernel call, no use association is
-required for the infrastructure call.
+required for the built-in since it is provided as part of the environment
+(*c.f.* Fortran intrinsics such as ``sin()``).
 ::
 
   subroutine jacobi_solver_algorithm(lhs, rhs, mm, mesh, n_iter)
@@ -103,8 +98,9 @@ and the translated algorithm code are:
 * the generic calls to ``invoke`` have been replaced by specific ``CALL invoke_xx``. The calls within the invoke are removed, as are duplicate arguments and any literals leaving the three fields being passed in.
 * a use statement is added for the each of the new ``CALL invoke_xx`` which will call the generated PSy layer code.
 
-The existance of an infrastructure call has made no difference at this point.
+The existance of a call to a built-in has made no difference at this point:
 ::
+
     SUBROUTINE jacobi_solver_algorithm(lhs, rhs, mm, mesh, n_iter)
       USE psy_solver_mod, ONLY: invoke_5_matrix_vector_kernel_mm_type
       USE psy_solver_mod, ONLY: invoke_4
@@ -129,12 +125,11 @@ The existance of an infrastructure call has made no difference at this point.
 
 A vanilla (not optimised) version of the generated PSy layer is given
 below. As expected the kernel code is called from the PSy
-layer. However, in the case of the `set_field_scalar` infrastructure
-call, the code for this has been written directly into the PSy layer
-(the loop setting `ax_proxy%data(df) = 0.0`). This example shows how
-infrastructure calls may be implemented in whatever way the generator
-sees fit with no change to the algorithm and kernel layers.
-::
+layer. However, in the case of the `set_field_scalar` built-in, the
+code for this has been written directly into the PSy layer (the loop
+setting `ax_proxy%data(df) = 0.0`). This example illustrates that
+built-ins may be implemented in whatever way the generator
+sees fit with no change to the algorithm and kernel layers.  ::
 
   MODULE psy_solver_mod
     ...
@@ -207,38 +202,38 @@ sees fit with no change to the algorithm and kernel layers.
 This example is distributed with PSyclone and can be found in
 ``<PSYCLONEHOME>/examples/dynamo/eg4``.
 
-Supported infrastructure calls
-------------------------------
+Supported built-in operations
+-----------------------------
 
-The list of supported infrastructure calls is API-specific and
+The list of supported built-ins is API-specific and
 therefore is described under the documentation of each API.
 
-Adding support for additional infrastructure calls to a specific API
---------------------------------------------------------------------
+Adding support for additional built-in operations to a specific API
+-------------------------------------------------------------------
 
  1. Identify the PSyclone source file for the API to be extended. *e.g.* for
     Dynamo 0.3 it is ``src/dynamo0p3.py``.
- 2. Add the name of the new infrastructure call to the
-    ``INTRINSIC_NAMES`` list in that source file.
+ 2. Add the name of the new built-in operation to the
+    ``BUILTIN_NAMES`` list in that source file.
  3. Add meta-data describing this call to the appropriate file specified in
-    the ``INTRINSIC_DEFINITIONS_FILE`` in that source file. For dynamo0.3
-    this is ``dynamo0p3_intrinsics_mod.f90``.
+    the ``BUILTIN_DEFINITIONS_FILE`` in that source file. For dynamo0.3
+    this is ``dynamo0p3_builtins_mod.f90``.
  4. Add a hook to create an object for this new call in the ``create()``
-    method of the appropriate ``InfCallFactory``. For Dynamo0.3 this is
-    ``dynamo0p3.DynInfCallFactory``.
+    method of the appropriate ``BuiltInCallFactory``. For Dynamo0.3 this is
+    ``dynamo0p3.DynBuiltInCallFactory``.
  5. Create the class for this new call. It must inherit from the
-    API-specific base class for infrastructure calls (``DynInfKern`` for
+    API-specific base class for built-in operations (``DynBuiltInKern`` for
     Dynamo0.3).
  6. Implement ``__str__`` and ``gen_code()`` methods for this new class.
- 7. Document the new infrastructure call in the documentation of the
+ 7. Document the new built-in in the documentation of the
     relevant API (*e.g.* ``doc/dynamo0p3.rst``)
 
-If the API being extended does not currently support any intrinsics
-then the ``INTRINSIC_NAMES`` and
-``INTRINSIC_DEFINITIONS_FILE`` module variables must be added to the
+If the API being extended does not currently support any built-ins
+then the ``BUILTIN_NAMES`` and
+``BUILTIN_DEFINITIONS_FILE`` module variables must be added to the
 source file for the API.  A Fortran module file must be created in the
 PSyclone src directory (with the name specified in
-``INTRINSIC_DEFINITIONS_FILE``) containing meta-data describing the
-intrinsic operations. Finally, ``parse.get_intrinsic_defs()`` must be
-extended to import ``PSYCLONE_INTRINSIC_NAMES`` and
-``INTRINSIC_DEFINITIONS_FILE`` for this API.
+``BUILTIN_DEFINITIONS_FILE``) containing meta-data describing the
+built-in operations. Finally, ``parse.get_builtin_defs()`` must be
+extended to import ``PSYCLONE_BUILTIN_NAMES`` and
+``BUILTIN_DEFINITIONS_FILE`` for this API.

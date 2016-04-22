@@ -14,7 +14,7 @@
    psy_layer
    transformations
    distributed_memory
-   infrastructure_calls
+   built_ins
    dynamo0p3
    gocean1p0
    stub_gen

@@ -3,7 +3,7 @@ Algorithm layer
 
 In the PSyKAl separation of concerns, the Algorithm layer specifies
 the algorithm that the scientist would like to run (in terms of calls
-to kernel and infrastructure routines) and logically operates on full
+to kernel routines and built-in operations) and logically operates on full
 fields. Algorithm code in the algorithm layer is not allowed to
 include any parallelisation calls or directives and passes datatypes
 specified by the particular API.

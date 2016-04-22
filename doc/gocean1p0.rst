@@ -631,10 +631,10 @@ field(s) (and possibly scalars) that a kernel operates on. The index
 of the grid point and any grid properties are provided in the
 (generated) PSy Layer where the kernel subroutine proper is called.
 
-Supported Infrastructure Calls
-------------------------------
+Supported Built-in Operations
+-----------------------------
 
-The GOcean 1.0 API does not support any infrastructure calls.
+The GOcean 1.0 API does not support any built-in operations.
 
 Conventions
 -----------
