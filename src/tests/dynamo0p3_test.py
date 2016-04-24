@@ -15,7 +15,7 @@ from parse import parse, ParseError
 from psyGen import PSyFactory, GenerationError
 import fparser
 from fparser import api as fpapi
-from dynamo0p3 import DynKernMetadata, DynKern, DynLoop
+from dynamo0p3 import DynKernMetadata, DynKern, DynLoop, VALID_STENCIL_TYPES
 from transformations import LoopFuseTrans
 from genkernelstub import generate
 
@@ -2843,6 +2843,16 @@ def test_invalid_stencil_second_arg_2():
         _ = DynKernMetadata(ast)
     assert "the specified <extent>" in str(excinfo.value)
     assert "is less than 1" in str(excinfo.value)
+
+
+@pytest.mark.xfail(reason="stencils not yet supported")
+def test_valid_stencil_types():
+    ''' Check that we successfully parse all valid stencil types '''
+    for stencil_type in VALID_STENCIL_TYPES:
+        result = STENCIL_CODE.replace("stencil(cross,1)",
+                                      "stencil("+stencil_type+",1)", 1)
+        ast = fpapi.parse(result, ignore_comments=False)
+        _ = DynKernMetadata(ast)
 
 
 def test_arg_descriptor_functions_method_error():
