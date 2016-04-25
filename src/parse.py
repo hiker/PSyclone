@@ -780,7 +780,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                     except KeyError:
                         raise ParseError(
                             "kernel call '{0}' must either be named in a use "
-                            "statement or be a recognised Built-in "
+                            "statement or be a recognised built-in "
                             "(one of '{1}' for this API)".
                             format(argname, builtin_names))
 

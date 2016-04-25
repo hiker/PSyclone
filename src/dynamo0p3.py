@@ -1083,7 +1083,7 @@ class DynSchedule(Schedule):
     to the base class so it creates the ones we require. '''
 
     def __init__(self, arg):
-        Schedule.__init__(self, DynKernCallFactory, DynInfCallFactory, arg)
+        Schedule.__init__(self, DynKernCallFactory, DynBuiltInCallFactory, arg)
 
 
 class DynHaloExchange(HaloExchange):
@@ -2373,26 +2373,25 @@ class DynKernelArgument(KernelArgument):
                 "gh_inc' but found '{0}'".format(self.access))
 
 
-class DynInfCallFactory(object):
-    ''' Creates the necessary framework for a Dynamo infrastructure call,
-    This consists of the pointwise operation itself and the loop over
-    unique DoFs. '''
+class DynBuiltInCallFactory(object):
+    ''' Creates the necessary framework for a call to a Dynamo built-in,
+    This consists of the operation itself and the loop over unique DoFs. '''
 
     def __str__(self):
-        return "Factory for a Dynamo infrastructure call"
+        return "Factory for a call to a Dynamo built-in"
 
     @staticmethod
     def create(call, parent=None):
-        ''' Create the objects needed for a call to the intrinsic
+        ''' Create the objects needed for a call to the built-in
         described in the call (InfCall) object '''
 
         if call.func_name not in BUILTIN_NAMES:
             raise ParseError(
-                "Unrecognised Built-in. Found '{0}' but expected "
+                "Unrecognised built-in call. Found '{0}' but expected "
                 "one of '{1}'".format(call.func_name,
                                       BUILTIN_NAMES))
 
-        # The infrastructure operation itself
+        # The built-in operation itself
         if call.func_name == "set_field_scalar":
             pwkern = DynSetFieldScalarKern()
         elif call.func_name == "copy_field":
@@ -2401,6 +2400,8 @@ class DynInfCallFactory(object):
             pwkern = DynSubtractFieldsKern()
         elif call.func_name == "plus_fields":
             pwkern = DynAddFieldsKern()
+        elif call.func_name == "divide_field":
+            pwkern = DynDivideFieldKern()
         elif call.func_name == "divide_fields":
             pwkern = DynDivideFieldsKern()
         elif call.func_name == "multiply_field":
@@ -2414,8 +2415,8 @@ class DynInfCallFactory(object):
             # it is harder to make this mistake?
             raise ParseError(
                 "Internal error: infrastructure call '{0}' is listed in "
-                "PSYCLONE_INSTRINSIC_NAMES but is not handled by "
-                "DynInfCallFactory".format(call.func_name))
+                "BUILTIN_NAMES but is not handled by "
+                "DynBuiltInCallFactory".format(call.func_name))
 
         # Use the call object (created by the parser) to set-up the state
         # of the infrastructure kernel

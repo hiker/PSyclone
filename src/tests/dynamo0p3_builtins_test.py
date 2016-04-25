@@ -17,35 +17,35 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 # functions
 
 
-def test_dyninf_str():
+def test_dynbuiltin_str():
     ''' Check that the str method of DynInfCallFactory works as expected '''
-    from dynamo0p3 import DynInfCallFactory
-    dyninf = DynInfCallFactory()
-    assert str(dyninf) == "Factory for a Dynamo infrastructure call"
+    from dynamo0p3 import DynBuiltInCallFactory
+    dyninf = DynBuiltInCallFactory()
+    assert str(dyninf) == "Factory for a call to a Dynamo built-in"
 
 
-def test_dyninf_wrong_name():
+def test_dynbuiltin_wrong_name():
     ''' Check that DynInfCallFactory.create() raises an error if it
     doesn't recognise the name of the kernel it is passed '''
-    from dynamo0p3 import DynInfCallFactory
-    dyninf = DynInfCallFactory()
+    from dynamo0p3 import DynBuiltInCallFactory
+    dyninf = DynBuiltInCallFactory()
     fake_kern = ParseError("blah")
     fake_kern.func_name = "pw_blah"
     with pytest.raises(ParseError) as excinfo:
         _ = dyninf.create(fake_kern)
-    assert ("Unrecognised infrastructure call. Found 'pw_blah' but "
+    assert ("Unrecognised built-in call. Found 'pw_blah' but "
             "expected one of '[" in str(excinfo.value))
 
 
-def test_invalid_pointwise_kernel():
+def test_invalid_builtin_kernel():
     ''' Check that we raise an appropriate error if an unrecognised
-    pointwise kernel is specified in the algorithm layer '''
+    built-in is specified in the algorithm layer '''
     with pytest.raises(ParseError) as excinfo:
         _, _ = parse(os.path.join(BASE_PATH,
                                   "15.0.0_invalid_pw_kernel.f90"),
                      api="dynamo0.3")
     assert ("kernel call 'set_field_scala' must either be named in a "
-            "use statement or be a recognised pointwise kernel" in
+            "use statement or be a recognised built-in" in
             str(excinfo.value))
 
 
@@ -588,7 +588,7 @@ def test_pw_axpy_by_value():
 
 
 def test_pw_inc_axpy():
-    ''' Test that we generate correct code for the pointwise
+    ''' Test that we generate correct code for the built-in
     operation x = a*x + y '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.3_axpy_invoke.f90"),
@@ -748,22 +748,22 @@ def test_pw_multiply_fields_deduce_space():
     assert output in code
 
 def test_pw_inc_field():
-    ''' Test that we generate correct code for the intrinsic y = y + x
+    ''' Test that we generate correct code for the built-in y = y + x
     where x and y are both fields '''
     assert False
 
 def test_pw_div_field():
-    ''' Test that we generate correct code for the intrinsic x = x/y
+    ''' Test that we generate correct code for the built-in x = x/y
     where x and y are both fields '''
     assert False
 
 def test_pw_mult_fields():
-    ''' Test that we generate correct code for the intrinsic z = x*y
+    ''' Test that we generate correct code for the built-in z = x*y
     where x, y and z are fields '''
     assert False
 
 def test_pw_inc_axpby():
-    ''' Test that we generate correct code for the intrinsic
+    ''' Test that we generate correct code for the built-in
     operation x = a*x + b*y where x and y are fields and a and b are
     scalars. '''
     assert False
