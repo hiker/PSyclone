@@ -58,16 +58,18 @@ class Descriptor(object):
         if len(metadata.args) == 0:
             raise ParseError(
                 "Expecting format stencil(<type>,<extent>) but there must be "
-                "at least one argument inside the brackets {0}".format(metadata))
+                "at least one argument inside the brackets {0}".
+                format(metadata))
         if len(metadata.args) > 2:
             raise ParseError(
-                "Expecting format stencil(<type>[,<extent>]) but there must be "
-                "at most two arguments inside the brackets {0}".format(metadata))
+                "Expecting format stencil(<type>[,<extent>]) but there must "
+                "be at most two arguments inside the brackets {0}".
+                format(metadata))
         if not isinstance(metadata.args[0], expr.FunctionVar):
             if isinstance(metadata.args[0], str):
                 raise ParseError(
-                    "Expecting format stencil(<type>[,<extent>]). However, the "
-                    "specified <type> '{0}' is a literal and therefore is "
+                    "Expecting format stencil(<type>[,<extent>]). However, "
+                    "the specified <type> '{0}' is a literal and therefore is "
                     "not one of the valid types '{1}'".
                     format(metadata.args[0], valid_types))
             else:
@@ -77,7 +79,7 @@ class Descriptor(object):
                     format(type(metadata.args[0])))
         if metadata.args[0].args:
             raise ParseError(
-                "Expected format stencil([<type>,<extent>]). However, the "
+                "Expected format stencil(<type>[,<extent>]). However, the "
                 "specified <type> '{0}' includes brackets")
         stencil_type = metadata.args[0].name
         if stencil_type not in valid_types:
@@ -100,7 +102,8 @@ class Descriptor(object):
                     "specified <extent> '{0}' is less than 1".
                     format(str(stencil_extent)))
             raise ParseError(
-                "Kernels with fixed stencil extents are not currently supported")
+                "Kernels with fixed stencil extents are not currently "
+                "supported")
         return {"type": stencil_type, "extent": stencil_extent}
 
     def __repr__(self):
@@ -342,11 +345,14 @@ class KernelType(object):
                     found = True
                     break
             if not found:
-                raise ParseError("Error KernelType, the file does not contain a module. Is it a Kernel file?")
+                raise ParseError("Error KernelType, the file does not "
+                                 "contain a module. Is it a Kernel file?")
 
             mn_len = len(module_name)
             if mn_len<5:
-                raise ParseError("Error, module name '{0}' is too short to have '_mod' as an extension. This convention is assumed.".format(module_name))
+                raise ParseError("Error, module name '{0}' is too short to "
+                                 "have '_mod' as an extension. This "
+                                 "convention is assumed.".format(module_name))
             base_name = module_name.lower()[:mn_len-4]
             extension_name = module_name.lower()[mn_len-4:mn_len]
             if extension_name != "_mod":
@@ -365,21 +371,28 @@ class KernelType(object):
     def getkerneldescriptors(self,ast, var_name='meta_args'):
         descs = ast.get_variable(var_name)
         if descs is None:
-            raise ParseError("kernel call does not contain a {0} type".format(var_name))
+            raise ParseError("kernel call does not contain a {0} type".
+                             format(var_name))
         try:
-            nargs=int(descs.shape[0])
+            nargs = int(descs.shape[0])
         except AttributeError as e:
-            raise ParseError("kernel metadata {0}: {1} variable must be an array".format(self._name, var_name))
+            raise ParseError("kernel metadata {0}: {1} variable must be "
+                             "an array".format(self._name, var_name))
         if len(descs.shape) is not 1:
-            raise ParseError("kernel metadata {0}: {1} variable must be a 1 dimensional array".format(self._name, var_name))
+            raise ParseError("kernel metadata {0}: {1} variable must be "
+                             "a 1 dimensional array".
+                             format(self._name, var_name))
         if descs.init.find("[") is not -1 and descs.init.find("]") is not -1:
             # there is a bug in f2py
-            raise ParseError("Parser does not currently support [...] initialisation for {0}, please use (/.../) instead".format(var_name))
+            raise ParseError("Parser does not currently support [...] "
+                             "initialisation for {0}, please use (/.../) "
+                             "instead".format(var_name))
         try:
             inits = expr.expression.parseString(descs.init)[0]
         except expr.ParseException as e:
-            raise ParseError("kernel metadata has an invalid format {0}".format(descs.init))
-        nargs=int(descs.shape[0])
+            raise ParseError("kernel metadata has an invalid format {0}".
+                             format(descs.init))
+        nargs = int(descs.shape[0])
         if len(inits) != nargs:
             raise ParseError("Error, in {0} specification, the number of args {1} and number of dimensions {2} do not match".format(var_name, nargs, len(inits)))
         return inits
