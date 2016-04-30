@@ -49,8 +49,8 @@ def test_invalid_builtin_kernel():
             str(excinfo.value))
 
 
-def test_pointwise_set_str():
-    ''' Check that the str method of DynCopyFieldKern returns the
+def test_builtin_set_str():
+    ''' Check that the str method of DynSetFieldScalarKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15_single_pointwise_invoke.f90"),
@@ -61,8 +61,8 @@ def test_pointwise_set_str():
     assert str(kern) == "Set infrastructure call"
 
 
-def test_pointwise_set():
-    ''' Tests that we generate correct code for a pointwise
+def test_builtin_set():
+    ''' Tests that we generate correct code for a builtin
     set operation with a scalar passed by value'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15_single_pointwise_invoke.f90"),
@@ -106,8 +106,8 @@ def test_pointwise_set():
     assert output in code
 
 
-def test_pointwise_set_by_ref():
-    ''' Tests that we generate correct code for a pointwise
+def test_builtin_set_by_ref():
+    ''' Tests that we generate correct code for a builtin
     set operation with a scalar passed by reference '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.0.1_single_pw_set_by_ref.f90"),
@@ -154,7 +154,7 @@ def test_pointwise_set_by_ref():
 
 @pytest.mark.xfail(reason="Invokes containing multiple kernels with "
                    "any-space arguments are not yet supported")
-def test_multiple_pointwise_set():
+def test_multiple_builtin_set():
     ''' Tests that we generate correct code when we have an invoke
     containing multiple set operations '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -206,8 +206,8 @@ def test_multiple_pointwise_set():
     assert output in code
 
 
-def test_pointwise_set_plus_normal():
-    ''' Tests that we generate correct code for a pointwise
+def test_builtin_set_plus_normal():
+    ''' Tests that we generate correct code for a builtin
     set operation when the invoke also contains a normal kernel '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1_pw_and_normal_kernel_invoke.f90"),
@@ -251,23 +251,23 @@ def test_pointwise_set_plus_normal():
     assert output in code
 
 
-def test_pointwise_copy_str():
+def test_builtin_copy_str():
     ''' Check that the str method of DynCopyFieldKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.2_single_pw_fld_copy_invoke.f90"),
+                                        "15.2.0_copy_field_builtin.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0]
-    assert str(kern) == "Field copy infrastructure call"
+    assert str(kern) == "Built-in: Copy field"
 
 
-def test_pointwise_copy():
-    ''' Tests that we generate correct code for a pointwise
+def test_builtin_copy():
+    ''' Tests that we generate correct code for a builtin
     copy field operation '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.2_single_pw_fld_copy_invoke.f90"),
+                                        "15.2.0_copy_field_builtin.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     code = str(psy.gen)
@@ -453,23 +453,23 @@ def test_pw_divide_fields():
     assert output in code
 
 
-def test_pw_multiply_field_str():
-    ''' Test that the str method of DynMultiplyFieldKern returns the
+def test_copy_scaled_field_str():
+    ''' Test that the str method of DynCopyScaledFieldKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.7.0_multiply_invoke.f90"),
+                                        "15.2.1_copy_scaled_field_builtin.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0]
-    assert str(kern) == "Multiply field (by a scalar) infrastructure call"
+    assert str(kern) == "Built-in: Copy scaled field"
 
 
-def test_pw_multiply_field():
-    ''' Test that we generate correct code for the multiply field
-    (y = a*x) infrastructure kernel '''
+def test_copy_scaled_field():
+    ''' Test that we generate correct code for the CopyScaledField
+    (y = a*x) built-in '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.7.0_multiply_invoke.f90"),
+                                        "15.2.1_copy_scaled_field_builtin.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     code = str(psy.gen)
@@ -513,7 +513,7 @@ def test_pw_axpy_field_str():
  
 
 def test_pw_axpy():
-    ''' Test that we generate correct code for the pointwise
+    ''' Test that we generate correct code for the builtin
     operation f = a*x + y where 'a' is a scalar '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.3_axpy_invoke.f90"),
@@ -550,7 +550,7 @@ def test_pw_axpy():
  
 
 def test_pw_axpy_by_value():
-    ''' Test that we generate correct code for the pointwise
+    ''' Test that we generate correct code for the builtin
     operation y = a*x + y when a is passed by value'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.3.2_axpy_invoke_by_value.f90"),
@@ -637,7 +637,7 @@ def test_pw_axpby_field_str():
  
 
 def test_pw_axpby():
-    ''' Test that we generate correct code for the pointwise
+    ''' Test that we generate correct code for the builtin
     operation f = a*x + b*y where 'a' and 'b' are scalars '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.8.0_axpby_invoke.f90"),
@@ -675,7 +675,7 @@ def test_pw_axpby():
  
 
 def test_pw_axpby_by_value():
-    ''' Test that we generate correct code for the pointwise
+    ''' Test that we generate correct code for the builtin
     operation z = a*x + b*y when a and b are passed by value'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.8.1_axpby_invoke_by_value.f90"),
@@ -714,7 +714,7 @@ def test_pw_axpby_by_value():
 
 @pytest.mark.xfail(
     reason="Requires kernel-argument dependency analysis to deduce the "
-    "spaces of the fields passed to the pointwise kernel")
+    "spaces of the fields passed to the built-in kernel")
 def test_pw_multiply_fields_on_different_spaces():
     ''' Test that we raise an error if multiply_fields() is called for
     two fields that are on different spaces '''

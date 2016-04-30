@@ -11,7 +11,7 @@ program single_invoke
   real(r_def) :: a
 
   call invoke(                            &
-              multiply_field(a, f1, f2)   &
+              copy_scaled_field(a, f1, f2)   &
              )
 
 end program single_invoke

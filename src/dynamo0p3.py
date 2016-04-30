@@ -60,10 +60,19 @@ VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 #TODO should we generate this list by reading the file containing the
 # meta-data? That way this information would be stored in a single
 # location.
-BUILTIN_NAMES = ["set_field_scalar", "copy_field",
-                 "minus_fields", "plus_fields",
-                 "divide_fields", "axpy", "axpby",
-                 "multiply_field"]
+BUILTIN_NAMES = ["axpy", "inc_axpy", "axpby", "inc_axpby",
+                 "copy_field", "copy_scaled_field",
+                 "divide_field", "divide_fields",
+                 "inc_field",
+                 "minus_fields", "multiply_fields",
+                 "plus_fields", "set_field_scalar"]
+
+BUILTINS = {}
+for name in BUILTIN_NAMES:
+    BUILTINS[name] = {}
+    BUILTINS[name]['scalars'] = [0, None]
+    BUILTINS[name]['fields'] = [0, 1]
+    BUILTINS[name]['operator'] = "+"
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
@@ -2396,6 +2405,8 @@ class DynBuiltInCallFactory(object):
             pwkern = DynSetFieldScalarKern()
         elif call.func_name == "copy_field":
             pwkern = DynCopyFieldKern()
+        elif call.func_name == "copy_scaled_field":
+            pwkern = DynCopyScaledFieldKern()
         elif call.func_name == "minus_fields":
             pwkern = DynSubtractFieldsKern()
         elif call.func_name == "plus_fields":
@@ -2417,6 +2428,8 @@ class DynBuiltInCallFactory(object):
                 "Internal error: infrastructure call '{0}' is listed in "
                 "BUILTIN_NAMES but is not handled by "
                 "DynBuiltInCallFactory".format(call.func_name))
+#            # TODO - support this!
+#        pwkern = DynInfKern(call.func_name)
 
         # Use the call object (created by the parser) to set-up the state
         # of the infrastructure kernel
@@ -2466,11 +2479,41 @@ class DynInfKern(DynKern, InfKern):
     an Infrastructure kernel in the psyGen base classes (because it is
     otherwise identical to a normal kernel). '''
 
+    def __init__(self):
+        self._name = name
+        self._idx_name = "df"
+        DynKern.__init__(self)
+
+    def array_ref(self, fld_name):
+        return fld_name + "%data(" + self._idx_name + ")"
+
     def gen_code(self, parent):
         from f2pygen import AssignGen, DeclGen
         # Get hold of the name space manager
         self._name_space_manager = NameSpaceFactory().create()
         # TODO remove this method altogether?
+
+#        this_builtin = BUILTINS[self._name]
+#        flds = this_builtin['fields']
+#        scalars = this_builtin['scalars']
+
+#        rhs_expr = ""
+#        fld_name = self._arguments.args[flds[0]].proxy_name
+#        if scalars[0]:
+#            scalar_name = self._arguments.args[scalars[0]].name
+#            rhs_expr = rhs_expr + scalar_name + "*"
+#        rhs_expr = rhs_expr + fld_name
+
+#        if this_builtin['operator']:
+#            rhs_expr = rhs_expr + this_builtin['operator']
+#            fld_name = self._arguments.args[flds[1]].proxy_name
+#            if scalars[1]:
+#                scalar_name = self._arguments.args[scalars[1]].name
+#                rhs_expr = rhs_expr +  scalar_name + "*"
+#            rhs_expr = rhs_expr + fld_name
+
+#        assign = AssignGen(parent, lhs=flds[0], rhs=rhs_expr)
+#        parent.add(assign)
 
     @property
     def undf_name(self):
@@ -2490,11 +2533,10 @@ class DynSetFieldScalarKern(DynInfKern):
         from f2pygen import AssignGen
         # Generate the generic part of this pointwise kernel
         DynInfKern.gen_code(self, parent)
-        idx_name = "df"
         # and now the specific part. In this case we're assigning
         # a single scalar value to all elements of a field.
         proxy_name = self._arguments.args[1].proxy_name
-        var_name = proxy_name + "%data(" + idx_name + ")"
+        var_name = proxy_name + "%data(" + self._idx_name + ")"
         value = self._arguments.args[0]
         assign = AssignGen(parent, lhs=var_name, rhs=value)
         parent.add(assign)
@@ -2505,20 +2547,39 @@ class DynCopyFieldKern(DynInfKern):
     ''' Set a field equal to another field '''
 
     def __str__(self):
-        return "Field copy infrastructure call"
+        return "Built-in: Copy field"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
         # Generate the generic part of this pointwise kernel
         DynInfKern.gen_code(self, parent)
-        idx_name = "df"
         # and now the specific part - we copy one element of field A (first
         # arg) to the corresponding element of field B (second arg).
-        inproxy_name = self._arguments.args[0].proxy_name
-        outproxy_name = self._arguments.args[1].proxy_name
-        invar_name = inproxy_name + "%data(" + idx_name + ")"
-        outvar_name = outproxy_name + "%data(" + idx_name + ")"
+        invar_name = self.array_ref(self._arguments.args[0].proxy_name)
+        outvar_name = self.array_ref(self._arguments.args[1].proxy_name)
         assign = AssignGen(parent, lhs=outvar_name, rhs=invar_name)
+        parent.add(assign)
+        return
+
+
+class DynCopyScaledFieldKern(DynInfKern):
+    ''' Set a field equal to another field multiplied by a scalar '''
+
+    def __str__(self):
+        return "Built-in: Copy scaled field"
+
+    def gen_code(self, parent):
+        from f2pygen import AssignGen
+        # Generate the generic part of this pointwise kernel
+        DynInfKern.gen_code(self, parent)
+        # and now the specific part - we copy one element of field A (2nd
+        # arg) multiplied by a scalar (1st arg) to the corresponding
+        # element of field B (3rd arg).
+        scalar = self._arguments.args[0].name
+        invar_name = self.array_ref(self._arguments.args[1].proxy_name)
+        outvar_name = self.array_ref(self._arguments.args[2].proxy_name)
+        rhs_expr = scalar + " * " + invar_name
+        assign = AssignGen(parent, lhs=outvar_name, rhs=rhs_expr)
         parent.add(assign)
         return
 
@@ -2534,16 +2595,12 @@ class DynSubtractFieldsKern(DynInfKern):
         from f2pygen import AssignGen
         # Generate the generic part of this pointwise kernel
         DynInfKern.gen_code(self, parent)
-        idx_name = "df"
         # and now the specific part - we subtract each element of f2
         # from the corresponding element of f1 and store the result in
         # f3
-        inproxy_name1 = self._arguments.args[0].proxy_name
-        inproxy_name2 = self._arguments.args[1].proxy_name
-        outproxy_name = self._arguments.args[2].proxy_name
-        invar_name1 = inproxy_name1 + "%data(" + idx_name + ")"
-        invar_name2 = inproxy_name2 + "%data(" + idx_name + ")"
-        outvar_name = outproxy_name + "%data(" + idx_name + ")"
+        invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
+        invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
+        outvar_name = self.array_ref(self._arguments.args[2].proxy_name)
         assign = AssignGen(parent, lhs=outvar_name,
                            rhs=invar_name1 + " - " + invar_name2)
         parent.add(assign)
@@ -2638,7 +2695,12 @@ class DynAXPYKern(DynInfKern):
     def gen_code(self, parent):
         from f2pygen import AssignGen
         # Generate the generic part of this pointwise kernel
-        DynInfKern.gen_code(self, parent)
+        scalars = [0, None]
+        fields = [3, 1, 2]
+        ops = ["+"]
+        #DynInfKern.gen_code(self, parent)
+        DynInfKern.make_code(self, parent, scalars, fields, ops)
+        return
         # and now the specific part - we multiply one element of field
         # f1 (2nd arg) by a scalar (1st arg), add it to the corresponding
         # element of a second field (3rd arg)  and write the value to the
