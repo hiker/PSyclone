@@ -16,7 +16,7 @@ from psyGen import PSyFactory, GenerationError
 import fparser
 from fparser import api as fpapi
 from dynamo0p3 import DynKernMetadata, DynKern, DynLoop
-from transformations import LoopFuseTrans, ColourTrans
+from transformations import LoopFuseTrans
 from genkernelstub import generate
 
 # constants
@@ -581,7 +581,27 @@ def test_field_fs():
         "      ndf_w2v = m3_proxy%vspace%get_ndf()\n"
         "      undf_w2v = m3_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Call our kernels\n"
+        "      ! Call kernels and communication routines\n"
+        "      !\n"
+        "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m1_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (f4_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f4_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m3_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m3_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
@@ -620,7 +640,6 @@ def test_field_qr():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     generated_code = str(psy.gen)
-    print generated_code
     print generated_code
     output = (
         "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
@@ -704,7 +723,19 @@ def test_field_qr():
         "      CALL m2_proxy%vspace%compute_diff_basis_function("
         "diff_basis_w3, ndf_w3, nqp_h, nqp_v, xp, zp)\n"
         "      !\n"
-        "      ! Call our kernels\n"
+        "      ! Call kernels and communication routines\n"
+        "      !\n"
+        "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m1_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
@@ -785,7 +816,19 @@ def test_real_scalar():
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Call our kernels\n"
+        "      ! Call kernels and communication routines\n"
+        "      !\n"
+        "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m1_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
@@ -853,7 +896,19 @@ def test_int_scalar():
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Call our kernels\n"
+        "      ! Call kernels and communication routines\n"
+        "      !\n"
+        "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m1_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
@@ -921,7 +976,19 @@ def test_two_real_scalars():
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Call our kernels\n"
+        "      ! Call kernels and communication routines\n"
+        "      !\n"
+        "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m1_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
@@ -988,7 +1055,19 @@ def test_two_int_scalars():
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Call our kernels\n"
+        "      ! Call kernels and communication routines\n"
+        "      !\n"
+        "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m1_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
@@ -1056,7 +1135,19 @@ def test_two_scalars():
         "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
         "      undf_w3 = m2_proxy%vspace%get_undf()\n"
         "      !\n"
-        "      ! Call our kernels\n"
+        "      ! Call kernels and communication routines\n"
+        "      !\n"
+        "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m1_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
@@ -1250,7 +1341,19 @@ def test_operator_different_spaces():
         "      CALL chi_proxy(1)%vspace%compute_diff_basis_function("
         "diff_basis_w0, ndf_w0, nqp_h, nqp_v, xp, zp)\n"
         "      !\n"
-        "      ! Call our kernels\n"
+        "      ! Call kernels and communication routines\n"
+        "      !\n"
+        "      IF (chi_proxy(1)%is_dirty(depth=1)) THEN\n"
+        "        CALL chi_proxy(1)%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (chi_proxy(2)%is_dirty(depth=1)) THEN\n"
+        "        CALL chi_proxy(2)%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (chi_proxy(3)%is_dirty(depth=1)) THEN\n"
+        "        CALL chi_proxy(3)%halo_exchange(depth=1)\n"
+        "      END IF \n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n"
         "        !\n"
@@ -3101,28 +3204,98 @@ def test_halo_exchange():
 
 
 def test_halo_exchange_inc():
-    ''' test that halo exchange calls are added if we have a gh_inc
-    operation and that the loop bounds included computation in the l1
-    halo'''
+    '''test that appropriate halo exchange calls are added if we have a
+    gh_inc operation and that the loop bounds included computation in
+    the l1 halo '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.6_multikernel_invokes.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     result = str(psy.gen)
     print result
-    output1 = ("      IF (a_proxy%is_dirty(depth=1)) THEN\n"
-               "        CALL a_proxy%halo_exchange(depth=1)\n"
-               "      END IF \n"
-               "      !\n"
-               "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+    output1 = (
+        "      IF (a_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL a_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (b_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL b_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (d_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL d_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (e_proxy(1)%is_dirty(depth=1)) THEN\n"
+        "        CALL e_proxy(1)%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (e_proxy(2)%is_dirty(depth=1)) THEN\n"
+        "        CALL e_proxy(2)%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (e_proxy(3)%is_dirty(depth=1)) THEN\n"
+        "        CALL e_proxy(3)%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+    output2 = (
+        "      IF (f_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (b_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL b_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (d_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL d_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (e_proxy(1)%is_dirty(depth=1)) THEN\n"
+        "        CALL e_proxy(1)%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (e_proxy(2)%is_dirty(depth=1)) THEN\n"
+        "        CALL e_proxy(2)%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (e_proxy(3)%is_dirty(depth=1)) THEN\n"
+        "        CALL e_proxy(3)%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      DO cell=1,mesh%get_last_halo_cell(1)\n")
     assert output1 in result
-    output2 = ("      IF (f_proxy%is_dirty(depth=1)) THEN\n"
-               "        CALL f_proxy%halo_exchange(depth=1)\n"
-               "      END IF \n"
-               "      !\n"
-               "      DO cell=1,mesh%get_last_halo_cell(1)\n")
     assert output2 in result
-    assert result.count("halo_exchange") == 2
+    assert result.count("halo_exchange") == 12
+
+
+def test_no_halo_exchange_for_operator():
+    ''' Test that no halo exchange is generated before a kernel that reads
+    from an operator '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "10.7_operator_read.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    result = str(psy.gen)
+    print result
+    # This kernel reads from an operator and a scalar and these
+    # do not require halos to be updated.
+    assert "halo_exchange" not in result
+
+
+def test_no_set_dirty_for_operator():
+    ''' Test that we do not call set_dirty for an operator that is written
+    by a kernel. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "10.6_operator_no_field_scalar.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    result = str(psy.gen)
+    print result
+    # This kernel only writes to an operator and since operators are
+    # cell-local this does not require us to call the is_dirty() method.
+    assert "is_dirty" not in result
 
 
 @pytest.mark.xfail(reason="stencils not yet supported")
@@ -3136,6 +3309,26 @@ def test_halo_exchange_different_spaces():
     result = str(psy.gen)
     print result
     assert result.count("halo_exchange") == 9
+
+
+def test_halo_exchange_vectors_1():
+    ''' test that halo exchange produces correct code for vector
+    fields. Test a field with gh_inc '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "14.4.1_halo_vector.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    result = str(psy.gen)
+    print result
+    assert result.count("halo_exchange(") == 3
+    for idx in range(1, 4):
+        assert "f1_proxy("+str(idx)+")%halo_exchange(depth=1)" in result
+    expected = ("      IF (f1_proxy(3)%is_dirty(depth=1)) THEN\n"
+                "        CALL f1_proxy(3)%halo_exchange(depth=1)\n"
+                "      END IF \n"
+                "      !\n"
+                "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+    assert expected in result
 
 
 @pytest.mark.xfail(reason="stencils not yet supported")
@@ -3152,7 +3345,7 @@ def test_halo_exchange_vectors():
     for idx in range(1, 4):
         assert "f1_proxy("+str(idx)+")%halo_exchange(depth=1)" in result
         assert "f2_proxy("+str(idx)+")%halo_exchange(depth=2)" in result
-    expected = ("      IF (f2_proxy%is_dirty(depth=2)) THEN\n"
+    expected = ("      IF (f2_proxy(4)%is_dirty(depth=2)) THEN\n"
                 "        CALL f2_proxy(4)%halo_exchange(depth=2)\n"
                 "      END IF \n"
                 "      !\n"
@@ -3306,25 +3499,6 @@ def test_mesh_mod():
 # object from an operator
 
 
-def test_no_dm_and_colour():
-    '''test that we raise an exception if colouring and distributed
-    memory are attempted together, as there are a few bugs and there is
-    currently no agreed API for the colouring'''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
-                                 "1_single_invoke.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
-    invoke = psy.invokes.get('invoke_0_testkern_type')
-    schedule = invoke.schedule
-    ctrans = ColourTrans()
-    with pytest.raises(GenerationError) as excinfo:
-        # try to Colour the loop
-        _, _ = ctrans.apply(schedule.children[0])
-    assert 'distributed memory and colours not yet supported' in \
-        str(excinfo.value)
-
-
 def test_no_stencil_support():
     '''test that we raise an exception if we encounter a stencil kernel
     as the infrastructure API for this is not yet decided '''
@@ -3374,37 +3548,6 @@ def test_lower_bound_fortran():
         _ = my_loop._upper_bound_fortran()
     assert ("upper bound must be 'cells' if we are sequential" in
             str(excinfo.value))
-
-
-def test_multi_field_name_halo():
-    '''tests the case where we have multiple kernels within an invoke and
-    the same field requires clean halos in more than one Kernel. In
-    this case we raise an error as we don't expect this case to happen. See
-    ticket 420 for more info.'''
-    # parse an example where halo exchanges are needed for each loop
-    # and the variable name is the samefor the Kernel in each
-    # loop. Don't use distributed memory as this will place halo's and
-    # we want to loop fuse without worrying about that.
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "4.6.2_multikernel_invokes.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
-    psy.invokes.invoke_list[0].schedule.view()
-    invoke = psy.invokes.invoke_list[0]
-    # Loop fuse so two Kernels requiring halo exchange calls are in the
-    # same loop
-    loop1 = invoke.schedule.children[0]
-    loop2 = invoke.schedule.children[1]
-    trans = LoopFuseTrans()
-    schedule, _ = trans.apply(loop1, loop2)
-    invoke.schedule = schedule
-    loop1 = schedule.children[0]
-    # Now check the fused loop
-    with pytest.raises(GenerationError) as excinfo:
-        _ = loop1.unique_fields_with_halo_reads()
-    assert "non-unique fields are not expected" in str(excinfo.value)
-
-# Check that the new gh_sum access type is supported correctly
 
 
 def test_field_gh_sum_invalid():
