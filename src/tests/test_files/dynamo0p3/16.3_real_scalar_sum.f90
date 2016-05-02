@@ -5,7 +5,7 @@
 
 program single_invoke
 
-  ! Description: single kernel, single scalar sum & field writer argument
+  ! Description: single kernel, single scalar sum & field reader argument
   use testkern_one_real_scalar_sum, only: testkern_type
   use inf, only : r_def
   implicit none

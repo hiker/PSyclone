@@ -3437,18 +3437,6 @@ def test_operator_gh_sum_invalid():
     assert "but 'gh_operator' was found" in str(excinfo.value)
 
 
-def test_single_scalar_sum_invalid():
-    '''Test that a single integer scalar fails as we require at least one
-    writer to be a field or operator '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH, "16.1_integer_scalar_sum.f90"),
-        api="dynamo0.3", distributed_memory=False)
-    with pytest.raises(GenerationError) as excinfo:
-        _ = PSyFactory("dynamo0.3", distributed_memory=False).\
-            create(invoke_info)
-    assert "we assume there is at least one writer" in str(excinfo.value)
-
-
 def test_single_integer_scalar_sum():
     '''Test that a single integer scalar generates correct code when it
     is specified with gh_sum'''
@@ -3499,3 +3487,42 @@ def test_multiple_kernels_scalar_sums():
              "undf_w3, map_w3)"
     assert output in gen
     assert gen.count(output) == 2
+
+
+def test_scalars_only_invalid():
+    '''Test that a Kernel consisting of only scalars fails as it has
+    nothing to iterate over '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "16.1_integer_scalar_sum.f90"),
+        api="dynamo0.3", distributed_memory=False)
+    with pytest.raises(GenerationError) as excinfo:
+        psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+              create(invoke_info)
+    assert "dynamo0.3 api must have a modified field" in str(excinfo.value)
+    assert "modified operator, or an unmodified field" in str(excinfo.value)
+
+
+def test_scalar_int_sum_field_read():
+    '''Test that a write to a single integer scalar is valid if we have at
+    least one field that is read '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
+        api="dynamo0.3", distributed_memory=False)
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+          create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    assert "f1_proxy%vspace%get_cell_dofmap" in gen
+
+
+def test_scalar_real_sum_field_read():
+    '''Test that a write to a single read scalar is valid if we have at
+    least one field that is read '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
+        api="dynamo0.3", distributed_memory=False)
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+          create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    assert "f1_proxy%vspace%get_cell_dofmap" in gen

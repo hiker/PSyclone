@@ -6,8 +6,8 @@
 module testkern
   type, extends(kernel_type) :: testkern_type
      type(arg_type), dimension(2) :: meta_args = (/ &
-             arg_type(gh_rscalar, gh_sum),         &
-             arg_type(gh_field,   gh_write, w3)     &
+             arg_type(gh_rscalar, gh_sum),          &
+             arg_type(gh_field,   gh_read, w3)      &
            /)
      integer, parameter :: iterates_over = cells
    contains
@@ -17,6 +17,6 @@ contains
 
   subroutine testkern_code(rsum, field)
     integer, intent(inout) :: rsum
-    real, intent(out) :: field
+    real, intent(in) :: field
   end subroutine testkern_code
 end module testkern

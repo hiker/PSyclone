@@ -2173,14 +2173,32 @@ class DynKernelArguments(Arguments):
         return func_space_list
 
     def iteration_space_arg(self, mapping=None):
-        ''' Returns the first argument that is written to. This can be
-        used to dereference for the iteration space. '''
-        if mapping is not None:
-            my_mapping = mapping
-        else:
-            my_mapping = FIELD_ACCESS_MAP
-        arg = Arguments.iteration_space_arg(self, my_mapping)
-        return arg
+        '''Returns the first argument we can use to dereference the iteration
+        space. This can be a field or operator that is modified or
+        alternatively a field that is read if one or more scalars
+        are modified. '''
+
+        # first look for known function spaces then try any_space
+        for spaces in [VALID_FUNCTION_SPACES, VALID_ANY_SPACE_NAMES]:
+
+            # do we have a field or operator that is modified?
+            for arg in self._args:
+                if arg.type in ["gh_field", "gh_operator"] and \
+                   arg.access in ["gh_write", "gh_inc"] \
+                   and arg.function_space in spaces:
+                    return arg
+        
+        # no modified fields or operators. Check for unmodified fields
+        for arg in self._args:
+            if arg.type == "gh_field" and \
+               arg.access == "gh_read":
+                return arg
+
+        # it is an error if we get to here
+        raise GenerationError(
+            "iteration_space_arg(). The dynamo0.3 api must have a modified "
+            "field, a modified operator, or an unmodified field (in the case "
+            "of a modified scalar). None of these were found.")
 
     @property
     def dofs(self):
