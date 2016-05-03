@@ -2776,12 +2776,11 @@ def test_invalid_stencil_form_3():
     assert "entry must be a valid stencil specification" \
         in str(excinfo.value)
 
-
 def test_invalid_stencil_form_4():
     '''Check that we raise an exception if the stencil does not obey the
     stencil(<type>[,<extent>]) format by containing no values in
     the brackets '''
-    result = STENCIL_CODE.replace("stencil(cross)", "stencil(,)", 1)
+    result = STENCIL_CODE.replace("stencil(cross)", "stencil()", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast)
@@ -2790,6 +2789,18 @@ def test_invalid_stencil_form_4():
 
 
 def test_invalid_stencil_form_5():
+    '''Check that we raise an exception if the stencil does not obey the
+    stencil(<type>[,<extent>]) format by containing no values in
+    the brackets, with a separator '''
+    result = STENCIL_CODE.replace("stencil(cross)", "stencil(,)", 1)
+    ast = fpapi.parse(result, ignore_comments=False)
+    with pytest.raises(ParseError) as excinfo:
+        _ = DynKernMetadata(ast)
+    assert "kernel metadata has an invalid format" \
+        in str(excinfo.value)
+
+
+def test_invalid_stencil_form_6():
     '''Check that we raise an exception if the stencil does not obey the
     stencil(<type>[,<extent>]) format by containing more than two
     values in in the brackets '''
