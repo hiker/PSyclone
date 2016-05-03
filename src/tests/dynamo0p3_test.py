@@ -3639,8 +3639,8 @@ def test_scalars_only_invalid():
         os.path.join(BASE_PATH, "16.1_integer_scalar_sum.f90"),
         api="dynamo0.3", distributed_memory=False)
     with pytest.raises(GenerationError) as excinfo:
-        psy = PSyFactory("dynamo0.3", distributed_memory=False).\
-              create(invoke_info)
+        _ = PSyFactory("dynamo0.3", distributed_memory=False).\
+            create(invoke_info)
     assert "dynamo0.3 api must have a modified field" in str(excinfo.value)
     assert "modified operator, or an unmodified field" in str(excinfo.value)
 
@@ -3651,8 +3651,8 @@ def test_scalar_int_sum_field_read():
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
         api="dynamo0.3", distributed_memory=False)
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
-          create(invoke_info)
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
     gen = str(psy.gen)
     print gen
     assert "f1_proxy%vspace%get_cell_dofmap" in gen
@@ -3664,8 +3664,8 @@ def test_scalar_real_sum_field_read():
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
         api="dynamo0.3", distributed_memory=False)
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
-          create(invoke_info)
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
     gen = str(psy.gen)
     print gen
     assert "f1_proxy%vspace%get_cell_dofmap" in gen

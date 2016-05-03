@@ -2220,7 +2220,7 @@ class DynKernelArguments(Arguments):
                    arg.access in ["gh_write", "gh_inc"] \
                    and arg.function_space in spaces:
                     return arg
-        
+
         # no modified fields or operators. Check for unmodified fields
         for arg in self._args:
             if arg.type == "gh_field" and \
