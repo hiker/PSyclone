@@ -611,20 +611,20 @@ class Node(object):
         return None
 
     def calls(self):
-        ''' return all calls in this schedule '''
-        return self.walk(self.root.children, Call)
+        ''' return all calls that are descendents of this node '''
+        return self.walk(self.children, Call)
 
     @property
     def following_calls(self):
         ''' return all calls after me in the schedule '''
-        all_calls = self.calls()
+        all_calls = self.root.calls()
         position = all_calls.index(self)
         return all_calls[position+1:]
 
     @property
     def preceding_calls(self):
         ''' return all calls before me in the schedule '''
-        all_calls = self.calls()
+        all_calls = self.root.calls()
         position = all_calls.index(self)
         return all_calls[:position-1]
 
@@ -872,7 +872,10 @@ class OMPDoDirective(OMPDirective):
         for child in self.children:
             child.gen_code(parent)
 
-        parent.add(DirectiveGen(parent, "omp", "end", "do", ""))
+        # make sure the directive occurs straight after the loop body
+        position = parent.previous_loop()
+        parent.add(DirectiveGen(parent, "omp", "end", "do", ""),
+                   position=["after", position])
 
     def _within_omp_region(self):
         ''' Check that this orphaned OMP Loop Directive is actually
@@ -924,7 +927,10 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         for child in self.children:
             child.gen_code(parent)
 
-        parent.add(DirectiveGen(parent, "omp", "end", "parallel do", ""))
+        # make sure the directive occurs straight after the loop body
+        position = parent.previous_loop()
+        parent.add(DirectiveGen(parent, "omp", "end", "parallel do", ""),
+                   position=["after", position])
 
 
 class HaloExchange(Node):
@@ -1112,20 +1118,19 @@ class Loop(Node):
                     return True
         return False
 
-    def unique_modified_args(self, mapping, field_type):
-        '''Return all unique arguments of type field_type from Kernels in this
+    def unique_modified_args(self, mapping, arg_type):
+        '''Return all unique arguments of type arg_type from Kernels in this
         loop that are modified'''
-        field_names = []
-        fields = []
-        for kern_call in self.kern_calls():
-            for arg in kern_call.arguments.args:
-                if arg.type.lower() == field_type:
-                    field = arg
-                    if field.access.lower() != mapping["read"]:
-                        if field.name not in field_names:
-                            field_names.append(field.name)
-                            fields.append(field)
-        return fields
+        arg_names = []
+        args = []
+        for call in self.calls():
+            for arg in call.arguments.args:
+                if arg.type.lower() == arg_type:
+                    if arg.access.lower() != mapping["read"]:
+                        if arg.name not in arg_names:
+                            arg_names.append(arg.name)
+                            args.append(arg)
+        return args
 
     def gen_code(self, parent):
         if self._start == "1" and self._stop == "1":  # no need for a loop
