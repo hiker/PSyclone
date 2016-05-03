@@ -495,7 +495,7 @@ def test_copy_scaled_field():
         "      ! Call our kernels\n"
         "      !\n"
         "      DO df=1,undf_any_space_1\n"
-        "        f2_proxy%data(df) = a * f1_proxy%data(df)\n"
+        "        f2_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
         "      END DO")
     assert output in code
 
@@ -591,30 +591,12 @@ def test_pw_inc_axpy():
     ''' Test that we generate correct code for the built-in
     operation x = a*x + y '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.3_axpy_invoke.f90"),
+                                        "15.4_inc_axpy_invoke.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
-        "      f1_proxy = f1%get_proxy()\n"
-        "      f2_proxy = f2%get_proxy()\n"
-        "      !\n"
-        "      ! Initialise number of layers\n"
-        "      !\n"
-        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-        "      !\n"
-        "      ! Create a mesh object\n"
-        "      !\n"
-        "      mesh = f1%get_mesh()\n"
-        "      !\n"
-        "      ! Initialise sizes and allocate any basis arrays for "
-        "any_space_1\n"
-        "      !\n"
-        "      ndf_any_space_1 = f1_proxy%vspace%get_ndf()\n"
-        "      undf_any_space_1 = f1_proxy%vspace%get_undf()\n"
-        "      !\n"
-        "      ! Call our kernels\n"
         "      !\n"
         "      DO df=1,undf_any_space_1\n"
         "        f1_proxy%data(df) = a*f1_proxy%data(df) + "
