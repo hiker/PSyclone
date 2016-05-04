@@ -2408,6 +2408,8 @@ class DynBuiltInCallFactory(object):
             pwkern = DynDivideFieldKern()
         elif call.func_name == "divide_fields":
             pwkern = DynDivideFieldsKern()
+        elif call.func_name == "inc_field":
+            pwkern = DynIncFieldKern()
         elif call.func_name == "multiply_field":
             pwkern = DynMultiplyFieldKern()
         elif call.func_name == "axpy":
@@ -2603,25 +2605,38 @@ class DynAddFieldsKern(DynBuiltinKern):
     ''' Add one field to another and return the result as a third field '''
 
     def __str__(self):
-        return "Add fields infrastructure call"
+        return "Add fields built-in call"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
         # Generate the generic part of this pointwise kernel
         DynBuiltinKern.gen_code(self, parent)
-        idx_name = "df"
-        # and now the specific part - we add each element of f2
-        # to the corresponding element of f1 and store the result in
-        # f3
-        inproxy_name1 = self._arguments.args[0].proxy_name
-        inproxy_name2 = self._arguments.args[1].proxy_name
-        outproxy_name = self._arguments.args[2].proxy_name
-        invar_name1 = inproxy_name1 + "%data(" + idx_name + ")"
-        invar_name2 = inproxy_name2 + "%data(" + idx_name + ")"
-        outvar_name = outproxy_name + "%data(" + idx_name + ")"
-        assign = AssignGen(parent, lhs=outvar_name,
-                           rhs=invar_name1 + " + " + invar_name2)
-        parent.add(assign)
+        # and now the specific part - we add each element of f2 to the
+        # corresponding element of f1 and store the result in f3
+        invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
+        invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
+        outvar_name = self.array_ref(self._arguments.args[2].proxy_name)
+        parent.add(AssignGen(parent, lhs=outvar_name,
+                             rhs=invar_name1 + " + " + invar_name2))
+        return
+
+
+class DynDivideFieldKern(DynBuiltinKern):
+    ''' Divide the first field by the second and return it '''
+
+    def __str__(self):
+        return "Divide field built-in call"
+
+    def gen_code(self, parent):
+        from f2pygen import AssignGen
+        # Generate the generic part of this pointwise kernel
+        DynBuiltinKern.gen_code(self, parent)
+        # and now the specific part - we divide each element of f1
+        # by the corresponding element of f2 and store the result in f3
+        invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
+        invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
+        parent.add(AssignGen(parent, lhs=invar_name1,
+                             rhs=invar_name1 + " / " + invar_name2))
         return
 
 
@@ -2630,25 +2645,38 @@ class DynDivideFieldsKern(DynBuiltinKern):
     a third field '''
 
     def __str__(self):
-        return "Divide fields infrastructure call"
+        return "Divide fields built-in call"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
         # Generate the generic part of this pointwise kernel
         DynBuiltinKern.gen_code(self, parent)
-        idx_name = "df"
         # and now the specific part - we divide each element of f1
-        # by the corresponding element of f2 and store the result in
-        # f3
-        inproxy_name1 = self._arguments.args[0].proxy_name
-        inproxy_name2 = self._arguments.args[1].proxy_name
-        outproxy_name = self._arguments.args[2].proxy_name
-        invar_name1 = inproxy_name1 + "%data(" + idx_name + ")"
-        invar_name2 = inproxy_name2 + "%data(" + idx_name + ")"
-        outvar_name = outproxy_name + "%data(" + idx_name + ")"
-        assign = AssignGen(parent, lhs=outvar_name,
-                           rhs=invar_name1 + " / " + invar_name2)
-        parent.add(assign)
+        # by the corresponding element of f2 and store the result in f3
+        invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
+        invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
+        outvar_name = self.array_ref(self._arguments.args[2].proxy_name)
+        parent.add(AssignGen(parent, lhs=outvar_name,
+                             rhs=invar_name1 + " / " + invar_name2))
+        return
+
+
+class DynIncFieldKern(DynBuiltinKern):
+    ''' Add the 2nd field to the first field and return it '''
+
+    def __str__(self):
+        return "Increment field built-in call"
+
+    def gen_code(self, parent):
+        from f2pygen import AssignGen
+        # Generate the generic part of this pointwise kernel
+        DynBuiltinKern.gen_code(self, parent)
+        # and now the specific part - we add each element of f1 to the
+        # corresponding element of f2 and store the result back in f1
+        invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
+        invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
+        parent.add(AssignGen(parent, lhs=invar_name1,
+                             rhs=invar_name1 + " + " + invar_name2))
         return
 
 
