@@ -67,22 +67,6 @@ def test_invalid_builtin_kernel():
             str(excinfo.value))
 
 
-def test_unimplemented_builtin_kernel():
-    ''' Check that we raise an appropriate error if a
-    built-in is recognised but not implemented. '''
-    from dynamo0p3 import BUILTIN_NAMES
-    BUILTIN_NAMES.append('set_field_scala')
-    with pytest.raises(ParseError) as excinfo:
-        _, _ = parse(os.path.join(BASE_PATH,
-                                  "15.0.0_invalid_pw_kernel.f90"),
-                     api="dynamo0.3")
-    print str(excinfo.value)
-    assert False
-    assert ("kernel call 'set_field_scala' must either be named in a "
-            "use statement or be a recognised built-in" in
-            str(excinfo.value))
-
-
 def test_builtin_set_str():
     ''' Check that the str method of DynSetFieldScalarKern returns the
     expected string '''
