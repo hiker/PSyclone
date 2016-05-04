@@ -644,6 +644,10 @@ def test_pw_inc_axpy():
     code = str(psy.gen)
     print code
     output = (
+        "      ndf_any_space_1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_any_space_1 = f1_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Call our kernels\n"
         "      !\n"
         "      DO df=1,undf_any_space_1\n"
         "        f1_proxy%data(df) = a*f1_proxy%data(df) + "
@@ -787,6 +791,10 @@ def test_inc_field():
     code = str(psy.gen)
     print code
     output = (
+        "      ndf_any_space_1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_any_space_1 = f1_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Call our kernels\n"
         "      !\n"
         "      DO df=1,undf_any_space_1\n"
         "        f1_proxy%data(df) = f1_proxy%data(df) + f2_proxy%data(df)\n"

@@ -1982,6 +1982,15 @@ class DynLoop(Loop):
         of their halo to be clean to work correctly.'''
         fields = []
         for kern_call in self.kern_calls():
+            # TODO Alter kern_calls() method so that it only returns
+            # user-supplied kernels. This requires this branch (for
+            # #111) to be brought up to date with trunk. Hence
+            # we have the simple work-around below for the moment.
+            # We loop over owned DoFs for built-in kernels and therefore
+            # do not require any halos to be clean.
+            if isinstance(kern_call, DynBuiltinKern):
+                continue
+
             for arg in kern_call.arguments.args:
                 if arg.type.lower() == "gh_field":
                     field = arg
