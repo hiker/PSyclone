@@ -26,7 +26,6 @@ def get_builtin_defs(api):
             "get_builtin_defs: Unsupported API '{0}' specified. "
             "Supported types are {1}.".format(api,
                                               SUPPORTEDAPIS))
-
     if api == "dynamo0.3":
         # TODO consider replacing this with module-scope variables
         # whose values are set in the API-specific modules.
@@ -322,23 +321,27 @@ class KernelTypeFactory(object):
                 raise ParseError("KernelTypeFactory: Unsupported API '{0}' "
                                  "specified. Supported types are {1}.".\
                                  format(self._type, supportedTypes))
+        # Set-up built-ins for this API
+        # TODO parse the meta-data just once and use it to generate the
+        # list of recognised built-ins.
+        self._builtin_names, \
+            self._builtin_defs_file = get_builtin_defs(self._type)
+            
 
     def create(self, ast, name=None):
 
-        builtin_names, builtin_defs_file = get_builtin_defs(self._type)
-            
-        if name in builtin_names:
+        if name in self._builtin_names:
             # The meta-data for these lives in a Fortran module file
             # in the psyclone src directory - i.e. in the same
             # location as this python file. The precise name of this
             # file for this api is specified in BUILTIN_DEFINITIONS
             fname = os.path.join(
                 os.path.dirname(os.path.abspath(__file__)),
-                builtin_defs_file)
+                self._builtin_defs_file)
             if not os.path.isfile(fname):
                 raise ParseError(
-                    "Kernel '{0}' is a recognised Built-in but "
-                    "cannot find file '{1}' containing the meta-data describing "
+                    "Kernel '{0}' is a recognised Built-in but cannot "
+                    "find file '{1}' containing the meta-data describing "
                     "the Built-in operations for API '{2}'".format(name,
                                                                    fname,
                                                                    self._type))
