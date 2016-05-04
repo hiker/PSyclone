@@ -17,6 +17,21 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 # functions
 
 
+def test_dynbuiltin_missing_defs():
+    ''' Check that we raise an appropriate error if we cannot find the
+    file specifying meta-data for built-in kernels '''
+    import dynamo0p3
+    old_name = dynamo0p3.BUILTIN_DEFINITIONS_FILE[:]
+    dynamo0p3.BUILTIN_DEFINITIONS_FILE = 'broken'
+    with pytest.raises(ParseError) as excinfo:
+        _, _ = parse(os.path.join(BASE_PATH,
+                              "15_single_pointwise_invoke.f90"),
+                 api="dynamo0.3")
+    assert ("broken' containing the meta-data describing the "
+            "Built-in operations" in str(excinfo.value))
+    dynamo0p3.BUILTIN_DEFINITIONS_FILE = old_name
+
+
 def test_dynbuiltin_str():
     ''' Check that the str method of DynInfCallFactory works as expected '''
     from dynamo0p3 import DynBuiltInCallFactory
@@ -29,6 +44,9 @@ def test_dynbuiltin_wrong_name():
     doesn't recognise the name of the kernel it is passed '''
     from dynamo0p3 import DynBuiltInCallFactory
     dyninf = DynBuiltInCallFactory()
+    # We use 'duck-typing' - rather than attempt to create a rather
+    # complex Kernel object we use a ParseError object and monkey
+    # patch it so that it has a func_name member.
     fake_kern = ParseError("blah")
     fake_kern.func_name = "pw_blah"
     with pytest.raises(ParseError) as excinfo:
@@ -44,6 +62,22 @@ def test_invalid_builtin_kernel():
         _, _ = parse(os.path.join(BASE_PATH,
                                   "15.0.0_invalid_pw_kernel.f90"),
                      api="dynamo0.3")
+    assert ("kernel call 'set_field_scala' must either be named in a "
+            "use statement or be a recognised built-in" in
+            str(excinfo.value))
+
+
+def test_unimplemented_builtin_kernel():
+    ''' Check that we raise an appropriate error if a
+    built-in is recognised but not implemented. '''
+    from dynamo0p3 import BUILTIN_NAMES
+    BUILTIN_NAMES.append('set_field_scala')
+    with pytest.raises(ParseError) as excinfo:
+        _, _ = parse(os.path.join(BASE_PATH,
+                                  "15.0.0_invalid_pw_kernel.f90"),
+                     api="dynamo0.3")
+    print str(excinfo.value)
+    assert False
     assert ("kernel call 'set_field_scala' must either be named in a "
             "use statement or be a recognised built-in" in
             str(excinfo.value))

@@ -338,7 +338,7 @@ class KernelTypeFactory(object):
             if not os.path.isfile(fname):
                 raise ParseError(
                     "Kernel '{0}' is a recognised Built-in but "
-                    "cannot file '{1}' containing the meta-data describing "
+                    "cannot find file '{1}' containing the meta-data describing "
                     "the Built-in operations for API '{2}'".format(name,
                                                                    fname,
                                                                    self._type))

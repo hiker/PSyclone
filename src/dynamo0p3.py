@@ -2432,6 +2432,10 @@ class DynBuiltInCallFactory(object):
         else:
             # TODO is there a better way of handling this mapping such that
             # it is harder to make this mistake?
+            # We should only get to here if a developer has added the
+            # name of a new built-in to the BUILTIN_NAMES list *and* to
+            # the file containing the meta-data of all the built-ins for
+            # this API but has not added it to the above if-block.
             raise ParseError(
                 "Internal error: built-in call '{0}' is listed in "
                 "BUILTIN_NAMES but is not handled by "
