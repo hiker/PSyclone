@@ -2419,14 +2419,16 @@ class DynBuiltInCallFactory(object):
             pwkern = DynDivideFieldsKern()
         elif call.func_name == "inc_field":
             pwkern = DynIncFieldKern()
-        elif call.func_name == "multiply_field":
-            pwkern = DynMultiplyFieldKern()
+        elif call.func_name == "multiply_fields":
+            pwkern = DynMultiplyFieldsKern()
         elif call.func_name == "axpy":
             pwkern = DynAXPYKern()
         elif call.func_name == "inc_axpy":
             pwkern = DynIncAXPYKern()
         elif call.func_name == "axpby":
             pwkern = DynAXPBYKern()
+        elif call.func_name == "inc_axpby":
+            pwkern = DynIncAXPBYKern()
         else:
             # TODO is there a better way of handling this mapping such that
             # it is harder to make this mistake?
@@ -2530,7 +2532,7 @@ class DynSetFieldScalarKern(DynBuiltinKern):
     ''' Set a field equal to a scalar value '''
 
     def __str__(self):
-        return "Set infrastructure call"
+        return "Built-in: Set field to a scalar value"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
@@ -2538,12 +2540,9 @@ class DynSetFieldScalarKern(DynBuiltinKern):
         DynBuiltinKern.gen_code(self, parent)
         # and now the specific part. In this case we're assigning
         # a single scalar value to all elements of a field.
-        proxy_name = self._arguments.args[1].proxy_name
-        var_name = proxy_name + "%data(" + self._idx_name + ")"
+        var_name = self.array_ref(self._arguments.args[1].proxy_name)
         value = self._arguments.args[0]
-        assign = AssignGen(parent, lhs=var_name, rhs=value)
-        parent.add(assign)
-        return
+        parent.add(AssignGen(parent, lhs=var_name, rhs=value))
 
 
 class DynCopyFieldKern(DynBuiltinKern):
@@ -2560,9 +2559,7 @@ class DynCopyFieldKern(DynBuiltinKern):
         # arg) to the corresponding element of field B (second arg).
         invar_name = self.array_ref(self._arguments.args[0].proxy_name)
         outvar_name = self.array_ref(self._arguments.args[1].proxy_name)
-        assign = AssignGen(parent, lhs=outvar_name, rhs=invar_name)
-        parent.add(assign)
-        return
+        parent.add(AssignGen(parent, lhs=outvar_name, rhs=invar_name))
 
 
 class DynCopyScaledFieldKern(DynBuiltinKern):
@@ -2582,9 +2579,29 @@ class DynCopyScaledFieldKern(DynBuiltinKern):
         invar_name = self.array_ref(self._arguments.args[1].proxy_name)
         outvar_name = self.array_ref(self._arguments.args[2].proxy_name)
         rhs_expr = scalar + " * " + invar_name
-        assign = AssignGen(parent, lhs=outvar_name, rhs=rhs_expr)
+        parent.add(AssignGen(parent, lhs=outvar_name, rhs=rhs_expr))
+
+
+class DynMultiplyFieldsKern(DynBuiltinKern):
+    ''' DoF-wise product of one field with another with the result
+    returned as a third field '''
+
+    def __str__(self):
+        return "Built-in: Multiply fields"
+
+    def gen_code(self, parent):
+        from f2pygen import AssignGen
+        # Generate the generic part of this pointwise kernel
+        DynBuiltinKern.gen_code(self, parent)
+        # and now the specific part - we subtract each element of f2
+        # from the corresponding element of f1 and store the result in
+        # f3
+        invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
+        invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
+        outvar_name = self.array_ref(self._arguments.args[2].proxy_name)
+        assign = AssignGen(parent, lhs=outvar_name,
+                           rhs=invar_name1 + " * " + invar_name2)
         parent.add(assign)
-        return
 
 
 class DynSubtractFieldsKern(DynBuiltinKern):
@@ -2592,7 +2609,7 @@ class DynSubtractFieldsKern(DynBuiltinKern):
     third field '''
 
     def __str__(self):
-        return "Subtract fields infrastructure call"
+        return "Built-in: Subtract fields"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
@@ -2607,14 +2624,13 @@ class DynSubtractFieldsKern(DynBuiltinKern):
         assign = AssignGen(parent, lhs=outvar_name,
                            rhs=invar_name1 + " - " + invar_name2)
         parent.add(assign)
-        return
 
 
 class DynAddFieldsKern(DynBuiltinKern):
     ''' Add one field to another and return the result as a third field '''
 
     def __str__(self):
-        return "Add fields built-in call"
+        return "Built-in: Add fields"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
@@ -2627,14 +2643,13 @@ class DynAddFieldsKern(DynBuiltinKern):
         outvar_name = self.array_ref(self._arguments.args[2].proxy_name)
         parent.add(AssignGen(parent, lhs=outvar_name,
                              rhs=invar_name1 + " + " + invar_name2))
-        return
 
 
 class DynDivideFieldKern(DynBuiltinKern):
     ''' Divide the first field by the second and return it '''
 
     def __str__(self):
-        return "Divide field built-in call"
+        return "Built-in: Divide field by another"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
@@ -2646,7 +2661,6 @@ class DynDivideFieldKern(DynBuiltinKern):
         invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
         parent.add(AssignGen(parent, lhs=invar_name1,
                              rhs=invar_name1 + " / " + invar_name2))
-        return
 
 
 class DynDivideFieldsKern(DynBuiltinKern):
@@ -2654,7 +2668,7 @@ class DynDivideFieldsKern(DynBuiltinKern):
     a third field '''
 
     def __str__(self):
-        return "Divide fields built-in call"
+        return "Built-in: Divide fields"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
@@ -2667,14 +2681,13 @@ class DynDivideFieldsKern(DynBuiltinKern):
         outvar_name = self.array_ref(self._arguments.args[2].proxy_name)
         parent.add(AssignGen(parent, lhs=outvar_name,
                              rhs=invar_name1 + " / " + invar_name2))
-        return
 
 
 class DynIncFieldKern(DynBuiltinKern):
     ''' Add the 2nd field to the first field and return it '''
 
     def __str__(self):
-        return "Increment field built-in call"
+        return "Built-in: Increment field"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
@@ -2686,40 +2699,33 @@ class DynIncFieldKern(DynBuiltinKern):
         invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
         parent.add(AssignGen(parent, lhs=invar_name1,
                              rhs=invar_name1 + " + " + invar_name2))
-        return
 
 
-class DynMultiplyFieldKern(DynBuiltinKern):
+class DynCopyScaledFieldKern(DynBuiltinKern):
     ''' Multiply the first field by a scalar and return the result as
     a second field (y = a*x) '''
 
     def __str__(self):
-        return "Multiply field (by a scalar) infrastructure call"
+        return "Built-in: Copy scaled field"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
         # Generate the generic part of this pointwise kernel
         DynBuiltinKern.gen_code(self, parent)
-        idx_name = "df"
         # and now the specific part - we multiply each element of f1
-        # by the scalar argument and store the result in
-        # f2
+        # by the scalar argument and store the result in f2
         scalar_name = self._arguments.args[0].name
-        inproxy_name = self._arguments.args[1].proxy_name
-        outproxy_name = self._arguments.args[2].proxy_name
-        invar_name = inproxy_name + "%data(" + idx_name + ")"
-        outvar_name = outproxy_name + "%data(" + idx_name + ")"
-        assign = AssignGen(parent, lhs=outvar_name,
-                           rhs= scalar_name + " * " + invar_name)
-        parent.add(assign)
-        return
+        invar_name = self.array_ref(self._arguments.args[1].proxy_name)
+        outvar_name = self.array_ref(self._arguments.args[2].proxy_name)
+        parent.add(AssignGen(parent, lhs=outvar_name,
+                             rhs= scalar_name + " * " + invar_name))
 
 
 class DynAXPYKern(DynBuiltinKern):
     ''' f = a.x + y where 'a' is a scalar '''
 
     def __str__(self):
-        return "AXPY infrastructure call"
+        return "Built-in: AXPY"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
@@ -2729,24 +2735,19 @@ class DynAXPYKern(DynBuiltinKern):
         # f1 (2nd arg) by a scalar (1st arg), add it to the corresponding
         # element of a second field (3rd arg)  and write the value to the
         # corresponding element of field f3 (4th arg).
-        idx_name = "df"
         scalar_name = self._arguments.args[0].name
-        inproxy_name1 = self._arguments.args[1].proxy_name
-        inproxy_name2 = self._arguments.args[2].proxy_name
-        outproxy_name = self._arguments.args[3].proxy_name
-        invar_name1 = inproxy_name1 + "%data(" + idx_name + ")"
-        invar_name2 = inproxy_name2 + "%data(" + idx_name + ")"
-        outvar_name = outproxy_name + "%data(" + idx_name + ")"
+        invar_name1 = self.array_ref(self._arguments.args[1].proxy_name)
+        invar_name2 = self.array_ref(self._arguments.args[2].proxy_name)
+        outvar_name = self.array_ref(self._arguments.args[3].proxy_name)
         rhs_expr = scalar_name + "*" + invar_name1 + " + " + invar_name2
-        assign = AssignGen(parent, lhs=outvar_name, rhs=rhs_expr)
-        parent.add(assign)
+        parent.add(AssignGen(parent, lhs=outvar_name, rhs=rhs_expr))
 
 
 class DynIncAXPYKern(DynBuiltinKern):
     ''' x = a.x + y where 'a' is a scalar '''
 
     def __str__(self):
-        return "INC_AXPY built-in call"
+        return "Built-in: INC_AXPY"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
@@ -2757,15 +2758,14 @@ class DynIncAXPYKern(DynBuiltinKern):
         fld_name1 = self.array_ref(self._arguments.args[1].proxy_name)
         fld_name2 = self.array_ref(self._arguments.args[2].proxy_name)
         rhs_expr = scalar_name + "*" + fld_name1 + " + " + fld_name2
-        assign = AssignGen(parent, lhs=fld_name1, rhs=rhs_expr)
-        parent.add(assign)
+        parent.add(AssignGen(parent, lhs=fld_name1, rhs=rhs_expr))
 
 
 class DynAXPBYKern(DynBuiltinKern):
     ''' f = a.x + b.y where 'a' and 'b' are scalars '''
 
     def __str__(self):
-        return "AXPBY infrastructure call"
+        return "Built-in: AXPBY"
 
     def gen_code(self, parent):
         from f2pygen import AssignGen
@@ -2776,18 +2776,35 @@ class DynAXPBYKern(DynBuiltinKern):
         # product of the corresponding element of a second field (4th
         # arg) with the second scalar (4rd arg) and write the value to
         # the corresponding element of field f3 (5th arg).
-        idx_name = "df"
         scalar_name1 = self._arguments.args[0].name
         scalar_name2 = self._arguments.args[2].name
-        inproxy_name1 = self._arguments.args[1].proxy_name
-        inproxy_name2 = self._arguments.args[3].proxy_name
-        outproxy_name = self._arguments.args[4].proxy_name
-        invar_name1 = inproxy_name1 + "%data(" + idx_name + ")"
-        invar_name2 = inproxy_name2 + "%data(" + idx_name + ")"
-        outvar_name = outproxy_name + "%data(" + idx_name + ")"
+        invar_name1 = self.array_ref(self._arguments.args[1].proxy_name)
+        invar_name2 = self.array_ref(self._arguments.args[3].proxy_name)
+        outvar_name = self.array_ref(self._arguments.args[4].proxy_name)
         rhs_expr = scalar_name1 + "*" + invar_name1 + " + " \
                    + scalar_name2 + "*" + invar_name2
-        assign = AssignGen(parent, lhs=outvar_name, rhs=rhs_expr)
-        parent.add(assign)
+        parent.add(AssignGen(parent, lhs=outvar_name, rhs=rhs_expr))
 
 
+class DynIncAXPBYKern(DynBuiltinKern):
+    ''' x = a.x + b.y where 'a' and 'b' are scalars '''
+
+    def __str__(self):
+        return "Built-in: INC_AXPBY"
+
+    def gen_code(self, parent):
+        from f2pygen import AssignGen
+        # Generate the generic part of this pointwise kernel
+        DynBuiltinKern.gen_code(self, parent)
+        # and now the specific part - we multiply one element of field
+        # f1 (2nd arg) by the first scalar (1st arg), add it to the
+        # product of the corresponding element of a second field (4th
+        # arg) with the second scalar (4rd arg) and write the value to
+        # back into the element of field f1.
+        scalar_name1 = self._arguments.args[0].name
+        scalar_name2 = self._arguments.args[2].name
+        invar_name1 = self.array_ref(self._arguments.args[1].proxy_name)
+        invar_name2 = self.array_ref(self._arguments.args[3].proxy_name)
+        rhs_expr = scalar_name1 + "*" + invar_name1 + " + " \
+                   + scalar_name2 + "*" + invar_name2
+        parent.add(AssignGen(parent, lhs=invar_name1, rhs=rhs_expr))

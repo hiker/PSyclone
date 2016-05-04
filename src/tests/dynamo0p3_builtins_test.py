@@ -58,7 +58,7 @@ def test_builtin_set_str():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0]
-    assert str(kern) == "Set infrastructure call"
+    assert str(kern) == "Built-in: Set field to a scalar value"
 
 
 def test_builtin_set():
@@ -318,7 +318,7 @@ def test_pw_subtract_fields_str():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0]
-    assert str(kern) == "Subtract fields infrastructure call"
+    assert str(kern) == "Built-in: Subtract fields"
 
 
 def test_pw_subtract_fields():
@@ -366,7 +366,7 @@ def test_pw_add_fields_str():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0]
-    assert str(kern) == "Add fields built-in call"
+    assert str(kern) == "Built-in: Add fields"
 
 
 def test_pw_add_fields():
@@ -414,7 +414,7 @@ def test_divide_fields_str():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0]
-    assert str(kern) == "Divide fields built-in call"
+    assert str(kern) == "Built-in: Divide fields"
 
 
 def test_divide_fields():
@@ -462,7 +462,7 @@ def test_divide_field_str():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0]
-    assert str(kern) == "Divide field built-in call"
+    assert str(kern) == "Built-in: Divide field by another"
 
 
 def test_divide_field():
@@ -547,7 +547,7 @@ def test_copy_scaled_field():
     assert output in code
 
 
-def test_pw_axpy_field_str():
+def test_axpy_field_str():
     ''' Test that the str method of DynAXPYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -556,10 +556,10 @@ def test_pw_axpy_field_str():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0]
-    assert str(kern) == "AXPY infrastructure call"
+    assert str(kern) == "Built-in: AXPY"
  
 
-def test_pw_axpy():
+def test_axpy():
     ''' Test that we generate correct code for the builtin
     operation f = a*x + y where 'a' is a scalar '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -596,7 +596,7 @@ def test_pw_axpy():
     assert output in code
  
 
-def test_pw_axpy_by_value():
+def test_axpy_by_value():
     ''' Test that we generate correct code for the builtin
     operation y = a*x + y when a is passed by value'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -634,7 +634,18 @@ def test_pw_axpy_by_value():
     assert output in code
 
 
-def test_pw_inc_axpy():
+def test_inc_axpy_str():
+    ''' Test the str method of DynIncAXPYKern'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.4_inc_axpy_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].children[0]
+    assert str(kern) == "Built-in: INC_AXPY"
+
+
+def test_inc_axpy():
     ''' Test that we generate correct code for the built-in
     operation x = a*x + y '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -657,7 +668,7 @@ def test_pw_inc_axpy():
     assert output in code
 
 
-def test_pw_axpby_field_str():
+def test_axpby_field_str():
     ''' Test that the str method of DynAXPBYKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -666,10 +677,10 @@ def test_pw_axpby_field_str():
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0]
-    assert str(kern) == "AXPBY infrastructure call"
+    assert str(kern) == "Built-in: AXPBY"
  
 
-def test_pw_axpby():
+def test_axpby():
     ''' Test that we generate correct code for the builtin
     operation f = a*x + b*y where 'a' and 'b' are scalars '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -707,7 +718,7 @@ def test_pw_axpby():
     assert output in code
  
 
-def test_pw_axpby_by_value():
+def test_axpby_by_value():
     ''' Test that we generate correct code for the builtin
     operation z = a*x + b*y when a and b are passed by value'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -745,15 +756,66 @@ def test_pw_axpby_by_value():
     assert output in code
 
 
+def test_inc_axpby_str():
+    ''' Test the str method of DynIncAXPBYKern '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.8.2_inc_axpby_invoke.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].children[0]
+    assert str(kern) == "Built-in: INC_AXPBY"
+
+
+def test_inc_axpby():
+    ''' Test that we generate correct code for the built-in
+    operation x = a*x + b*y where x and y are fields and a and b are
+    scalars. '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.8.2_inc_axpby_invoke.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    code = str(psy.gen)
+    print code
+    output = (
+        "      f1_proxy = f1%get_proxy()\n"
+        "      f2_proxy = f2%get_proxy()\n"
+        "      !\n"
+        "      ! Initialise number of layers\n"
+        "      !\n"
+        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Create a mesh object\n"
+        "      !\n"
+        "      mesh = f1%get_mesh()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for "
+        "any_space_1\n"
+        "      !\n"
+        "      ndf_any_space_1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_any_space_1 = f1_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Call our kernels\n"
+        "      !\n"
+        "      DO df=1,undf_any_space_1\n"
+        "        f1_proxy%data(df) = a*f1_proxy%data(df) + "
+        "b*f2_proxy%data(df)\n"
+        "      END DO \n"
+        )
+    assert output in code
+
+
 @pytest.mark.xfail(
     reason="Requires kernel-argument dependency analysis to deduce the "
     "spaces of the fields passed to the built-in kernel")
-def test_pw_multiply_fields_on_different_spaces():
+def test_multiply_fields_on_different_spaces():
     ''' Test that we raise an error if multiply_fields() is called for
     two fields that are on different spaces '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.3.0_multiply_fields_different_spaces.f90"),
+                     "15.3.3_multiply_fields_different_spaces.f90"),
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     with pytest.raises(GenerationError) as excinfo:
@@ -764,7 +826,7 @@ def test_pw_multiply_fields_on_different_spaces():
 @pytest.mark.xfail(
     reason="Dependency analysis of kernel arguments within an invoke is "
     "not yet implemented")
-def test_pw_multiply_fields_deduce_space():
+def test_multiply_fields_deduce_space():
     ''' Test that we generate correct code if multiply_fields() is called
     in an invoke containing another kernel that allows the space of the
     fields to be deduced '''
@@ -779,6 +841,19 @@ def test_pw_multiply_fields_deduce_space():
         "some fortran\n"
     )
     assert output in code
+
+
+def test_inc_field_str():
+    ''' Test that the str method of DynIncFieldKern returns the
+    expected string '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.7.0_inc_field_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].children[0]
+    assert str(kern) == "Built-in: Increment field"
+
 
 def test_inc_field():
     ''' Test that we generate correct code for the built-in y = y + x
@@ -802,13 +877,35 @@ def test_inc_field():
     assert output in code
 
 
-def test_pw_mult_fields():
+def test_multiply_fields_str():
+    ''' Test the str method of DynMultiplyFieldsKern '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.3.0_multiply_fields.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].children[0]
+    assert str(kern) == "Built-in: Multiply fields"
+
+
+def test_multiply_fields():
     ''' Test that we generate correct code for the built-in z = x*y
     where x, y and z are fields '''
-    assert False
-
-def test_pw_inc_axpby():
-    ''' Test that we generate correct code for the built-in
-    operation x = a*x + b*y where x and y are fields and a and b are
-    scalars. '''
-    assert False
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.3.0_multiply_fields.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    code = str(psy.gen)
+    print code
+    output = (
+        "      ndf_any_space_1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_any_space_1 = f1_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Call our kernels\n"
+        "      !\n"
+        "      DO df=1,undf_any_space_1\n"
+        "        f3_proxy%data(df) = f1_proxy%data(df) * f2_proxy%data(df)\n"
+        "      END DO \n")
+    assert output in code
