@@ -60,9 +60,8 @@ VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 BUILTIN_NAMES = ["axpy", "inc_axpy", "axpby", "inc_axpby",
                  "copy_field", "copy_scaled_field",
                  "divide_field", "divide_fields",
-                 "inc_field",
-                 "minus_fields", "multiply_fields",
-                 "plus_fields", "set_field_scalar"]
+                 "inc_field", "minus_fields", "multiply_fields",
+                 "plus_fields", "scale_field", "set_field_scalar"]
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
@@ -2423,6 +2422,8 @@ class DynBuiltInCallFactory(object):
             pwkern = DynAXPBYKern()
         elif call.func_name == "inc_axpby":
             pwkern = DynIncAXPBYKern()
+        elif call.func_name == "scale_field":
+            pwkern = DynScaleFieldKern()
         else:
             # TODO is there a better way of handling this mapping such that
             # it is harder to make this mistake?
@@ -2499,6 +2500,22 @@ class DynBuiltinKern(DynKern, InfKern):
         space that this kernel updates '''
         field = self._arguments.iteration_space_arg()
         return self.fs_descriptors.undf_name(field.function_space)
+
+
+class DynScaleFieldKern(DynBuiltinKern):
+    ''' Multiply a field by a scalar and return it '''
+
+    def __str__(self):
+        return "Built-in: scale a field"
+
+    def gen_code(self, parent):
+        from f2pygen import AssignGen
+        # In this case we're multiplying each element of a field by the
+        # supplied scalar value
+        var_name = self.array_ref(self._arguments.args[1].proxy_name)
+        value = self._arguments.args[0].name
+        parent.add(AssignGen(parent, lhs=var_name,
+                             rhs=value + "*" + var_name))
 
 
 class DynSetFieldScalarKern(DynBuiltinKern):

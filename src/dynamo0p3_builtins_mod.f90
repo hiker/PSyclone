@@ -184,6 +184,18 @@ module dynamo0p3_builtins_mod
      procedure, nopass :: plus_fields_code
   end type plus_fields
 
+  !> field1 = ascalar * field1
+  type, public, extends(kernel_type) :: scale_field
+     private
+     type(arg_type) :: meta_args(2) = (/                               &
+          arg_type(GH_RSCALAR, GH_READ),                               &
+          arg_type(GH_FIELD,   GH_INC, ANY_SPACE_1)                    &
+          /)
+     integer :: iterates_over = DOFS
+   contains
+     procedure, nopass :: scale_field_code
+  end type scale_field
+
   !> field1 = ascalar
   type, public, extends(kernel_type) :: set_field_scalar
      private
@@ -248,6 +260,9 @@ contains
 
   subroutine plus_fields_code()
   end subroutine plus_fields_code
+
+  subroutine scale_field_code()
+  end subroutine scale_field_code
 
   subroutine set_field_scalar_code()
   end subroutine set_field_scalar_code

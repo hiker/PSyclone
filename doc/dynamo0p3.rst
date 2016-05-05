@@ -515,6 +515,20 @@ where:
 * type(field_type), intent(in) :: *field2*
 * type(field_type), intent(out) :: *field3*
 
+scale_field
++++++++++++
+
+**scale_field** (*scalar*, *field1*)
+
+Multiplies a field by a scalar value and returns the field: ::
+
+  field1(:) = scalar * field1(:)
+
+where:
+
+* real(r_def),      intent(in) :: *scalar*
+* type(field_type), intent(inout) :: *field1*
+
 set_field_scalar
 ++++++++++++++++
 
