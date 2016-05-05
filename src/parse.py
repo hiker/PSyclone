@@ -351,7 +351,7 @@ class KernelTypeFactory(object):
             except:
                 raise ParseError(
                     "Failed to parse the meta-data for PSyclone "
-                    "infrastructure kernels in {0}".format(fname))
+                    "built-ins in {0}".format(fname))
 
         if self._type=="gunghoproto":
             return GHProtoKernelType(ast, name=name)
@@ -369,7 +369,7 @@ class KernelTypeFactory(object):
             raise ParseError(
                 "KernelTypeFactory: Internal Error: Unsupported "
                 "kernel type '{0}' found. Should not be possible.".
-                format(self._myType))
+                format(self._type))
 
 
 class KernelType(object):
