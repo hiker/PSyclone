@@ -25,8 +25,8 @@ def test_dynbuiltin_missing_defs():
     dynamo0p3.BUILTIN_DEFINITIONS_FILE = 'broken'
     with pytest.raises(ParseError) as excinfo:
         _, _ = parse(os.path.join(BASE_PATH,
-                              "15_single_pointwise_invoke.f90"),
-                 api="dynamo0.3")
+                                  "15_single_pointwise_invoke.f90"),
+                     api="dynamo0.3")
     assert ("broken' containing the meta-data describing the "
             "Built-in operations" in str(excinfo.value))
     dynamo0p3.BUILTIN_DEFINITIONS_FILE = old_name
@@ -227,9 +227,10 @@ def test_multiple_builtin_set():
 def test_builtin_set_plus_normal():
     ''' Tests that we generate correct code for a builtin
     set operation when the invoke also contains a normal kernel '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.1_pw_and_normal_kernel_invoke.f90"),
-                           api="dynamo0.3")
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.1_pw_and_normal_kernel_invoke.f90"),
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     code = str(psy.gen)
     print code
@@ -269,7 +270,7 @@ def test_builtin_set_plus_normal():
     assert output in code
 
 
-def test_builtin_copy_str():
+def test_copy_str():
     ''' Check that the str method of DynCopyFieldKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -281,7 +282,7 @@ def test_builtin_copy_str():
     assert str(kern) == "Built-in: Copy field"
 
 
-def test_builtin_copy():
+def test_copy():
     ''' Tests that we generate correct code for a builtin
     copy field operation '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -327,7 +328,7 @@ def test_builtin_copy():
     assert output in code
 
 
-def test_pw_subtract_fields_str():
+def test_subtract_fields_str():
     ''' Test that the str method of DynSubtractFieldsKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -339,7 +340,7 @@ def test_pw_subtract_fields_str():
     assert str(kern) == "Built-in: Subtract fields"
 
 
-def test_pw_subtract_fields():
+def test_subtract_fields():
     ''' Test that the str method of DynSubtractFieldsKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -375,7 +376,7 @@ def test_pw_subtract_fields():
     assert output in code
 
 
-def test_pw_add_fields_str():
+def test_add_fields_str():
     ''' Test that the str method of DynSubtractFieldsKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -387,7 +388,7 @@ def test_pw_add_fields_str():
     assert str(kern) == "Built-in: Add fields"
 
 
-def test_pw_add_fields():
+def test_add_fields():
     ''' Test that the str method of DynAddFieldsKern returns the
     expected string '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -521,9 +522,10 @@ def test_divide_field():
 def test_copy_scaled_field_str():
     ''' Test that the str method of DynCopyScaledFieldKern returns the
     expected string '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.2.1_copy_scaled_field_builtin.f90"),
-                           api="dynamo0.3")
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.2.1_copy_scaled_field_builtin.f90"),
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0]
@@ -533,9 +535,10 @@ def test_copy_scaled_field_str():
 def test_copy_scaled_field():
     ''' Test that we generate correct code for the CopyScaledField
     (y = a*x) built-in '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.2.1_copy_scaled_field_builtin.f90"),
-                           api="dynamo0.3")
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.2.1_copy_scaled_field_builtin.f90"),
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     code = str(psy.gen)
     print code
@@ -575,7 +578,7 @@ def test_axpy_field_str():
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0]
     assert str(kern) == "Built-in: AXPY"
- 
+
 
 def test_axpy():
     ''' Test that we generate correct code for the builtin
@@ -612,7 +615,7 @@ def test_axpy():
         "      END DO \n"
         )
     assert output in code
- 
+
 
 def test_axpy_by_value():
     ''' Test that we generate correct code for the builtin
@@ -696,7 +699,7 @@ def test_axpby_field_str():
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0]
     assert str(kern) == "Built-in: AXPBY"
- 
+
 
 def test_axpby():
     ''' Test that we generate correct code for the builtin
@@ -734,7 +737,7 @@ def test_axpby():
         "      END DO \n"
         )
     assert output in code
- 
+
 
 def test_axpby_by_value():
     ''' Test that we generate correct code for the builtin
