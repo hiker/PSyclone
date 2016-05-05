@@ -565,9 +565,9 @@ class KernelCall(object):
         return 'KernelCall(%s, %s)' % (self.ktype, self.args)
 
 
-class InfCall(KernelCall):
-    """An infrastructure call (appearing in
-    `call invoke(kernel_name(field_name, ...))`"""
+class BuiltInCall(KernelCall):
+    """ A built-in call (appearing in
+    `call invoke(kernel_name(field_name, ...))` """
     def __init__(self, module_name, ktype, args):
         KernelCall.__init__(self, module_name, ktype, args)
         self._func_name = ktype.name
@@ -578,10 +578,10 @@ class InfCall(KernelCall):
 
     @property
     def type(self):
-        return "InfrastructureCall"
+        return "BuiltInCall"
 
     def __repr__(self):
-        return 'InfrastructureCall(%s, %s)' % (self.module_name, self.args)
+        return 'BuiltInCall(%s, %s)' % (self.module_name, self.args)
 
 
 class Arg(object):
@@ -773,10 +773,10 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                     # this is a call to a built-in operation. The
                     # KernelTypeFactory will generate appropriate meta-data
                     statement_kcalls.append(
-                        InfCall(argname,
-                                KernelTypeFactory(api=api).create(
-                                    None, name=argname),
-                                argargs))
+                        BuiltInCall(argname,
+                                    KernelTypeFactory(api=api).create(
+                                        None, name=argname),
+                                    argargs))
                 else:
                     try:
                         modulename = name_to_module[argname]

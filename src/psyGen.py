@@ -712,16 +712,16 @@ class Schedule(Node):
     def invoke(self, my_invoke):
         self._invoke = my_invoke
 
-    def __init__(self, Kern, Inf, alg_calls=[]):
+    def __init__(self, Kern, builtin, alg_calls=[]):
 
         # we need to separate calls into loops (an iteration space really)
         # and calls so that we can perform optimisations separately on the
         # two entities.
         sequence = []
-        from parse import InfCall
+        from parse import BuiltInCall
         for call in alg_calls:
-            if isinstance(call, InfCall):
-                sequence.append(Inf.create(call, parent=self))
+            if isinstance(call, BuiltInCall):
+                sequence.append(builtin.create(call, parent=self))
             else:
                 sequence.append(Kern.create(call, parent=self))
         Node.__init__(self, children=sequence)
