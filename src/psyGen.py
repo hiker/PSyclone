@@ -754,7 +754,7 @@ class OMPDirective(Directive):
 class OMPParallelDirective(OMPDirective):
 
     def view(self, indent=0):
-        print self.indent(indent)+"Directive[OMP Parallel]"
+        print self.indent(indent)+"Directive[OMP parallel]"
         for entity in self._children:
             entity.view(indent=indent + 1)
 
