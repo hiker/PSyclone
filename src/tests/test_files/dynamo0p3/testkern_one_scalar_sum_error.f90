@@ -6,7 +6,7 @@
 module testkern
   type, extends(kernel_type) :: testkern_type
      type(arg_type), dimension(1) :: meta_args = (/ &
-             arg_type(gh_iscalar, gh_sum)           &
+             arg_type(gh_integer, gh_sum)           &
            /)
      integer, parameter :: iterates_over = cells
    contains

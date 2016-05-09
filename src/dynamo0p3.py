@@ -57,9 +57,9 @@ VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "edge", "halo", "ncolour",
 FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
                     "readwrite": "gh_rw", "inc": "gh_inc"}
 
-# Mapping used by reduction code in psyGen
-psyGen.MAPPING = {"sum": "gh_sum", "iscalar": "gh_integer",
-                  "rscalar": "gh_real"}
+# Mappings used by reduction code in psyGen
+psyGen.MAPPING_REDUCTIONS = {"sum": "gh_sum"}
+psyGen.MAPPING_SCALARS = {"iscalar": "gh_integer", "rscalar": "gh_real"}
 
 
 # classes

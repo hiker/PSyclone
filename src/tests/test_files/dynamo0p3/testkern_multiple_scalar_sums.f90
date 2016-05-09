@@ -7,11 +7,11 @@ module testkern_multiple_scalar_sums_mod
 
   type, extends(kernel_type) :: testkern_multiple_scalar_sums_type
      type(arg_type), dimension(5) :: meta_args = (/ &
-             arg_type(gh_rscalar, gh_sum),          &
-             arg_type(gh_iscalar, gh_sum),          &
+             arg_type(gh_real,    gh_sum),          &
+             arg_type(gh_integer, gh_sum),          &
              arg_type(gh_field,   gh_write, w3),    &
-             arg_type(gh_rscalar, gh_sum),          &
-             arg_type(gh_iscalar, gh_sum)           &
+             arg_type(gh_real,    gh_sum),          &
+             arg_type(gh_integer, gh_sum)           &
            /)
      integer, parameter :: iterates_over = cells
    contains
