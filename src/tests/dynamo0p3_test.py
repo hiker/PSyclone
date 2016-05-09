@@ -2905,17 +2905,19 @@ def test_arg_descriptor_functions_method_error():
     assert 'Internal error, DynArgDescriptor03:function_spaces(), should ' \
         'not get to here' in str(excinfo.value)
 
+
 def test_DynKernelArgument_intent_invalid():
     '''Tests that an error is raised in DynKernelArgument when an invalid
     intent value is found. Tests with and without distributed memory '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
-    for dm in [False, True]:
-        if dm:
-            idx=3
+    for dist_mem in [False, True]:
+        if dist_mem:
+            idx = 3
         else:
-            idx=0
-        psy = PSyFactory("dynamo0.3", distributed_memory=dm).create(invoke_info)
+            idx = 0
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=dist_mem).create(invoke_info)
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
         loop = schedule.children[idx]
@@ -2926,6 +2928,7 @@ def test_DynKernelArgument_intent_invalid():
             _ = arg.intent
         assert "Expecting argument access to be one of 'gh_read," in \
             str(excinfo.value)
+
 
 def test_arg_ref_name_method_error1():
     ''' Tests that an internal error is raised in DynKernelArgument
