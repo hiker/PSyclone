@@ -3655,11 +3655,19 @@ def test_scalar_int_sum_field_read():
                      distributed_memory=False).create(invoke_info)
     gen = str(psy.gen)
     print gen
-    assert "f1_proxy%vspace%get_cell_dofmap" in gen
+    expected_output = (
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "        !\n"
+        "        map_w3 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        !\n"
+        "        CALL testkern_code(nlayers, isum, f1_proxy%data, ndf_w3, "
+        "undf_w3, map_w3)\n"
+        "      END DO \n")
+    assert expected_output in gen
 
 
 def test_scalar_real_sum_field_read():
-    '''Test that a write to a single read scalar is valid if we have at
+    '''Test that a write to a single real scalar is valid if we have at
     least one field that is read '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
@@ -3668,4 +3676,12 @@ def test_scalar_real_sum_field_read():
                      distributed_memory=False).create(invoke_info)
     gen = str(psy.gen)
     print gen
-    assert "f1_proxy%vspace%get_cell_dofmap" in gen
+    expected_output = (
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "        !\n"
+        "        map_w3 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
+        "        !\n"
+        "        CALL testkern_code(nlayers, rsum, f1_proxy%data, "
+        "ndf_w3, undf_w3, map_w3)\n"
+        "      END DO \n")
+    assert expected_output in gen
