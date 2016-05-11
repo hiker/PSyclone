@@ -12,10 +12,12 @@
 
 import abc
 
-# These mapping will be set by a particular API if supported. We
+# These mappings will be set by a particular API if supported. We
 # provide a default here for API's which do not have their own mapping
 # (or support this mapping). This allows codes with no support to run.
+# Names of reduction operations
 MAPPING_REDUCTIONS = {"sum": "sum"}
+# Names of types of scalar variable
 MAPPING_SCALARS = {"iscalar": "iscalar", "rscalar": "rscalar"}
 
 
@@ -744,8 +746,7 @@ class OMPDirective(Directive):
         result = []
         for call in self.calls():
             for arg in call.arguments.args:
-                if arg.type == MAPPING_SCALARS["iscalar"] or \
-                   arg.type == MAPPING_SCALARS["rscalar"]:
+                if arg.type in MAPPING_SCALARS.values():
                     if arg.descriptor.access == \
                        MAPPING_REDUCTIONS[reduction_type]:
                         if arg.name not in result:
