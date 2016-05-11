@@ -273,14 +273,15 @@ As mentioned earlier, not all combinations of metadata are
 valid. Valid combinations are summarised here. All types of data
 (``GH_INTEGER``, ``GH_REAL``, ``GH_FIELD`` and ``GH_OPERATOR``) may
 be read within a Kernel and this is specified in metadata using
-``GH_READ``. If data is modified in a Kernel then the permitted access
+``GH_READ``. If data is *modified* in a Kernel then the permitted access
 modes depend on the type of data it is and the function
 space it is on. Valid values are given in the table below.
 
 =============     ============================    ============
 Argument Type     Function space                  Access type
 =============     ============================    ============
-GH_{IR}SCALAR     n/a                             GH_SUM
+GH_INTEGER        n/a                             GH_SUM
+GH_REAL           n/a                             GH_SUM
 GH_FIELD          Discontinuous (w3)              GH_WRITE
 GH_FIELD          Continuous (not w3)             GH_INC
 GH_OPERATOR       Any for both 'to' and 'from'    GH_WRITE
