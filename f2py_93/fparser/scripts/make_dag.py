@@ -4,8 +4,8 @@ import sys
 from fparser.Fortran2003 import Module, Module_Subprogram_Part, \
     Subroutine_Subprogram, Assignment_Stmt, Add_Operand, \
     Level_2_Expr, Level_2_Unary_Expr, Real_Literal_Constant, \
-    Specification_Part, Name, Section_Subscript_List
-from dag import DAGNode
+    Subroutine_Stmt, Name, Section_Subscript_List, Parenthesis, Part_Ref
+from dag import DirectedAcyclicGraph, DAGNode
 
 ### START UPDATE SYS.PATH ###
 ### END UPDATE SYS.PATH ###
@@ -23,15 +23,16 @@ def str_to_node_name(astring):
     new_string = new_string.replace(",","_")
     new_string = new_string.replace("+","p")
     new_string = new_string.replace("-","m")
+    new_string = new_string.replace("(","_")
+    new_string = new_string.replace(")","")
     return new_string
 
 def is_subexpression(expr):
-    ''' Returns True if there are no sub-expressions in the list of
-    nodes (i.e. they are just Values or strings). Returns False
-    otherwise. '''
+    ''' Returns True if the supplied node is itself a sub-expression. '''
     if isinstance(expr, Add_Operand) or \
        isinstance(expr, Level_2_Expr) or \
-       isinstance(expr, Level_2_Unary_Expr):
+       isinstance(expr, Level_2_Unary_Expr) or \
+       isinstance(expr, Parenthesis):
         return True
     return False
 
@@ -70,17 +71,30 @@ def walk_items(children, my_type):
             pass
     return local_list
 
-def make_dag(parent_DAGNode, children):
+def make_dag(graph, parent, children):
     ''' Makes a DAG from the RHS of an assignment '''
+
+    debug = False
+
+    if debug:
+        for child in children:
+            if isinstance(child, str):
+                print "String: ", child
+            elif isinstance(child, Part_Ref):
+                print "Part ref", str(child)
+            else:
+                print type(child)
+        print "--------------"
 
     for child in children:
         if isinstance(child, str):
             if child in OPERATORS:
                 # This is the operator which is then the parent
-                # of the DAG of this subexpression
-                opnode = DAGNode(parent_DAGNode, child)
-                parent_DAGNode.add_child(opnode)
-                parent_DAGNode = opnode
+                # of the DAG of this subexpression. All operators
+                # are unique nodes in the DAG.
+                opnode = graph.get_node(child, parent, unique=True)
+                parent.add_child(opnode)
+                parent = opnode
                 break
 
     for idx, child in enumerate(children):
@@ -91,17 +105,27 @@ def make_dag(parent_DAGNode, children):
                 # This is an array reference
                 suffix = "_" + str_to_node_name(str(children[idx+1]))
             var_name = str(child) + suffix
-            tmpnode = DAGNode(parent_DAGNode, var_name)
-            parent_DAGNode.add_child(tmpnode)
+            tmpnode = graph.get_node(var_name, parent)
+            parent.add_child(tmpnode)
         elif isinstance(child, Real_Literal_Constant):
             # This is a constant
-            tmpnode = DAGNode(parent_DAGNode, str(child))
-            parent_DAGNode.add_child(tmpnode)
+            tmpnode = graph.get_node(str(child), parent, unique=True)
+            parent.add_child(tmpnode)
+        elif isinstance(child, Part_Ref):
+            # An array reference
+            name = str_to_node_name(str(child))
+            tmpnode = graph.get_node(name, parent)
+            parent.add_child(tmpnode)
         elif is_subexpression(child):
+            #print child
+            #print dir(child)
+            #for item in child.items:
+            #    print type(item)
             # One or more of the children are themselves sub-expressions
-            tmpnode = DAGNode(parent_DAGNode, str(child.item))
-            parent_DAGNode.add_child(tmpnode)
-            make_dag(tmpnode, child.items)
+            tmpnode = graph.get_node(str(child.item), parent, unique=True)
+            parent.add_child(tmpnode)
+            # Make the DAG of this sub-expression
+            make_dag(graph, tmpnode, child.items)
 
 
 def runner (parser, options, args):
@@ -113,20 +137,20 @@ def runner (parser, options, args):
             reader.set_mode_from_str(options.mode)
         try:
             program = Fortran2003.Program(reader)
-            print program
-            print type(program)
-            print dir(program.content)
             subroutines = walk(program.content, Subroutine_Subprogram)
             for subroutine in subroutines:
+                substmt = walk(subroutine.content, Subroutine_Stmt)
+                sub_name = substmt[0].get_name()
                 print "======================"
+                print "Subroutine is: ",sub_name
+                digraph = DirectedAcyclicGraph(sub_name)
                 print "strict digraph {"
-                pluscount = 0
                 assignments = walk(subroutine.content, Assignment_Stmt)
                 for assign in assignments:
                     assigned_to = walk_items([assign.items[0]], Name)
                     var_name = str(assigned_to[0])
-                    dag = DAGNode(name=var_name)
-                    make_dag(dag, assign.items[1:])
+                    dag = digraph.get_node(name=var_name, parent=None)
+                    make_dag(digraph, dag, assign.items[1:])
                     #dag.display()
                     dag.to_dot()
                 print "}"

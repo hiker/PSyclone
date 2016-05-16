@@ -4,6 +4,27 @@
 
 INDENT_STR = "     "
 
+class DirectedAcyclicGraph(object):
+
+    def __init__(self, name):
+        self._nodes = {}
+        self._name = name
+
+    def get_node(self, name, parent, unique=True):
+        if unique:
+            # Node is unique so we make a new one, no questions
+            # asked...
+            return DAGNode(parent=parent, name=name)
+        else:
+            # Node is not necessarily unique so check whether we
+            # already have one with the supplied name
+            if name in self._nodes:
+                return self._nodes[name]
+            else:
+                newnode = DAGNode(parent=parent, name=name)
+                self._nodes[name] = newnode
+                return newnode
+
 class DAGNode(object):
     ''' Base class for a node in a Directed Acyclic Graph '''
     
@@ -17,6 +38,7 @@ class DAGNode(object):
 
     @property
     def _node_id(self):
+        ''' Returns a unique string identify this node in the graph '''
         return "node"+str(id(self))
 
     def display(self, indent=0):
