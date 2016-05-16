@@ -16,6 +16,7 @@ except ImportError:
 from fparser.script_options import set_f2003_options
 
 OPERATORS = ["+", "-", "/", "*"]
+FORTRAN_INTRINSICS = ["SIGN", "SIN", "COS"]
 
 def str_to_node_name(astring):
     
@@ -33,6 +34,15 @@ def is_subexpression(expr):
        isinstance(expr, Level_2_Expr) or \
        isinstance(expr, Level_2_Unary_Expr) or \
        isinstance(expr, Parenthesis):
+        return True
+    return False
+
+def is_intrinsic_fn(obj):
+    ''' Checks whether the supplied object is a call to a Fortran
+        intrinsic '''
+    if not isinstance(obj.items[0], Name):
+        raise Exception("is_intrinsic_fn: expects first item to be Name")
+    if str(obj.items[0]) in FORTRAN_INTRINSICS:
         return True
     return False
 
@@ -86,6 +96,7 @@ def make_dag(graph, parent, children):
                 print type(child)
         print "--------------"
 
+    subex_count = 0
     for child in children:
         if isinstance(child, str):
             if child in OPERATORS:
@@ -95,7 +106,8 @@ def make_dag(graph, parent, children):
                 opnode = graph.get_node(child, parent, unique=True)
                 parent.add_child(opnode)
                 parent = opnode
-                break
+        elif is_subexpression(child):
+            subex_count += 1
 
     for idx, child in enumerate(children):
         if isinstance(child, Name):
@@ -112,20 +124,35 @@ def make_dag(graph, parent, children):
             tmpnode = graph.get_node(str(child), parent, unique=True)
             parent.add_child(tmpnode)
         elif isinstance(child, Part_Ref):
-            # An array reference
-            name = str_to_node_name(str(child))
-            tmpnode = graph.get_node(name, parent)
-            parent.add_child(tmpnode)
+            # This can be either a function call or an array reference
+            # TODO sub_class Part_Ref and implement a proper method to
+            # generate a string!
+            if is_intrinsic_fn(child):
+                # Create a node to represent the intrinsic call
+                tmpnode = graph.get_node(str(child.items[0]), parent,
+                                         unique=True)
+                # Add its dependencies
+                make_dag(graph, tmpnode, child.items[1:])
+            else:
+                name = str_to_node_name(str(child))
+                tmpnode = graph.get_node(name, parent)
+                parent.add_child(tmpnode)
         elif is_subexpression(child):
             #print child
             #print dir(child)
             #for item in child.items:
             #    print type(item)
-            # One or more of the children are themselves sub-expressions
-            tmpnode = graph.get_node(str(child.item), parent, unique=True)
-            parent.add_child(tmpnode)
-            # Make the DAG of this sub-expression
-            make_dag(graph, tmpnode, child.items)
+            if subex_count == 1:
+                # There is only 1 subexpression so don't make a node
+                # to represent it
+                make_dag(graph, parent, child.items)
+            else:
+                # One or more of the children are themselves sub-expressions
+                name = str(type(child))
+                tmpnode = graph.get_node(name, parent, unique=True)
+                parent.add_child(tmpnode)
+                # Make the DAG of this sub-expression
+                make_dag(graph, tmpnode, child.items)
 
 
 def runner (parser, options, args):
@@ -140,7 +167,7 @@ def runner (parser, options, args):
             subroutines = walk(program.content, Subroutine_Subprogram)
             for subroutine in subroutines:
                 substmt = walk(subroutine.content, Subroutine_Stmt)
-                sub_name = substmt[0].get_name()
+                sub_name = str(substmt[0].get_name())
                 print "======================"
                 print "Subroutine is: ",sub_name
                 digraph = DirectedAcyclicGraph(sub_name)
@@ -152,13 +179,14 @@ def runner (parser, options, args):
                     dag = digraph.get_node(name=var_name, parent=None)
                     make_dag(digraph, dag, assign.items[1:])
                     #dag.display()
-                    dag.to_dot()
+                    if "invoke_continuity_arrays" in sub_name:
+                        dag.to_dot()
                 print "}"
 
         except Fortran2003.NoMatchError, msg:
             print 'parsing %r failed at %s' % (filename, reader.fifo_item[-1])
             print 'started at %s' % (reader.fifo_item[0])
-            print 'quiting'
+            print 'Quitting'
             return
 
 def main ():

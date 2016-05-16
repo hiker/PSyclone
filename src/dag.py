@@ -3,6 +3,7 @@
     Acyclic Graph. '''
 
 INDENT_STR = "     "
+DEBUG = False
 
 class DirectedAcyclicGraph(object):
 
@@ -10,20 +11,27 @@ class DirectedAcyclicGraph(object):
         self._nodes = {}
         self._name = name
 
-    def get_node(self, name, parent, unique=True):
+    def get_node(self, name, parent, unique=False):
         if unique:
             # Node is unique so we make a new one, no questions
             # asked...
+            if DEBUG:
+                print "Creating a unique node labelled '{0}'".format(name)
             return DAGNode(parent=parent, name=name)
         else:
             # Node is not necessarily unique so check whether we
             # already have one with the supplied name
             if name in self._nodes:
+                if DEBUG:
+                    print "Matched node with name: ", name
                 return self._nodes[name]
             else:
+                if DEBUG:
+                    print "No existing node with name: ", name
                 newnode = DAGNode(parent=parent, name=name)
                 self._nodes[name] = newnode
                 return newnode
+
 
 class DAGNode(object):
     ''' Base class for a node in a Directed Acyclic Graph '''
