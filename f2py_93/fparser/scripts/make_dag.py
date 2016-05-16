@@ -99,7 +99,7 @@ def make_dag(parent_DAGNode, children):
             parent_DAGNode.add_child(tmpnode)
         elif is_subexpression(child):
             # One or more of the children are themselves sub-expressions
-            tmpnode = DAGNode(parent_DAGNode, "some_name")
+            tmpnode = DAGNode(parent_DAGNode, str(child.item))
             parent_DAGNode.add_child(tmpnode)
             make_dag(tmpnode, child.items)
 
@@ -119,27 +119,17 @@ def runner (parser, options, args):
             subroutines = walk(program.content, Subroutine_Subprogram)
             for subroutine in subroutines:
                 print "======================"
-                #for item in subroutine.content:
-                #    print type(item)
-                #    if isinstance(item, Specification_Part):
-                #        print dir(item)
-
+                print "strict digraph {"
                 pluscount = 0
                 assignments = walk(subroutine.content, Assignment_Stmt)
                 for assign in assignments:
-                    var_name = str_to_node_name(str(assign.items[0]))
+                    assigned_to = walk_items([assign.items[0]], Name)
+                    var_name = str(assigned_to[0])
                     dag = DAGNode(name=var_name)
                     make_dag(dag, assign.items[1:])
-                    dag.display()
-
-                    var_list = walk_items(assign.items[1:], Name)
-
-                    assigned_to = walk_items([assign.items[0]], Name)
-                    subgraphstr = str(assigned_to[0]) + " -> {"
-                    for var in var_list:
-                        subgraphstr += " " + var
-                    subgraphstr += "}"
-                    print subgraphstr
+                    #dag.display()
+                    dag.to_dot()
+                print "}"
 
         except Fortran2003.NoMatchError, msg:
             print 'parsing %r failed at %s' % (filename, reader.fifo_item[-1])

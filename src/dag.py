@@ -15,6 +15,10 @@ class DAGNode(object):
     def __str__(self):
         return self._name
 
+    @property
+    def _node_id(self):
+        return "node"+str(id(self))
+
     def display(self, indent=0):
         print indent*INDENT_STR, self._name
         for child in self._children:
@@ -25,4 +29,11 @@ class DAGNode(object):
 
     def to_dot(self):
         ''' Generate representation in the DOT language '''
-        pass
+        for child in self._children:
+            child.to_dot()
+        print "{0} [label=\"{1}\"]".format(self._node_id, self._name)
+        print self._node_id, " -> {"
+        for child in self._children:
+            print child._node_id
+        print "}"
+
