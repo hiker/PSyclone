@@ -101,7 +101,7 @@ def make_dag(graph, parent, children):
                 print type(child)
         print "--------------"
 
-    subex_count = 0
+    opcount = 0
     for child in children:
         if isinstance(child, str):
             if child in OPERATORS:
@@ -111,8 +111,10 @@ def make_dag(graph, parent, children):
                 opnode = graph.get_node(child, parent, unique=True)
                 parent.add_child(opnode)
                 parent = opnode
-        elif is_subexpression(child):
-            subex_count += 1
+                opcount += 1
+    if opcount > 1:
+        raise Exception("Found more than one operator amongst list of siblings: "
+                        "this is not supported")
 
     for idx, child in enumerate(children):
         if isinstance(child, Name):
@@ -147,17 +149,9 @@ def make_dag(graph, parent, children):
                 tmpnode = graph.get_node(name, parent)
                 parent.add_child(tmpnode)
         elif is_subexpression(child):
-            if subex_count == 1:
-                # There is only 1 subexpression so don't make a node
-                # to represent it
-                make_dag(graph, parent, child.items)
-            else:
-                # One or more of the children are themselves sub-expressions
-                name = str(type(child))
-                tmpnode = graph.get_node(name, parent, unique=True)
-                parent.add_child(tmpnode)
-                # Make the DAG of this sub-expression
-                make_dag(graph, tmpnode, child.items)
+            # We don't make nodes to represent sub-expresssions - just
+            # carry-on down to the children
+            make_dag(graph, parent, child.items)
         elif isinstance(child, Section_Subscript_List):
             # We have a list of arguments
             make_dag(graph, parent, child.items)
