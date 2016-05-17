@@ -19,7 +19,8 @@ OPERATORS = ["+", "-", "/", "*"]
 FORTRAN_INTRINSICS = ["SIGN", "SIN", "COS"]
 
 def str_to_node_name(astring):
-    
+    ''' Hacky method that takes a string containing a Fortran array reference
+    and returns a string suitable for naming a node in the graph '''
     new_string = astring.replace(" ","")
     new_string = new_string.replace(",","_")
     new_string = new_string.replace("+","p")
@@ -47,6 +48,8 @@ def is_intrinsic_fn(obj):
     return False
 
 def walk(children, my_type):
+    '''' Walk down the tree produced by the f2003 parser where children are listed
+    under 'content'.  Returns a list of all nodes with the specified type. '''
     local_list = []
     for child in children:
         if isinstance(child, my_type):
@@ -58,6 +61,8 @@ def walk(children, my_type):
     return local_list
 
 def walk_items(children, my_type):
+    ''' Walk down tree produced by f2003 parser where child nodes are listed
+    under items '''
     from fparser.Fortran2003 import Name, Section_Subscript_List
     ignore_types = [Section_Subscript_List]
     local_list = []
@@ -82,7 +87,7 @@ def walk_items(children, my_type):
     return local_list
 
 def make_dag(graph, parent, children):
-    ''' Makes a DAG from the RHS of an assignment '''
+    ''' Makes a DAG from the RHS of a Fortran assignment statement '''
 
     debug = False
 
@@ -114,13 +119,14 @@ def make_dag(graph, parent, children):
             suffix = ""
             if idx < len(children)-1 and isinstance(children[idx+1],
                                                     Section_Subscript_List):
-                # This is an array reference
+                # TODO check whether we need this part as should be covered
+                # by our check on whether child isa Part_Ref below...
                 suffix = "_" + str_to_node_name(str(children[idx+1]))
             var_name = str(child) + suffix
             tmpnode = graph.get_node(var_name, parent)
             parent.add_child(tmpnode)
         elif isinstance(child, Real_Literal_Constant):
-            # This is a constant
+            # This is a constant and thus a leaf in the tree
             tmpnode = graph.get_node(str(child), parent, unique=True)
             parent.add_child(tmpnode)
         elif isinstance(child, Part_Ref):
@@ -128,9 +134,12 @@ def make_dag(graph, parent, children):
             # TODO sub_class Part_Ref and implement a proper method to
             # generate a string!
             if is_intrinsic_fn(child):
+                if debug:
+                    print "found intrinsic: {0}".format(str(child.items[0]))
                 # Create a node to represent the intrinsic call
                 tmpnode = graph.get_node(str(child.items[0]), parent,
                                          unique=True)
+                parent.add_child(tmpnode)
                 # Add its dependencies
                 make_dag(graph, tmpnode, child.items[1:])
             else:
@@ -149,6 +158,9 @@ def make_dag(graph, parent, children):
                 parent.add_child(tmpnode)
                 # Make the DAG of this sub-expression
                 make_dag(graph, tmpnode, child.items)
+        elif isinstance(child, Section_Subscript_List):
+            # We have a list of arguments
+            make_dag(graph, parent, child.items)
 
 
 def runner (parser, options, args):
@@ -191,6 +203,7 @@ def runner (parser, options, args):
             print 'Quitting'
             return
 
+
 def main ():
     parser = OptionParser()
     set_f2003_options(parser)
@@ -199,6 +212,7 @@ def main ():
     options, args = parser.parse_args()
     runner(parser, options, args)
     return
+
 
 if __name__=="__main__":
     main()
