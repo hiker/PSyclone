@@ -157,7 +157,7 @@ class GOLoop(Loop):
     def gen_code(self, parent):
 
         if self.field_space == "every":
-            from f2pygen import DeclGen, AssignGen
+            from f2pygen import DeclGen
             dim_var = DeclGen(parent, datatype="INTEGER",
                               entity_decls=[self._variable_name])
             parent.add(dim_var)

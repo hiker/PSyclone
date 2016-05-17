@@ -17,11 +17,87 @@ are discussed separately in the following sections.
 Algorithm
 ---------
 
+The general requirements for the structure of an Algorithm are explained
+in the :ref:`algorithm-layer` section. This section explains the
+dynamo0.3-specific specialisations and extensions.
+
+.. _dynamo0.3-example:
+
+Example
++++++++
+
+An example dynamo0.3 API invoke call is given below with various
+different types of objects supported by the API. These different
+objects and their use are discussed in the following sections.
+
+::
+
+  call invoke( kernel1(field1, field2, operator1, qr),          &
+               builtin1(scalar1, field2, field3),               &
+               kernel2(field1, stencil_extent, field3, scalar1) &
+             )
+
+Built-ins
++++++++++
+
 .. note:: To be written.
 
-.. fields and operators
-.. vector of fields
-.. quadrature rules
+Field
++++++
+
+.. note:: To be written.
+
+Field Vector
+++++++++++++
+
+.. note:: To be written.
+
+Scalar
+++++++
+
+.. note:: To be written.
+
+Operator
+++++++++
+
+.. note:: To be written.
+
+Quadrature rule
++++++++++++++++
+
+.. note:: To be written.
+
+.. _dynamo0.3-alg-stencil:
+
+Stencils
+++++++++
+
+Kernel metadata may specify that a Kernel performs a stencil operation
+on a field. Any such metadata must provide a stencil type. This
+metadata may also optionally provide a stencil ``extent``. See
+the :ref:`dynamo0.3-api-meta-args` section for more details.
+
+If a stencil operation is specified by the Kernel metadata but the
+stencil extent is not provided then it is the responsibility of the
+algorithm layer to provide the extent information. The dynamo0.3 API
+expects this information to be added as an additional integer argument
+immediately after the relevant field when specifying the Kernel via an
+``invoke``.
+
+For example::
+
+  TBD
+
+If the Kernel metadata specifies that the stencil is of type
+``xory1d`` then it is the responsibility of the algorithm layer to
+specify whether the particular case is ``x1d`` or ``y1d`` for that
+``invoke`` call. The dynamo0.3 API expects this information to be added
+as an additional argument of type **TBD** immediately after the
+relevant stencil extent argument.
+
+For example::
+
+  TBD
 
 Kernel
 -------
@@ -83,8 +159,8 @@ Argument-metadata (metadata contained within the brackets of an
 **operator**.
 
 The first argument-metadata entry describes whether the data that is
-being passed is for a real scalar (``GH_RSCALAR``), an integer scalar
-(``GH_ISCALAR``), a field (``GH_FIELD``) or an operator
+being passed is for a real scalar (``GH_REAL``), an integer scalar
+(``GH_INTEGER``), a field (``GH_FIELD``) or an operator
 (``GH_OPERATOR``). This information is mandatory.
 
 Additionally, argument-metadata can be used to describe a vector of
@@ -99,7 +175,7 @@ fourth is an operator. The third entry is a field vector of size 3.
 ::
 
   type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_RSCALAR, ...),                                      &
+       arg_type(GH_REAL, ...),                                         &
        arg_type(GH_FIELD, ... ),                                       &
        arg_type(GH_FIELD*3, ... ),                                     &
        arg_type(GH_OPERATOR, ...)                                      &
@@ -107,18 +183,27 @@ fourth is an operator. The third entry is a field vector of size 3.
 
 The second entry to argument-metadata (information contained within
 the brackets of an ``arg_type``) describes how the Kernel makes use of
-the data being passed into it. There are 3 possible values of this
-metadata ``GH_WRITE``, ``GH_READ`` and ``GH_INC``. ``GH_WRITE``
-indicates the data is modified in the Kernel before (optionally) being
-read. ``GH_READ`` indicates that the data is read and left
-unmodified. ``GH_INC`` **explanation TBD**.
+the data being passed into it (the way it is accessed within a
+Kernel). This information is mandatory. There are currently 4 possible
+values of this metadata ``GH_WRITE``, ``GH_READ``, ``GH_INC`` and
+``GH_SUM``. However, not all combinations of metadata entries are
+valid and PSyclone will raise an exception if an invalid combination
+is specified. Valid combinations are specified later in this section.
+
+* ``GH_WRITE`` indicates the data is modified in the Kernel before (optionally) being read.
+
+* ``GH_READ`` indicates that the data is read and is unmodified.
+
+* ``GH_INC`` indicates that different iterations of a Kernel make contributions to shared values. For example, values at cell faces may receive contributions from cells on either side of the face. This means that such a Kernel needs appropriate synchronisation (or colouring) to run in parallel.
+
+* ``GH_SUM`` is an example of a reduction and is the only reduction currently supported in PSyclone. This metadata indicates that values are summed over calls to Kernel code.
 
 For example:
 
 ::
 
   type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_RSCALAR, GH_READ),                                  &
+       arg_type(GH_REAL,  GH_sum),                                     &
        arg_type(GH_FIELD, GH_INC, ... ),                               &
        arg_type(GH_FIELD*3, GH_WRITE, ... ),                           &
        arg_type(GH_OPERATOR, GH_READ, ...)                             &
@@ -168,6 +253,40 @@ forbid ``ANY_SPACE_1`` and ``ANY_SPACE_2`` from being the same.
        arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2)        &
        /)
 
+.. note:: A GH_FIELD argument that specifies GH_WRITE as its access
+          pattern must be a discontinuous function in the
+          horizontal. At the moment that means it must be ``w3`` but
+          in the future there will be more discontinuous function
+          spaces. A GH_FIELD that specifies GH_INC as its access
+          pattern may be continuous in the vertical (and discontinuous
+          in the horizontal), continuous in the horizontal (and
+          discontinuous in the vertical), or continuous in both. In
+          each case the code is the same. However, if a field is
+          discontinuous in the horizontal then it will not need
+          colouring and there is currently no way to determine this
+          from the metadata (unless we can statically determine the
+          space of the field being passed in). At the moment this type
+          of Kernel is always treated as if it is continuous in the
+          horizontal, even if it is not.
+
+As mentioned earlier, not all combinations of metadata are
+valid. Valid combinations are summarised here. All types of data
+(``GH_INTEGER``, ``GH_REAL``, ``GH_FIELD`` and ``GH_OPERATOR``) may
+be read within a Kernel and this is specified in metadata using
+``GH_READ``. If data is *modified* in a Kernel then the permitted access
+modes depend on the type of data it is and the function
+space it is on. Valid values are given in the table below.
+
+=============     ============================    ============
+Argument Type     Function space                  Access type
+=============     ============================    ============
+GH_INTEGER        n/a                             GH_SUM
+GH_REAL           n/a                             GH_SUM
+GH_FIELD          Discontinuous (w3)              GH_WRITE
+GH_FIELD          Continuous (not w3)             GH_INC
+GH_OPERATOR       Any for both 'to' and 'from'    GH_WRITE
+=============     ============================    ============
+
 Finally, field metadata supports an optional 4th argument which
 specifies that the field is accessed as a stencil operation within the
 Kernel. Stencil metadata only makes sense if the associated field
@@ -179,11 +298,23 @@ Stencil metadata is written in the following format:
 
 ::
 
-  STENCIL(type,extent)
+  STENCIL(type[,extent])
 
-where ``type`` may be one of ``X1D``, ``Y1D``, ``CROSS`` or ``REGION``
-and extent is an integer which specifies the maximum distance from the
-central point that a stencil extends.
+where ``type`` may be one of ``X1D``, ``Y1D``, ``XORY1D``, ``CROSS``
+or ``REGION`` and ``extent`` is an optional integer (indicated by the
+square brackets) which specifies the maximum distance from the central
+point that a stencil extends. If extent is specified in the metadata
+it means that the associated Kernel data can only be called with
+stencils of that size. If the extent is not specified it means that
+the Kernel is written to support different extents (for the particular
+field) and the algorithm writer is expected to provide the actual
+extent as part of ``invoke`` call (see Section
+:ref:`dynamo0.3-alg-stencil`).
+
+The ``XORY1D`` type indicates that the Kernel can accept either ``X1D`` or
+``Y1D`` stencils. In this case it is up to the algorithm developer to
+specify which of these it is from the algorithm layer as part of the
+``invoke`` call (see Section :ref:`dynamo0.3-alg-stencil`).
 
 For example, the following stencil:
 
@@ -233,9 +364,13 @@ Below is an example of stencil information within the full kernel metadata.
 
   type(arg_type) :: meta_args(3) = (/                                  &
        arg_type(GH_FIELD, GH_INC, W1),                                 &
-       arg_type(GH_FIELD, GH_READ, W2H, STENCIL(REGION,1)),            &
+       arg_type(GH_FIELD, GH_READ, W2H, STENCIL(REGION)),              &
        arg_type(GH_OPERATOR, GH_READ, W1, W2H)                         &
        /)
+
+.. note:: Kernels with explicit extents are not supported in the
+          current API and their use will result in an exception being
+          raised by PSyclone.
 
 meta_funcs
 ##########
