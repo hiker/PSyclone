@@ -57,13 +57,14 @@ class DAGNode(object):
     def add_child(self, child):
         self._children.append(child)
 
-    def to_dot(self):
+    def to_dot(self, fileobj):
         ''' Generate representation in the DOT language '''
         for child in self._children:
-            child.to_dot()
-        print "{0} [label=\"{1}\"]".format(self._node_id, self._name)
-        print self._node_id, " -> {"
+            child.to_dot(fileobj)
+        nodestr = "{0} [label=\"{1}\"]\n".format(self._node_id, self._name)
+        fileobj.write(nodestr)
+        fileobj.write(self._node_id+" -> {\n")
         for child in self._children:
-            print child._node_id
-        print "}"
+            fileobj.write(" "+child._node_id)
+        fileobj.write("}\n")
 

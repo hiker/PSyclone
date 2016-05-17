@@ -138,10 +138,6 @@ def make_dag(graph, parent, children):
                 tmpnode = graph.get_node(name, parent)
                 parent.add_child(tmpnode)
         elif is_subexpression(child):
-            #print child
-            #print dir(child)
-            #for item in child.items:
-            #    print type(item)
             if subex_count == 1:
                 # There is only 1 subexpression so don't make a node
                 # to represent it
@@ -168,20 +164,26 @@ def runner (parser, options, args):
             for subroutine in subroutines:
                 substmt = walk(subroutine.content, Subroutine_Stmt)
                 sub_name = str(substmt[0].get_name())
-                print "======================"
-                print "Subroutine is: ",sub_name
+
+                # Create a file for the graph of this subroutine
+                fo = open(sub_name+".gv", "w")
+
                 digraph = DirectedAcyclicGraph(sub_name)
-                print "strict digraph {"
+                fo.write("strict digraph {\n")
                 assignments = walk(subroutine.content, Assignment_Stmt)
                 for assign in assignments:
                     assigned_to = walk_items([assign.items[0]], Name)
                     var_name = str(assigned_to[0])
                     dag = digraph.get_node(name=var_name, parent=None)
-                    make_dag(digraph, dag, assign.items[1:])
+                    # TODO make_dag should be a method of digraph?
+                    # First two items of an Assignment_Stmt are the name of
+                    # the var being assigned to and '='.
+                    make_dag(digraph, dag, assign.items[2:])
                     #dag.display()
-                    if "invoke_continuity_arrays" in sub_name:
-                        dag.to_dot()
-                print "}"
+                    dag.to_dot(fo)
+                fo.write("}\n")
+                print "Wrote DAG to {0}".format(fo.name)
+                fo.close()
 
         except Fortran2003.NoMatchError, msg:
             print 'parsing %r failed at %s' % (filename, reader.fifo_item[-1])
