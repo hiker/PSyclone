@@ -55,6 +55,19 @@ def test_dynbuiltin_wrong_name():
             "expected one of '[" in str(excinfo.value))
 
 
+def test_dynbuiltin_no_dm():
+    ''' Check that we raise an error if we encounter a call to a built-in
+    kernel when distributed memory is enabled '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15_single_pointwise_invoke.f90"),
+                           api="dynamo0.3")
+    with pytest.raises(ParseError) as excinfo:
+        _ = PSyFactory("dynamo0.3",
+                       distributed_memory=True).create(invoke_info)
+    assert ("built-in kernels are not supported when generating "
+            "distributed-memory code" in str(excinfo.value))
+
+
 def test_invalid_builtin_kernel():
     ''' Check that we raise an appropriate error if an unrecognised
     built-in is specified in the algorithm layer '''
@@ -70,10 +83,12 @@ def test_invalid_builtin_kernel():
 def test_builtin_set_str():
     ''' Check that the str method of DynSetFieldScalarKern returns the
     expected string '''
+    distmem = False
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15_single_pointwise_invoke.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0]
     assert str(kern) == "Built-in: Set field to a scalar value"
@@ -256,10 +271,12 @@ def test_builtin_set_plus_normal():
 def test_copy_str():
     ''' Check that the str method of DynCopyFieldKern returns the
     expected string '''
+    distmem = False
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.0_copy_field_builtin.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0]
     assert str(kern) == "Built-in: Copy field"
@@ -308,10 +325,12 @@ def test_copy():
 def test_subtract_fields_str():
     ''' Test that the str method of DynSubtractFieldsKern returns the
     expected string '''
+    distmem = False
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.4.0_subtract_invoke.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0]
     assert str(kern) == "Built-in: Subtract fields"
@@ -352,10 +371,12 @@ def test_subtract_fields():
 def test_add_fields_str():
     ''' Test that the str method of DynSubtractFieldsKern returns the
     expected string '''
+    distmem = False
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.5.0_add_invoke.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0]
     assert str(kern) == "Built-in: Add fields"
@@ -396,10 +417,12 @@ def test_add_fields():
 def test_divide_fields_str():
     ''' Test that the str method of DynDivideFieldsKern returns the
     expected string '''
+    distmem = False
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.6.0_divide_fields_invoke.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0]
     assert str(kern) == "Built-in: Divide fields"
@@ -440,10 +463,12 @@ def test_divide_fields():
 def test_divide_field_str():
     ''' Test that the str method of DynDivideFieldKern returns the
     expected string '''
+    distmem = False
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.6.1_divide_field_invoke.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0]
     assert str(kern) == "Built-in: Divide field by another"
@@ -483,11 +508,13 @@ def test_divide_field():
 def test_copy_scaled_field_str():
     ''' Test that the str method of DynCopyScaledFieldKern returns the
     expected string '''
+    distmem = False
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.2.1_copy_scaled_field_builtin.f90"),
         api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0]
     assert str(kern) == "Built-in: Copy scaled field"
@@ -528,10 +555,12 @@ def test_copy_scaled_field():
 def test_axpy_field_str():
     ''' Test that the str method of DynAXPYKern returns the
     expected string '''
+    distmem = False
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.3_axpy_invoke.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0]
     assert str(kern) == "Built-in: AXPY"
@@ -615,10 +644,12 @@ def test_axpy_by_value():
 
 def test_inc_axpy_str():
     ''' Test the str method of DynIncAXPYKern'''
+    distmem = False
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.4_inc_axpy_invoke.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0]
     assert str(kern) == "Built-in: INC_AXPY"
@@ -650,10 +681,12 @@ def test_inc_axpy():
 def test_axpby_field_str():
     ''' Test that the str method of DynAXPBYKern returns the
     expected string '''
+    distmem = False
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.8.0_axpby_invoke.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0]
     assert str(kern) == "Built-in: AXPBY"
@@ -747,11 +780,13 @@ def test_axpby_by_value():
 
 def test_inc_axpby_str():
     ''' Test the str method of DynIncAXPBYKern '''
+    distmem = False
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.8.2_inc_axpby_invoke.f90"),
         api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0]
     assert str(kern) == "Built-in: INC_AXPBY"
@@ -828,11 +863,14 @@ def test_multiply_fields_deduce_space():
     ''' Test that we generate correct code if multiply_fields() is called
     in an invoke containing another kernel that allows the space of the
     fields to be deduced '''
+    distmem = False
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.3.1_multiply_fields_deduce_space.f90"),
+        distributed_memory=distmem,
         api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
@@ -844,10 +882,13 @@ def test_multiply_fields_deduce_space():
 def test_inc_field_str():
     ''' Test that the str method of DynIncFieldKern returns the
     expected string '''
+    distmem = False
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.7.0_inc_field_invoke.f90"),
+                           distributed_memory=distmem,
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0]
     assert str(kern) == "Built-in: Increment field"
@@ -856,11 +897,12 @@ def test_inc_field_str():
 def test_inc_field():
     ''' Test that we generate correct code for the built-in y = y + x
     where x and y are both fields '''
+    distmem = False
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.7.0_inc_field_invoke.f90"),
+        distributed_memory=distmem,
         api="dynamo0.3")
-    distmem = False
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=distmem).create(invoke_info)
     code = str(psy.gen)
@@ -879,11 +921,14 @@ def test_inc_field():
 
 def test_multiply_fields_str():
     ''' Test the str method of DynMultiplyFieldsKern '''
+    distmem = False
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.3.0_multiply_fields.f90"),
+        distributed_memory=distmem,
         api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0]
     assert str(kern) == "Built-in: Multiply fields"
@@ -892,11 +937,12 @@ def test_multiply_fields_str():
 def test_multiply_fields():
     ''' Test that we generate correct code for the built-in z = x*y
     where x, y and z are fields '''
+    distmem = False
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.3.0_multiply_fields.f90"),
+        distributed_memory=distmem,
         api="dynamo0.3")
-    distmem = False
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=distmem).create(invoke_info)
     code = str(psy.gen)
@@ -915,11 +961,14 @@ def test_multiply_fields():
 
 def test_scale_field_str():
     ''' Test the str method of DynScaleFieldKern '''
+    distmem = False
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.2.2_scale_field_builtin.f90"),
+        distributed_memory=distmem,
         api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].children[0]
     assert str(kern) == "Built-in: scale a field"
@@ -927,11 +976,12 @@ def test_scale_field_str():
 
 def test_scale_field():
     ''' Test that DynScaleFieldKern generates correct code '''
+    distmem = False
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.2.2_scale_field_builtin.f90"),
+        distributed_memory=distmem,
         api="dynamo0.3")
-    distmem = False
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=distmem).create(invoke_info)
     code = str(psy.gen)

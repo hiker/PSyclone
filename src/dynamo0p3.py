@@ -2461,6 +2461,13 @@ class DynBuiltInCallFactory(object):
                 "one of '{1}'".format(call.func_name,
                                       BUILTIN_NAMES))
 
+        # We do not currently support built-in kernel calls if we're
+        # generating code for distributed-memory parallelism
+        if config.DISTRIBUTED_MEMORY:
+            raise ParseError(
+                "Calls to built-in kernels are not supported when "
+                "generating distributed-memory code")
+
         # The built-in operation itself
         if call.func_name == "set_field_scalar":
             pwkern = DynSetFieldScalarKern()
