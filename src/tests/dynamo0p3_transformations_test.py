@@ -783,8 +783,9 @@ def test_loop_fuse_different_spaces():
         with pytest.raises(TransformationError) as excinfo:
             _, _ = ftrans.apply(schedule.children[index],
                                 schedule.children[index+1])
-        assert "Error in LoopFuse transformation" in str(excinfo.value)
-        assert "Loops do not have the same function space" in str(excinfo.value)
+        assert "Error in DynamoLoopFuse transformation" in str(excinfo.value)
+        assert "Cannot fuse loops that are over different spaces" in \
+            str(excinfo.value)
 
 
 def test_loop_fuse_unexpected_error():

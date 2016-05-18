@@ -74,19 +74,11 @@ class LoopFuseTrans(Transformation):
             raise TransformationError("Error in LoopFuse transformation. "
                                       "nodes are not siblings who are "
                                       "next to each other")
-        print node1.field_space
-        print node2.field_space
         # Check iteration space is the same
         if not node1.iteration_space == node2.iteration_space:
             raise TransformationError("Error in LoopFuse transformation. "
                                       "Loops do not have the same "
                                       "iteration space")
-
-        # Check field space is the same
-        if not node1.field_space == node2.field_space:
-            raise TransformationError("Error in LoopFuse transformation. "
-                                      "Loops do not have the same "
-                                      "function space")
 
 
     def apply(self, node1, node2):
