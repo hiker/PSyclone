@@ -847,7 +847,7 @@ class DynInvoke(Invoke):
             for arg in zero_args:
                 invoke_sub.add(AssignGen(invoke_sub,
                                          lhs=arg, rhs="0.0"))
-                
+
         # declare and initialise proxies for each of the (non-scalar)
         # arguments
         invoke_sub.add(CommentGen(invoke_sub, ""))
@@ -2613,9 +2613,9 @@ class DynSumFieldKern(DynBuiltinKern):
         from f2pygen import AssignGen
         # Sum all the elements of a field
         fld_name = self.array_ref(self._arguments.args[0].proxy_name)
-        sum = self._arguments.args[1].name
-        rhs_expr = sum + "+" + fld_name
-        parent.add(AssignGen(parent, lhs=sum, rhs=rhs_expr))
+        sum_name = self._arguments.args[1].name
+        rhs_expr = sum_name + "+" + fld_name
+        parent.add(AssignGen(parent, lhs=sum_name, rhs=rhs_expr))
 
 
 class DynCopyFieldKern(DynBuiltinKern):
@@ -2839,7 +2839,7 @@ class DynIncAXPBYKern(DynBuiltinKern):
 
 
 class DynInnerProductKern(DynBuiltinKern):
-    ''' Calculates the inner product of two fields, 
+    ''' Calculates the inner product of two fields,
     asum = SUM( field1(:)*field2(:) ) '''
 
     def __str__(self):
@@ -2849,10 +2849,8 @@ class DynInnerProductKern(DynBuiltinKern):
         from f2pygen import AssignGen
         # We sum the dof-wise product of the supplied fields. The variable
         # holding the sum is initialised to zero in the psy layer.
-        sumname = self._arguments.args[2].name
+        sum_name = self._arguments.args[2].name
         invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
         invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
-        rhs_expr = sumname + "+" + invar_name1 + "*" + invar_name2
-        parent.add(AssignGen(parent, lhs=sumname, rhs=rhs_expr))
-
-
+        rhs_expr = sum_name + "+" + invar_name1 + "*" + invar_name2
+        parent.add(AssignGen(parent, lhs=sum_name, rhs=rhs_expr))
