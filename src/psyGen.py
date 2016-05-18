@@ -411,25 +411,6 @@ class Invoke(object):
             names.append(var.name)
         return names
 
-    def infrastructure_args(self):
-        ''' Returns a list of all argument objects which are passed to
-        infrastructure (aka pointwise) kernels '''
-        arg_list = []
-        for call in self.schedule.inf_calls():
-            for arg in call.arguments.args:
-                if arg.text is not None:
-                    arg_list.append(arg)
-        return arg_list
-
-    def infrastructure_iteration_space_args(self):
-        ''' Returns a list of argument objects which
-        define the iteration space of any 
-        infrastructure (aka pointwise) kernels '''
-        arg_list = []
-        for call in self.schedule.inf_calls():
-            arg_list.append(call.arguments.iteration_space_arg())
-        return arg_list
-
     @property
     def schedule(self):
         return self._schedule
@@ -662,10 +643,6 @@ class Node(object):
         '''return all (both user-supplied and infrastructure) 
         kernel calls in this schedule'''
         return self.walk(self._children, Kern)
-
-    def inf_calls(self):
-        ''' return all infrastructure calls in this schedule '''
-        return self.walk(self._children, InfKern)
 
     def loops(self):
         ''' return all loops currently in this schedule '''
@@ -1255,16 +1232,6 @@ class Call(Node):
         raise NotImplementedError("Call.gen_code should be implemented")
 
 
-#class Inf(Factory):
-#    ''' Abstract infrastructure call factory. Uses the abc module so it
-#        cannot be instantiated.  '''
-#    __metaclass__ = abc.ABCMeta
-#
-#    @abc.abstractmethod
-#    def create(call, parent=None):
-#        return None
-
-
 class Kern(Call):
     def __init__(self, KernelArguments, call, parent=None, check=True):
         Call.__init__(self, parent, call, call.ktype.procedure.name,
@@ -1369,8 +1336,8 @@ class Kern(Call):
         return self.parent.loop_type == "colour"
 
 
-class InfKern(object):
-    '''Abstract base class for all infrastructure kernels. Uses the abc
+class BuiltinKern(object):
+    '''Abstract base class for all built-in kernels. Uses the abc
        module so it cannot be instantiated.
 
     '''

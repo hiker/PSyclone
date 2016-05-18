@@ -18,7 +18,7 @@ import os
 from parse import Descriptor, KernelType, ParseError
 import expression as expr
 import fparser
-from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, InfKern, \
+from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, BuiltinKern, \
     Arguments, Argument, KernelArgument, \
     NameSpaceFactory, GenerationError, FieldNotFoundError, HaloExchange
 import psyGen
@@ -2526,9 +2526,9 @@ class DynKernCallFactory(object):
         return cloop
 
 
-class DynBuiltinKern(DynKern, InfKern):
+class DynBuiltinKern(DynKern, BuiltinKern):
     ''' Base class for a Dynamo Infrastructure/Pointwise call. Has the
-    (abstract) InfKern as a base class to enable us to identify it as
+    (abstract) BuiltinKern as a base class to enable us to identify it as
     an Infrastructure kernel in the psyGen base classes (because it is
     otherwise identical to a normal kernel). '''
 

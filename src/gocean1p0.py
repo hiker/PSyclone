@@ -19,7 +19,7 @@
 
 from parse import Descriptor, KernelType, ParseError
 from psyGen import PSy, Invokes, Invoke, Schedule, \
-    Loop, Kern, InfKern, Arguments, KernelArgument, GenerationError, Node
+    Loop, Kern, Arguments, KernelArgument, GenerationError, Node
 
 # The different grid-point types that a field can live on
 VALID_FIELD_GRID_TYPES = ["cu", "cv", "ct", "cf", "every"]
