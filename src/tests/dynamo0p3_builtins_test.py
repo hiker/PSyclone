@@ -576,8 +576,9 @@ def test_axpy_by_value():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.3.2_axpy_invoke_by_value.f90"),
                            api="dynamo0.3")
-    dm = False
-    psy = PSyFactory("dynamo0.3", distributed_memory=dm).create(invoke_info)
+    distmem = False
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
@@ -589,7 +590,7 @@ def test_axpy_by_value():
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
         "      !\n")
-    if dm:
+    if distmem:
         output += (
             "      ! Create a mesh object\n"
             "      !\n"
@@ -664,8 +665,9 @@ def test_axpby():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.8.0_axpby_invoke.f90"),
                            api="dynamo0.3")
-    dm = False
-    psy = PSyFactory("dynamo0.3", distributed_memory=dm).create(invoke_info)
+    distmem = False
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
@@ -677,7 +679,7 @@ def test_axpby():
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
         "      !\n")
-    if dm:
+    if distmem:
         output += (
             "      ! Create a mesh object\n"
             "      !\n"
@@ -706,8 +708,9 @@ def test_axpby_by_value():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.8.1_axpby_invoke_by_value.f90"),
                            api="dynamo0.3")
-    dm = False
-    psy = PSyFactory("dynamo0.3", distributed_memory=dm).create(invoke_info)
+    distmem = False
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
@@ -719,7 +722,7 @@ def test_axpby_by_value():
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
         "      !\n")
-    if dm:
+    if distmem:
         output += (
             "      ! Create a mesh object\n"
             "      !\n"
@@ -762,8 +765,9 @@ def test_inc_axpby():
         os.path.join(BASE_PATH,
                      "15.8.2_inc_axpby_invoke.f90"),
         api="dynamo0.3")
-    dm = False
-    psy = PSyFactory("dynamo0.3", distributed_memory=dm).create(invoke_info)
+    distmem = False
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
@@ -774,7 +778,7 @@ def test_inc_axpby():
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
         "      !\n")
-    if dm:
+    if distmem:
         output += (
             "      ! Create a mesh object\n"
             "      !\n"
@@ -787,7 +791,7 @@ def test_inc_axpby():
         "      ndf_any_space_1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_any_space_1 = f1_proxy%vspace%get_undf()\n"
         "      !\n")
-    if dm:
+    if distmem:
         output += "      ! Call kernels and communication routines\n"
     else:
         output += "      ! Call our kernels\n"
@@ -856,8 +860,9 @@ def test_inc_field():
         os.path.join(BASE_PATH,
                      "15.7.0_inc_field_invoke.f90"),
         api="dynamo0.3")
-    dm = False
-    psy = PSyFactory("dynamo0.3", distributed_memory=dm).create(invoke_info)
+    distmem = False
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
@@ -891,8 +896,9 @@ def test_multiply_fields():
         os.path.join(BASE_PATH,
                      "15.3.0_multiply_fields.f90"),
         api="dynamo0.3")
-    dm = False
-    psy = PSyFactory("dynamo0.3", distributed_memory=dm).create(invoke_info)
+    distmem = False
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
@@ -925,8 +931,9 @@ def test_scale_field():
         os.path.join(BASE_PATH,
                      "15.2.2_scale_field_builtin.f90"),
         api="dynamo0.3")
-    dm = False
-    psy = PSyFactory("dynamo0.3", distributed_memory=dm).create(invoke_info)
+    distmem = False
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
@@ -939,7 +946,7 @@ def test_scale_field():
         "        f1_proxy%data(df) = a_scalar*f1_proxy%data(df)\n"
         "      END DO \n"
         "      !\n")
-    if dm:
+    if distmem:
         output += (
             "      ! Set halos dirty for fields modified in the above loop\n"
             "      !\n"
