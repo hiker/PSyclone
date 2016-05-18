@@ -644,10 +644,11 @@ class DynInvoke(Invoke):
                 break
         return required
 
-    def unique_declarations(self, datatype, proxy=False):
+    def unique_declarations(self, datatype, proxy=False, access=None):
         ''' Returns a list of all required declarations for the
-        specified datatype. If proxy is set to True then the
-        equivalent proxy declarations are returned instead. '''
+        specified datatype and (optionally) the specified access. If
+        proxy is set to True then the equivalent proxy declarations are
+        returned instead. '''
         if datatype not in VALID_ARG_TYPE_NAMES:
             raise GenerationError(
                 "unique_declarations called with an invalid datatype. "
@@ -658,6 +659,10 @@ class DynInvoke(Invoke):
             for arg in call.arguments.args:
                 if arg.text is not None:
                     if arg.type == datatype:
+                        if access and arg.access != access:
+                            # The caller specifed what the access should
+                            # be and this arg does not match so skip it
+                            continue
                         if proxy:
                             test_name = arg.proxy_declaration_name
                         else:
@@ -831,6 +836,17 @@ class DynInvoke(Invoke):
             invoke_sub.add(TypeDeclGen(invoke_sub, datatype="quadrature_type",
                                        entity_decls=self._psy_unique_qr_vars,
                                        intent="in"))
+
+        # Zero any scalar arguments that are GH_SUM
+        zero_args = self.unique_declarations("gh_real", access="gh_sum")
+        if zero_args:
+            invoke_sub.add(CommentGen(invoke_sub, ""))
+            invoke_sub.add(CommentGen(invoke_sub, " Zero summation variables"))
+            invoke_sub.add(CommentGen(invoke_sub, ""))
+            for arg in zero_args:
+                invoke_sub.add(AssignGen(invoke_sub,
+                                         lhs=arg, rhs="0.0"))
+                
         # declare and initialise proxies for each of the (non-scalar)
         # arguments
         invoke_sub.add(CommentGen(invoke_sub, ""))
@@ -2812,4 +2828,13 @@ class DynInnerProductKern(DynBuiltinKern):
         return "Built-in: inner_product"
 
     def gen_code(self, parent):
-        pass
+        from f2pygen import AssignGen
+        # We sum the dof-wise product of the supplied fields. The variable
+        # holding the sum is initialised to zero in the psy layer.
+        sumname = self._arguments.args[2].name
+        invar_name1 = self.array_ref(self._arguments.args[0].proxy_name)
+        invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
+        rhs_expr = sumname + "+" + invar_name1 + "*" + invar_name2
+        parent.add(AssignGen(parent, lhs=sumname, rhs=rhs_expr))
+
+
