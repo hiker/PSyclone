@@ -3633,7 +3633,8 @@ def test_lower_bound_fortran():
     my_loop.set_upper_bound("halo", index=1)
     with pytest.raises(GenerationError) as excinfo:
         _ = my_loop._upper_bound_fortran()
-    assert ("upper bound must be 'cells' if we are sequential" in
+    assert ("For sequential/shared-memory code, the upper loop bound must "
+            "be one of ncolours, ncolour, cells or dofs" in
             str(excinfo.value))
 
 
