@@ -84,8 +84,8 @@ class Descriptor(object):
             # (currently at line 394 of this file) when no arguments
             # are supplied.
             raise ParseError(
-                "Expecting format stencil(<type>[,<extent>]) but there must be "
-                "at least one argument inside the brackets {0}".
+                "Expecting format stencil(<type>[,<extent>]) but there must "
+                "be at least one argument inside the brackets {0}".
                 format(metadata))
         if len(metadata.args) > 2:
             raise ParseError(
@@ -351,7 +351,6 @@ class KernelTypeFactory(object):
         # list of recognised built-ins.
         self._builtin_names, \
             self._builtin_defs_file = get_builtin_defs(self._type)
-            
 
     def create(self, ast, name=None):
 
