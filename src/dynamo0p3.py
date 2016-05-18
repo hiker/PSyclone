@@ -68,7 +68,8 @@ BUILTIN_NAMES = ["axpy", "inc_axpy", "axpby", "inc_axpby",
                  "divide_field", "divide_fields",
                  "inc_field", "inner_product",
                  "minus_fields", "multiply_fields",
-                 "plus_fields", "scale_field", "set_field_scalar"]
+                 "plus_fields", "scale_field",
+                 "set_field_scalar", "sum_field"]
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
@@ -2463,6 +2464,8 @@ class DynBuiltInCallFactory(object):
         # The built-in operation itself
         if call.func_name == "set_field_scalar":
             pwkern = DynSetFieldScalarKern()
+        elif call.func_name == "sum_field":
+            pwkern = DynSumFieldKern()
         elif call.func_name == "copy_field":
             pwkern = DynCopyFieldKern()
         elif call.func_name == "copy_scaled_field":
@@ -2598,6 +2601,16 @@ class DynSetFieldScalarKern(DynBuiltinKern):
         var_name = self.array_ref(self._arguments.args[1].proxy_name)
         value = self._arguments.args[0]
         parent.add(AssignGen(parent, lhs=var_name, rhs=value))
+
+
+class DynSumFieldKern(DynBuiltinKern):
+    ''' Computes the sum of the elements of a field '''
+
+    def __str__(self):
+        return ""
+
+    def gen_code(self, parent):
+        pass
 
 
 class DynCopyFieldKern(DynBuiltinKern):

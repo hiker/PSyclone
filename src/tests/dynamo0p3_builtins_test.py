@@ -1010,3 +1010,34 @@ def test_innerprod():
         "      !\n")
     assert output in code
 
+
+def test_sumfield_str():
+    ''' Test the str method of DynSumFieldKern '''
+    distmem = False
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.10.0_sum_field_builtin.f90"),
+        distributed_memory=distmem,
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].children[0]
+    assert str(kern) == "Built-in: sum_field"
+
+
+def test_sumfield():
+    ''' Test that the DynSumFieldKern produces correct code '''
+    distmem = False
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.10.0_sum_field_builtin.f90"),
+        distributed_memory=distmem,
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
+    code = str(psy.gen)
+    print code
+    output = (
+        " some stuff ")
+    assert output in code
