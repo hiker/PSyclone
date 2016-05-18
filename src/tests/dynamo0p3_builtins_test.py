@@ -1039,5 +1039,29 @@ def test_sumfield():
     code = str(psy.gen)
     print code
     output = (
-        " some stuff ")
+        "      !\n"
+        "      ! Zero summation variables\n"
+        "      !\n"
+        "      asum = 0.0\n"
+        "      !\n"
+        "      ! Initialise field proxies\n"
+        "      !\n"
+        "      f1_proxy = f1%get_proxy()\n"
+        "      !\n"
+        "      ! Initialise number of layers\n"
+        "      !\n"
+        "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+        "      !\n"
+        "      ! Initialise sizes and allocate any basis arrays for "
+        "any_space_1\n"
+        "      !\n"
+        "      ndf_any_space_1 = f1_proxy%vspace%get_ndf()\n"
+        "      undf_any_space_1 = f1_proxy%vspace%get_undf()\n"
+        "      !\n"
+        "      ! Call our kernels\n"
+        "      !\n"
+        "      DO df=1,undf_any_space_1\n"
+        "        asum = asum+f1_proxy%data(df)\n"
+        "      END DO \n"
+        "      !\n")
     assert output in code

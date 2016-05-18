@@ -12,9 +12,9 @@ program single_invoke
   use testkern, only: testkern_type
   use inf,      only: field_type
   implicit none
-  type(field_type) :: f1, f2
+  type(field_type) :: f1
   real(r_def) :: asum
 
-  call invoke( inner_product(f1, f2, asum) )
+  call invoke( sum_field(f1, asum) )
 
 end program single_invoke

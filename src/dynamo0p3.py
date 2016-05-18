@@ -2607,10 +2607,15 @@ class DynSumFieldKern(DynBuiltinKern):
     ''' Computes the sum of the elements of a field '''
 
     def __str__(self):
-        return ""
+        return "Built-in: sum_field"
 
     def gen_code(self, parent):
-        pass
+        from f2pygen import AssignGen
+        # Sum all the elements of a field
+        fld_name = self.array_ref(self._arguments.args[0].proxy_name)
+        sum = self._arguments.args[1].name
+        rhs_expr = sum + "+" + fld_name
+        parent.add(AssignGen(parent, lhs=sum, rhs=rhs_expr))
 
 
 class DynCopyFieldKern(DynBuiltinKern):
