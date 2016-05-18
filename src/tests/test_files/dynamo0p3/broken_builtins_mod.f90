@@ -12,10 +12,10 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: axpby
      private
      type(arg_type) :: meta_args(5) = (/                              &
-          arg_type(GH_RSCALAR,  GH_READ             ),                   &
-          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1),                   &
-          arg_type(GH_RSCALAR,  GH_READ             ),                   &
-          arg_type(GH_FIELD, GH_READ, ANY_SPACE_1),                   &
+          arg_type(GH_REAL,  GH_READ              ),                  &
+          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
+          arg_type(GH_REAL,  GH_READ              ),                  &
+          arg_type(GH_FIELD, GH_READ,  ANY_SPACE_1),                  &
           arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                   &
           /)
      integer :: iterates_over = DOFS
@@ -27,7 +27,7 @@ module dynamo0p3_builtins_mod
   type, public, extends(kernel_type) :: axpy
      private
      type(arg_type) :: meta_args(4) = (/                              &
-          arg_type(GH_RSCALAR,  GH_READ             ),                   &
+          arg_type(GH_REAL,  GH_READ             ),                   &
           arg_type(GH_FIELD, GH_READ, ANY_SPACE_1),                   &
           arg_type(GH_FIELD, GH_READ, ANY_SPACE_1),                   &
           arg_type(GH_FIELD, GH_WRITE, ANY_SPACE_1)                   &

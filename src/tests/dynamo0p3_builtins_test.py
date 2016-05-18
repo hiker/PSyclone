@@ -80,21 +80,19 @@ def test_builtin_set_str():
 
 
 def test_builtin_set():
-    ''' Tests that we generate correct code for a builtin
+    ''' Tests that we generate correct code for a serial builtin
     set operation with a scalar passed by value'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15_single_pointwise_invoke.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
         "    SUBROUTINE invoke_0(f1)\n"
-        "      USE mesh_mod, ONLY: mesh_type\n"
         "      TYPE(field_type), intent(inout) :: f1\n"
         "      INTEGER df\n"
         "      INTEGER ndf_any_space_1, undf_any_space_1\n"
-        "      TYPE(mesh_type) mesh\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy\n"
         "      !\n"
@@ -105,10 +103,6 @@ def test_builtin_set():
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-        "      !\n"
-        "      ! Create a mesh object\n"
-        "      !\n"
-        "      mesh = f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise sizes and allocate any basis arrays for "
         "any_space_1\n"
@@ -130,17 +124,15 @@ def test_builtin_set_by_ref():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.0.1_single_pw_set_by_ref.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
         "    SUBROUTINE invoke_0(fred, f1)\n"
-        "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(inout) :: fred\n"
         "      TYPE(field_type), intent(inout) :: f1\n"
         "      INTEGER df\n"
         "      INTEGER ndf_any_space_1, undf_any_space_1\n"
-        "      TYPE(mesh_type) mesh\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy\n"
         "      !\n"
@@ -151,10 +143,6 @@ def test_builtin_set_by_ref():
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-        "      !\n"
-        "      ! Create a mesh object\n"
-        "      !\n"
-        "      mesh = f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise sizes and allocate any basis arrays for "
         "any_space_1\n"
@@ -231,7 +219,7 @@ def test_builtin_set_plus_normal():
         os.path.join(BASE_PATH,
                      "15.1_pw_and_normal_kernel_invoke.f90"),
         api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
@@ -248,7 +236,7 @@ def test_builtin_set_plus_normal():
         "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
-        "      DO cell=1,mesh%get_last_halo_cell(1)\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
         "        !\n"
         "        map_w1 => f1_proxy%vspace%get_cell_dofmap(cell)\n"
         "        map_w2 => f2_proxy%vspace%get_cell_dofmap(cell)\n"
@@ -259,11 +247,6 @@ def test_builtin_set_plus_normal():
         "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, map_w1, ndf_w2, "
         "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)\n"
         "      END DO \n"
-        "      !\n"
-        "      ! Set halos dirty for fields modified in the above loop\n"
-        "      !\n"
-        "      CALL f1_proxy%set_dirty()\n"
-        "      !\n"
         "      DO df=1,undf_any_space_1\n"
         "        f1_proxy%data(df) = 0.0\n"
         "      END DO ")
@@ -288,16 +271,14 @@ def test_copy():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.0_copy_field_builtin.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
         "    SUBROUTINE invoke_0(f1, f2)\n"
-        "      USE mesh_mod, ONLY: mesh_type\n"
         "      TYPE(field_type), intent(inout) :: f1, f2\n"
         "      INTEGER df\n"
         "      INTEGER ndf_any_space_1, undf_any_space_1\n"
-        "      TYPE(mesh_type) mesh\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
         "      !\n"
@@ -309,10 +290,6 @@ def test_copy():
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-        "      !\n"
-        "      ! Create a mesh object\n"
-        "      !\n"
-        "      mesh = f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise sizes and allocate any basis arrays for "
         "any_space_1\n"
@@ -346,7 +323,7 @@ def test_subtract_fields():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.4.0_subtract_invoke.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
@@ -357,10 +334,6 @@ def test_subtract_fields():
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-        "      !\n"
-        "      ! Create a mesh object\n"
-        "      !\n"
-        "      mesh = f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise sizes and allocate any basis arrays for "
         "any_space_1\n"
@@ -394,7 +367,7 @@ def test_add_fields():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.5.0_add_invoke.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
@@ -405,10 +378,6 @@ def test_add_fields():
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-        "      !\n"
-        "      ! Create a mesh object\n"
-        "      !\n"
-        "      mesh = f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise sizes and allocate any basis arrays for "
         "any_space_1\n"
@@ -442,7 +411,7 @@ def test_divide_fields():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.6.0_divide_fields_invoke.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
@@ -453,10 +422,6 @@ def test_divide_fields():
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-        "      !\n"
-        "      ! Create a mesh object\n"
-        "      !\n"
-        "      mesh = f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise sizes and allocate any basis arrays for "
         "any_space_1\n"
@@ -490,7 +455,7 @@ def test_divide_field():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.6.1_divide_field_invoke.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
@@ -500,10 +465,6 @@ def test_divide_field():
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-        "      !\n"
-        "      ! Create a mesh object\n"
-        "      !\n"
-        "      mesh = f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise sizes and allocate any basis arrays for "
         "any_space_1\n"
@@ -539,7 +500,7 @@ def test_copy_scaled_field():
         os.path.join(BASE_PATH,
                      "15.2.1_copy_scaled_field_builtin.f90"),
         api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
@@ -549,10 +510,6 @@ def test_copy_scaled_field():
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-        "      !\n"
-        "      ! Create a mesh object\n"
-        "      !\n"
-        "      mesh = f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise sizes and allocate any basis arrays for "
         "any_space_1\n"
@@ -586,7 +543,7 @@ def test_axpy():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.3_axpy_invoke.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
@@ -597,10 +554,6 @@ def test_axpy():
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-        "      !\n"
-        "      ! Create a mesh object\n"
-        "      !\n"
-        "      mesh = f1%get_mesh()\n"
         "      !\n"
         "      ! Initialise sizes and allocate any basis arrays for "
         "any_space_1\n"
@@ -623,7 +576,8 @@ def test_axpy_by_value():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.3.2_axpy_invoke_by_value.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    dm = False
+    psy = PSyFactory("dynamo0.3", distributed_memory=dm).create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
@@ -634,11 +588,14 @@ def test_axpy_by_value():
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-        "      !\n"
-        "      ! Create a mesh object\n"
-        "      !\n"
-        "      mesh = f1%get_mesh()\n"
-        "      !\n"
+        "      !\n")
+    if dm:
+        output += (
+            "      ! Create a mesh object\n"
+            "      !\n"
+            "      mesh = f1%get_mesh()\n"
+            "      !\n")
+    output += (
         "      ! Initialise sizes and allocate any basis arrays for "
         "any_space_1\n"
         "      !\n"
@@ -672,7 +629,7 @@ def test_inc_axpy():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.4_inc_axpy_invoke.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
@@ -707,7 +664,8 @@ def test_axpby():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.8.0_axpby_invoke.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    dm = False
+    psy = PSyFactory("dynamo0.3", distributed_memory=dm).create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
@@ -718,11 +676,14 @@ def test_axpby():
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-        "      !\n"
-        "      ! Create a mesh object\n"
-        "      !\n"
-        "      mesh = f1%get_mesh()\n"
-        "      !\n"
+        "      !\n")
+    if dm:
+        output += (
+            "      ! Create a mesh object\n"
+            "      !\n"
+            "      mesh = f1%get_mesh()\n"
+            "      !\n")
+    output += (
         "      ! Initialise sizes and allocate any basis arrays for "
         "any_space_1\n"
         "      !\n"
@@ -745,7 +706,8 @@ def test_axpby_by_value():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.8.1_axpby_invoke_by_value.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    dm = False
+    psy = PSyFactory("dynamo0.3", distributed_memory=dm).create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
@@ -756,11 +718,14 @@ def test_axpby_by_value():
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-        "      !\n"
-        "      ! Create a mesh object\n"
-        "      !\n"
-        "      mesh = f1%get_mesh()\n"
-        "      !\n"
+        "      !\n")
+    if dm:
+        output += (
+            "      ! Create a mesh object\n"
+            "      !\n"
+            "      mesh = f1%get_mesh()\n"
+            "      !\n")
+    output += (
         "      ! Initialise sizes and allocate any basis arrays for "
         "any_space_1\n"
         "      !\n"
@@ -797,7 +762,8 @@ def test_inc_axpby():
         os.path.join(BASE_PATH,
                      "15.8.2_inc_axpby_invoke.f90"),
         api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    dm = False
+    psy = PSyFactory("dynamo0.3", distributed_memory=dm).create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
@@ -807,18 +773,25 @@ def test_inc_axpby():
         "      ! Initialise number of layers\n"
         "      !\n"
         "      nlayers = f1_proxy%vspace%get_nlayers()\n"
-        "      !\n"
-        "      ! Create a mesh object\n"
-        "      !\n"
-        "      mesh = f1%get_mesh()\n"
-        "      !\n"
+        "      !\n")
+    if dm:
+        output += (
+            "      ! Create a mesh object\n"
+            "      !\n"
+            "      mesh = f1%get_mesh()\n"
+            "      !\n")
+    output += (
         "      ! Initialise sizes and allocate any basis arrays for "
         "any_space_1\n"
         "      !\n"
         "      ndf_any_space_1 = f1_proxy%vspace%get_ndf()\n"
         "      undf_any_space_1 = f1_proxy%vspace%get_undf()\n"
-        "      !\n"
-        "      ! Call our kernels\n"
+        "      !\n")
+    if dm:
+        output += "      ! Call kernels and communication routines\n"
+    else:
+        output += "      ! Call our kernels\n"
+    output += (
         "      !\n"
         "      DO df=1,undf_any_space_1\n"
         "        f1_proxy%data(df) = a*f1_proxy%data(df) + "
@@ -883,7 +856,8 @@ def test_inc_field():
         os.path.join(BASE_PATH,
                      "15.7.0_inc_field_invoke.f90"),
         api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    dm = False
+    psy = PSyFactory("dynamo0.3", distributed_memory=dm).create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
@@ -917,7 +891,8 @@ def test_multiply_fields():
         os.path.join(BASE_PATH,
                      "15.3.0_multiply_fields.f90"),
         api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    dm = False
+    psy = PSyFactory("dynamo0.3", distributed_memory=dm).create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
@@ -950,7 +925,8 @@ def test_scale_field():
         os.path.join(BASE_PATH,
                      "15.2.2_scale_field_builtin.f90"),
         api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    dm = False
+    psy = PSyFactory("dynamo0.3", distributed_memory=dm).create(invoke_info)
     code = str(psy.gen)
     print code
     output = (
@@ -962,8 +938,10 @@ def test_scale_field():
         "      DO df=1,undf_any_space_1\n"
         "        f1_proxy%data(df) = a_scalar*f1_proxy%data(df)\n"
         "      END DO \n"
-        "      !\n"
-        "      ! Set halos dirty for fields modified in the above loop\n"
-        "      !\n"
-        "      CALL f1_proxy%set_dirty()\n")
+        "      !\n")
+    if dm:
+        output += (
+            "      ! Set halos dirty for fields modified in the above loop\n"
+            "      !\n"
+            "      CALL f1_proxy%set_dirty()\n")
     assert output in code

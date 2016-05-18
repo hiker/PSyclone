@@ -208,7 +208,7 @@ class DynArgDescriptor03(Descriptor):
             # we expect 'field_type' to have been specified
             if arg_type.args[0].name not in VALID_ARG_TYPE_NAMES:
                 raise ParseError(
-                    "In the dynamo0.3 API Each the 1st argument of a "
+                    "In the dynamo0.3 API the 1st argument of a "
                     "meta_arg entry should be a valid argument type (one of "
                     "{0}), but found '{1}' in '{2}'".
                     format(VALID_ARG_TYPE_NAMES, arg_type.args[0].name,
@@ -1950,9 +1950,13 @@ class DynLoop(Loop):
                 return "ncolour"
             elif self._upper_bound_name == "ncolour":
                 return "ncp_colour(colour)"
+            elif self._upper_bound_name == "dofs":
+                return self._kern.undf_name
             else:
                 raise GenerationError(
-                    "The upper bound must be 'cells' if we are sequential")
+                    "For sequential/shared-memory code, the upper loop "
+                    "bound must be one of ncolours, ncolour, cells or dofs "
+                    "but got '{0}'".format(self._upper_bound_name))
         else:
             if self._upper_bound_name in ["inner", "halo"]:
                 index = self._upper_bound_index
