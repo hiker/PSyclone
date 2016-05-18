@@ -926,7 +926,7 @@ def test_scale_field_str():
 
 
 def test_scale_field():
-    ''' Test the str method of DynScaleFieldKern '''
+    ''' Test that DynScaleFieldKern generates correct code '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.2.2_scale_field_builtin.f90"),
@@ -952,3 +952,35 @@ def test_scale_field():
             "      !\n"
             "      CALL f1_proxy%set_dirty()\n")
     assert output in code
+
+
+def test_innerprod_str():
+    ''' Test the str method of DynInnerProductKern '''
+    distmem = False
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.9.0_inner_prod_builtin.f90"),
+        distributed_memory=distmem,
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].children[0]
+    assert str(kern) == "Built-in: inner_product"
+
+
+def test_innerprod():
+    ''' Test that we produce correct code for the inner product built-in '''
+    distmem = False
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.9.0_inner_prod_builtin.f90"),
+        distributed_memory=distmem,
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
+    code = str(psy.gen)
+    print code
+    output = ("hohoho")
+    assert output in code
+

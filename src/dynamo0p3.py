@@ -66,7 +66,8 @@ VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 BUILTIN_NAMES = ["axpy", "inc_axpy", "axpby", "inc_axpby",
                  "copy_field", "copy_scaled_field",
                  "divide_field", "divide_fields",
-                 "inc_field", "minus_fields", "multiply_fields",
+                 "inc_field", "inner_product",
+                 "minus_fields", "multiply_fields",
                  "plus_fields", "scale_field", "set_field_scalar"]
 
 # The name of the file containing the meta-data describing the
@@ -2460,6 +2461,8 @@ class DynBuiltInCallFactory(object):
             pwkern = DynDivideFieldsKern()
         elif call.func_name == "inc_field":
             pwkern = DynIncFieldKern()
+        elif call.func_name == "inner_product":
+            pwkern = DynInnerProductKern()
         elif call.func_name == "multiply_fields":
             pwkern = DynMultiplyFieldsKern()
         elif call.func_name == "axpy":
@@ -2799,3 +2802,14 @@ class DynIncAXPBYKern(DynBuiltinKern):
         rhs_expr = (scalar_name1 + "*" + invar_name1 + " + " +
                     scalar_name2 + "*" + invar_name2)
         parent.add(AssignGen(parent, lhs=invar_name1, rhs=rhs_expr))
+
+
+class DynInnerProductKern(DynBuiltinKern):
+    ''' Calculates the inner product of two fields, 
+    asum = SUM( field1(:)*field2(:) ) '''
+
+    def __str__(self):
+        return "Built-in: inner_product"
+
+    def gen_code(self, parent):
+        pass
