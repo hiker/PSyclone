@@ -1167,6 +1167,249 @@ class DynHaloExchange(HaloExchange):
         parent.add(CommentGen(parent, ""))
 
 
+class DynLoop(Loop):
+    ''' The Dynamo specific Loop class. This passes the Dynamo
+    specific loop information to the base class so it creates the one
+    we require.  Creates Dynamo specific loop bounds when the code is
+    being generated. '''
+
+    def __init__(self, parent=None, loop_type=""):
+        Loop.__init__(self, parent=parent,
+                      valid_loop_types=VALID_LOOP_TYPES)
+        self.loop_type = loop_type
+        self._kern = None
+
+        # Get the namespace manager instance so we can look-up
+        # the name of the nlayers and ndf variables
+        self._name_space_manager = NameSpaceFactory().create()
+
+        # set our variable name at initialisation as it might be
+        # required by other classes before code generation
+        if self._loop_type == "colours":
+            self._variable_name = "colour"
+        elif self._loop_type == "colour":
+            self._variable_name = "cell"
+        elif self._loop_type == "dofs":
+            self._variable_name = "df"
+        else:
+            self._variable_name = "cell"
+
+        # At this stage we don't know what our loop bounds are
+        self._lower_bound_name = None
+        self._lower_bound_index = None
+        self._upper_bound_name = None
+        self._upper_bound_index = None
+
+    def load(self, kern):
+        ''' Load the state of this Loop using the supplied Kernel
+        object. This method is provided so that we can individually
+        construct Loop objects for a given kernel call. '''
+        self._kern = kern
+
+        self._field = kern.arguments.iteration_space_arg()
+        self._field_name = self._field.name
+        self._field_space = self._field.function_space
+        self._iteration_space = kern.iterates_over  # cells etc.
+
+        # Loop bounds
+        self.set_lower_bound("start")
+
+        if isinstance(kern, DynBuiltinKern):
+            # If the kernel is an infrastructure/pointwise kernel
+            # then this loop must be over DoFs
+            self.set_upper_bound("dofs")
+        else:
+            if config.DISTRIBUTED_MEMORY:
+                if self.field_space == "w3":  # discontinuous
+                    self.set_upper_bound("edge")
+                else:  # continuous
+                    self.set_upper_bound("halo", index=1)
+            else:  # sequential
+                self.set_upper_bound("cells")
+
+    def set_lower_bound(self, name, index=None):
+        ''' Set the lower bounds of this loop '''
+        if name not in VALID_LOOP_BOUNDS_NAMES:
+            raise GenerationError(
+                "The specified lower bound loop name is invalid")
+        if name in ["inner", "halo"] and index < 1:
+            raise GenerationError(
+                "The specified index '{0}' for this lower loop bound is "
+                "invalid".format(str(index)))
+        self._lower_bound_name = name
+        self._lower_bound_index = index
+
+    def set_upper_bound(self, name, index=None):
+        ''' Set the upper bounds of this loop '''
+        if name not in VALID_LOOP_BOUNDS_NAMES:
+            raise GenerationError(
+                "The specified upper bound loop name is invalid")
+        if name == "start":
+            raise GenerationError("'start' is not a valid upper bound")
+        if name in ["inner", "halo"] and index < 1:
+            raise GenerationError(
+                "The specified index '{0}' for this upper loop bound is "
+                "invalid".format(str(index)))
+        self._upper_bound_name = name
+        self._upper_bound_index = index
+
+    def _lower_bound_fortran(self):
+        ''' Create the associated fortran code for the type of lower bound '''
+        if not config.DISTRIBUTED_MEMORY and self._lower_bound_name != "start":
+            raise GenerationError(
+                "The lower bound must be 'start' if we are sequential but "
+                "found '{0}'".format(self._upper_bound_name))
+        if self._lower_bound_name == "start":
+            return "1"
+        else:
+            # the start of our space is the end of the previous space +1
+            if self._lower_bound_name == "inner":
+                prev_space_name = self._lower_bound_name
+                prev_space_index_str = str(self._lower_bound_index + 1)
+            elif self._lower_bound_name == "edge":
+                prev_space_name = "inner"
+                prev_space_index_str = "1"
+            elif (self._lower_bound_name == "halo" and
+                  self._lower_bound_index == 1):
+                prev_space_name = "edge"
+                prev_space_index_str = ""
+            elif (self._lower_bound_name == "halo" and
+                  self._lower_bound_index > 1):
+                prev_space_name = self._lower_bound_name
+                prev_space_index_str = str(self._lower_bound_index - 1)
+            else:
+                raise GenerationError("Unsupported lower bound name found")
+            mesh_obj_name = self._name_space_manager.create_name(
+                root_name="mesh", context="PSyVars", label="mesh")
+            return mesh_obj_name + "%get_last_" + prev_space_name + "_cell(" \
+                + prev_space_index_str + ")+1"
+
+    def _upper_bound_fortran(self):
+        ''' Create the associated fortran code for the type of upper bound '''
+        if self._upper_bound_name == "ncolours":
+            return "ncolour"
+        elif self._upper_bound_name == "ncolour":
+            return "ncp_colour(colour)"
+        elif not config.DISTRIBUTED_MEMORY:
+            if self._upper_bound_name == "cells":
+                return self.field.proxy_name_indexed + "%" + \
+                    self.field.ref_name() + "%get_ncell()"
+            # keep ncolours and ncolour here as options as we will
+            # need them again when the DM colouring API is implemented
+            elif self._upper_bound_name == "ncolours":
+                return "ncolour"
+            elif self._upper_bound_name == "ncolour":
+                return "ncp_colour(colour)"
+            elif self._upper_bound_name == "dofs":
+                return self._kern.undf_name
+            else:
+                raise GenerationError(
+                    "For sequential/shared-memory code, the upper loop "
+                    "bound must be one of ncolours, ncolour, cells or dofs "
+                    "but got '{0}'".format(self._upper_bound_name))
+        else:
+            if self._upper_bound_name in ["inner", "halo"]:
+                index = self._upper_bound_index
+            else:
+                index = ""
+            mesh_obj_name = self._name_space_manager.create_name(
+                root_name="mesh", context="PSyVars", label="mesh")
+            return mesh_obj_name + "%get_last_" + self._upper_bound_name + \
+                "_cell(" + str(index) + ")"
+
+    def has_inc_arg(self, mapping=None):
+        ''' Returns True if any of the Kernels called within this loop
+        have an argument with INC access. Returns False otherwise. '''
+        if mapping is not None:
+            my_mapping = mapping
+        else:
+            my_mapping = FIELD_ACCESS_MAP
+        return Loop.has_inc_arg(self, my_mapping)
+
+    def unique_fields_with_halo_reads(self):
+        ''' Returns all fields in this loop that require at least some
+        of their halo to be clean to work correctly. '''
+
+        unique_fields = []
+        unique_field_names = []
+
+        for call in self.calls():
+            for arg in call.arguments.args:
+                if self._halo_read_access(arg):
+                    if arg.name not in unique_field_names:
+                        unique_field_names.append(arg.name)
+                        unique_fields.append(arg)
+        return unique_fields
+
+    def _halo_read_access(self, arg):
+        '''Determines whether this argument reads from the halo for this
+        loop'''
+        if arg.descriptor.stencil:
+            raise GenerationError(
+                "Stencils are not yet supported with halo exchange call logic")
+        if arg.type in VALID_SCALAR_NAMES:
+            # scalars do not have halos
+            return False
+        elif arg.type == "gh_operator":
+            # operators do not have halos
+            return False
+        elif arg.discontinuous and arg.access.lower() == "gh_read":
+            # there are no shared dofs so access to inner and edge are
+            # local so we only care about reads in the halo
+            return self._upper_bound_name == "halo"
+        elif arg.access.lower() in ["gh_read", "gh_inc"]:
+            # it is either continuous or we don't know (any_space_x)
+            # and we need to assume it may be continuous for
+            # correctness. There may be shared dofs so only access to
+            # inner is local so we care about reads in both the edge
+            # (annexed dofs) and the halo
+            return self._upper_bound_name in ["halo", "edge"]
+        else:
+            # access is neither a read nor an inc so does not need halo
+            return False
+
+    def gen_code(self, parent):
+        ''' Work out the appropriate loop bounds and variable name
+        depending on the loop type and then call the base class to
+        generate the code. '''
+
+        # Check that we're not within an OpenMP parallel region if
+        # we are a loop over colours.
+        if self._loop_type == "colours" and self.is_openmp_parallel():
+            raise GenerationError("Cannot have a loop over "
+                                  "colours within an OpenMP "
+                                  "parallel region.")
+
+        # get fortran loop bounds
+        self._start = self._lower_bound_fortran()
+        self._stop = self._upper_bound_fortran()
+        Loop.gen_code(self, parent)
+
+        if config.DISTRIBUTED_MEMORY and self._loop_type != "colour":
+            # Set halo dirty for all fields that are modified
+            from f2pygen import CallGen, CommentGen
+            fields = self.unique_modified_args(FIELD_ACCESS_MAP, "gh_field")
+            if fields:
+                parent.add(CommentGen(parent, ""))
+                parent.add(CommentGen(parent,
+                                      " Set halos dirty for fields modified "
+                                      "in the above loop"))
+                parent.add(CommentGen(parent, ""))
+                for field in fields:
+                    if field.vector_size > 1:
+                        # the range function below returns values from
+                        # 1 to the vector size which is what we
+                        # require in our Fortran code
+                        for index in range(1, field.vector_size+1):
+                            parent.add(CallGen(parent, name=field.proxy_name +
+                                               "(" + str(index) +
+                                               ")%set_dirty()"))
+                    else:
+                        parent.add(CallGen(parent, name=field.proxy_name +
+                                           "%set_dirty()"))
+                parent.add(CommentGen(parent, ""))
+
+
 class DynKern(Kern):
     ''' Stores information about Dynamo Kernels as specified by the
     Kernel metadata and associated algorithm call. Uses this
@@ -1815,249 +2058,6 @@ class DynKern(Kern):
                                  ndf_name, undf_name, map_name,
                                  boundary_dofs_name]))
             parent.add(CommentGen(parent, ""))
-
-
-class DynLoop(Loop):
-    ''' The Dynamo specific Loop class. This passes the Dynamo
-    specific loop information to the base class so it creates the one
-    we require.  Creates Dynamo specific loop bounds when the code is
-    being generated. '''
-
-    def __init__(self, parent=None, loop_type=""):
-        Loop.__init__(self, parent=parent,
-                      valid_loop_types=VALID_LOOP_TYPES)
-        self.loop_type = loop_type
-        self._kern = None
-
-        # Get the namespace manager instance so we can look-up
-        # the name of the nlayers and ndf variables
-        self._name_space_manager = NameSpaceFactory().create()
-
-        # set our variable name at initialisation as it might be
-        # required by other classes before code generation
-        if self._loop_type == "colours":
-            self._variable_name = "colour"
-        elif self._loop_type == "colour":
-            self._variable_name = "cell"
-        elif self._loop_type == "dofs":
-            self._variable_name = "df"
-        else:
-            self._variable_name = "cell"
-
-        # At this stage we don't know what our loop bounds are
-        self._lower_bound_name = None
-        self._lower_bound_index = None
-        self._upper_bound_name = None
-        self._upper_bound_index = None
-
-    def load(self, kern):
-        ''' Load the state of this Loop using the supplied Kernel
-        object. This method is provided so that we can individually
-        construct Loop objects for a given kernel call. '''
-        self._kern = kern
-
-        self._field = kern.arguments.iteration_space_arg()
-        self._field_name = self._field.name
-        self._field_space = self._field.function_space
-        self._iteration_space = kern.iterates_over  # cells etc.
-
-        # Loop bounds
-        self.set_lower_bound("start")
-
-        if isinstance(kern, DynBuiltinKern):
-            # If the kernel is an infrastructure/pointwise kernel
-            # then this loop must be over DoFs
-            self.set_upper_bound("dofs")
-        else:
-            if config.DISTRIBUTED_MEMORY:
-                if self.field_space == "w3":  # discontinuous
-                    self.set_upper_bound("edge")
-                else:  # continuous
-                    self.set_upper_bound("halo", index=1)
-            else:  # sequential
-                self.set_upper_bound("cells")
-
-    def set_lower_bound(self, name, index=None):
-        ''' Set the lower bounds of this loop '''
-        if name not in VALID_LOOP_BOUNDS_NAMES:
-            raise GenerationError(
-                "The specified lower bound loop name is invalid")
-        if name in ["inner", "halo"] and index < 1:
-            raise GenerationError(
-                "The specified index '{0}' for this lower loop bound is "
-                "invalid".format(str(index)))
-        self._lower_bound_name = name
-        self._lower_bound_index = index
-
-    def set_upper_bound(self, name, index=None):
-        ''' Set the upper bounds of this loop '''
-        if name not in VALID_LOOP_BOUNDS_NAMES:
-            raise GenerationError(
-                "The specified upper bound loop name is invalid")
-        if name == "start":
-            raise GenerationError("'start' is not a valid upper bound")
-        if name in ["inner", "halo"] and index < 1:
-            raise GenerationError(
-                "The specified index '{0}' for this upper loop bound is "
-                "invalid".format(str(index)))
-        self._upper_bound_name = name
-        self._upper_bound_index = index
-
-    def _lower_bound_fortran(self):
-        ''' Create the associated fortran code for the type of lower bound '''
-        if not config.DISTRIBUTED_MEMORY and self._lower_bound_name != "start":
-            raise GenerationError(
-                "The lower bound must be 'start' if we are sequential but "
-                "found '{0}'".format(self._upper_bound_name))
-        if self._lower_bound_name == "start":
-            return "1"
-        else:
-            # the start of our space is the end of the previous space +1
-            if self._lower_bound_name == "inner":
-                prev_space_name = self._lower_bound_name
-                prev_space_index_str = str(self._lower_bound_index + 1)
-            elif self._lower_bound_name == "edge":
-                prev_space_name = "inner"
-                prev_space_index_str = "1"
-            elif (self._lower_bound_name == "halo" and
-                  self._lower_bound_index == 1):
-                prev_space_name = "edge"
-                prev_space_index_str = ""
-            elif (self._lower_bound_name == "halo" and
-                  self._lower_bound_index > 1):
-                prev_space_name = self._lower_bound_name
-                prev_space_index_str = str(self._lower_bound_index - 1)
-            else:
-                raise GenerationError("Unsupported lower bound name found")
-            mesh_obj_name = self._name_space_manager.create_name(
-                root_name="mesh", context="PSyVars", label="mesh")
-            return mesh_obj_name + "%get_last_" + prev_space_name + "_cell(" \
-                + prev_space_index_str + ")+1"
-
-    def _upper_bound_fortran(self):
-        ''' Create the associated fortran code for the type of upper bound '''
-        if self._upper_bound_name == "ncolours":
-            return "ncolour"
-        elif self._upper_bound_name == "ncolour":
-            return "ncp_colour(colour)"
-        elif not config.DISTRIBUTED_MEMORY:
-            if self._upper_bound_name == "cells":
-                return self.field.proxy_name_indexed + "%" + \
-                    self.field.ref_name() + "%get_ncell()"
-            # keep ncolours and ncolour here as options as we will
-            # need them again when the DM colouring API is implemented
-            elif self._upper_bound_name == "ncolours":
-                return "ncolour"
-            elif self._upper_bound_name == "ncolour":
-                return "ncp_colour(colour)"
-            elif self._upper_bound_name == "dofs":
-                return self._kern.undf_name
-            else:
-                raise GenerationError(
-                    "For sequential/shared-memory code, the upper loop "
-                    "bound must be one of ncolours, ncolour, cells or dofs "
-                    "but got '{0}'".format(self._upper_bound_name))
-        else:
-            if self._upper_bound_name in ["inner", "halo"]:
-                index = self._upper_bound_index
-            else:
-                index = ""
-            mesh_obj_name = self._name_space_manager.create_name(
-                root_name="mesh", context="PSyVars", label="mesh")
-            return mesh_obj_name + "%get_last_" + self._upper_bound_name + \
-                "_cell(" + str(index) + ")"
-
-    def has_inc_arg(self, mapping=None):
-        ''' Returns True if any of the Kernels called within this loop
-        have an argument with INC access. Returns False otherwise. '''
-        if mapping is not None:
-            my_mapping = mapping
-        else:
-            my_mapping = FIELD_ACCESS_MAP
-        return Loop.has_inc_arg(self, my_mapping)
-
-    def unique_fields_with_halo_reads(self):
-        ''' Returns all fields in this loop that require at least some
-        of their halo to be clean to work correctly. '''
-
-        unique_fields = []
-        unique_field_names = []
-
-        for call in self.calls():
-            for arg in call.arguments.args:
-                if self._halo_read_access(arg):
-                    if arg.name not in unique_field_names:
-                        unique_field_names.append(arg.name)
-                        unique_fields.append(arg)
-        return unique_fields
-
-    def _halo_read_access(self, arg):
-        '''Determines whether this argument reads from the halo for this
-        loop'''
-        if arg.descriptor.stencil:
-            raise GenerationError(
-                "Stencils are not yet supported with halo exchange call logic")
-        if arg.type in VALID_SCALAR_NAMES:
-            # scalars do not have halos
-            return False
-        elif arg.type == "gh_operator":
-            # operators do not have halos
-            return False
-        elif arg.discontinuous and arg.access.lower() == "gh_read":
-            # there are no shared dofs so access to inner and edge are
-            # local so we only care about reads in the halo
-            return self._upper_bound_name == "halo"
-        elif arg.access.lower() in ["gh_read", "gh_inc"]:
-            # it is either continuous or we don't know (any_space_x)
-            # and we need to assume it may be continuous for
-            # correctness. There may be shared dofs so only access to
-            # inner is local so we care about reads in both the edge
-            # (annexed dofs) and the halo
-            return self._upper_bound_name in ["halo", "edge"]
-        else:
-            # access is neither a read nor an inc so does not need halo
-            return False
-
-    def gen_code(self, parent):
-        ''' Work out the appropriate loop bounds and variable name
-        depending on the loop type and then call the base class to
-        generate the code. '''
-
-        # Check that we're not within an OpenMP parallel region if
-        # we are a loop over colours.
-        if self._loop_type == "colours" and self.is_openmp_parallel():
-            raise GenerationError("Cannot have a loop over "
-                                  "colours within an OpenMP "
-                                  "parallel region.")
-
-        # get fortran loop bounds
-        self._start = self._lower_bound_fortran()
-        self._stop = self._upper_bound_fortran()
-        Loop.gen_code(self, parent)
-
-        if config.DISTRIBUTED_MEMORY and self._loop_type != "colour":
-            # Set halo dirty for all fields that are modified
-            from f2pygen import CallGen, CommentGen
-            fields = self.unique_modified_args(FIELD_ACCESS_MAP, "gh_field")
-            if fields:
-                parent.add(CommentGen(parent, ""))
-                parent.add(CommentGen(parent,
-                                      " Set halos dirty for fields modified "
-                                      "in the above loop"))
-                parent.add(CommentGen(parent, ""))
-                for field in fields:
-                    if field.vector_size > 1:
-                        # the range function below returns values from
-                        # 1 to the vector size which is what we
-                        # require in our Fortran code
-                        for index in range(1, field.vector_size+1):
-                            parent.add(CallGen(parent, name=field.proxy_name +
-                                               "(" + str(index) +
-                                               ")%set_dirty()"))
-                    else:
-                        parent.add(CallGen(parent, name=field.proxy_name +
-                                           "%set_dirty()"))
-                parent.add(CommentGen(parent, ""))
 
 
 class FSDescriptor(object):
