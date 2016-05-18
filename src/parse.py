@@ -61,10 +61,6 @@ class Descriptor(object):
     def function_space(self):
         return self._space
 
-    @function_space.setter
-    def function_space(self, space):
-	self._space = space
-
     @property
     def stencil(self):
         return self._stencil
