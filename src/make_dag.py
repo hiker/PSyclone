@@ -120,17 +120,11 @@ def make_dag(graph, parent, children, mapping):
                 opcount += 1
     if opcount > 1:
         raise Exception("Found more than one operator amongst list of "
-                        "siblings: this is not supported")
+                        "siblings: this is not supported!")
 
     for idx, child in enumerate(children):
         if isinstance(child, Name):
-            suffix = ""
-            if idx < len(children)-1 and isinstance(children[idx+1],
-                                                    Section_Subscript_List):
-                # TODO check whether we need this part as should be covered
-                # by our check on whether child isa Part_Ref below...
-                suffix = "_" + str_to_node_name(str(children[idx+1]))
-            var_name = str(child) + suffix
+            var_name = str(child)
             tmpnode = graph.get_node(var_name, parent, mapping)
             parent.add_child(tmpnode)
         elif isinstance(child, Real_Literal_Constant):
