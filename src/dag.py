@@ -11,7 +11,7 @@ class DirectedAcyclicGraph(object):
         self._nodes = {}
         self._name = name
 
-    def get_node(self, name, parent, unique=False):
+    def get_node(self, name, parent, mapping, unique=False):
         if unique:
             # Node is unique so we make a new one, no questions
             # asked...
@@ -19,17 +19,21 @@ class DirectedAcyclicGraph(object):
                 print "Creating a unique node labelled '{0}'".format(name)
             return DAGNode(parent=parent, name=name)
         else:
+            if name in mapping:
+                node_name = mapping[name]
+            else:
+                node_name = name
             # Node is not necessarily unique so check whether we
             # already have one with the supplied name
-            if name in self._nodes:
+            if node_name in self._nodes:
                 if DEBUG:
-                    print "Matched node with name: ", name
-                return self._nodes[name]
+                    print "Matched node with name: ", node_name
+                return self._nodes[node_name]
             else:
                 if DEBUG:
-                    print "No existing node with name: ", name
-                newnode = DAGNode(parent=parent, name=name)
-                self._nodes[name] = newnode
+                    print "No existing node with name: ", node_name
+                newnode = DAGNode(parent=parent, name=node_name)
+                self._nodes[node_name] = newnode
                 return newnode
 
 

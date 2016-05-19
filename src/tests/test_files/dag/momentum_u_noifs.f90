@@ -88,7 +88,7 @@ contains
 
          vis = (dudx_e - dudx_w ) * dy_u(ji,jj)  + &
               & (dudy_n - dudy_s ) * dx_u(ji,jj) * 0.5_wp  
-         !vis = visc * vis   !visc will be an array visc(1:jpijglou) 
+         vis = visc * vis   !visc will be an array visc(1:jpijglou) 
          !for variable viscosity, such as turbulent viscosity
          !End  kernel u vis 
 

@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+
+''' A python script to parse a Fortran source file and produce a DAG
+    for each subroutine it contains. '''
+
 import os
 import sys
 from fparser.Fortran2003 import Module, Module_Subprogram_Part, \
@@ -48,8 +52,9 @@ def is_intrinsic_fn(obj):
     return False
 
 def walk(children, my_type):
-    '''' Walk down the tree produced by the f2003 parser where children are listed
-    under 'content'.  Returns a list of all nodes with the specified type. '''
+    '''' Walk down the tree produced by the f2003 parser where children
+    are listed under 'content'.  Returns a list of all nodes with the
+    specified type. '''
     local_list = []
     for child in children:
         if isinstance(child, my_type):
@@ -86,7 +91,7 @@ def walk_items(children, my_type):
             pass
     return local_list
 
-def make_dag(graph, parent, children):
+def make_dag(graph, parent, children, mapping):
     ''' Makes a DAG from the RHS of a Fortran assignment statement '''
 
     debug = False
@@ -108,13 +113,13 @@ def make_dag(graph, parent, children):
                 # This is the operator which is then the parent
                 # of the DAG of this subexpression. All operators
                 # are unique nodes in the DAG.
-                opnode = graph.get_node(child, parent, unique=True)
+                opnode = graph.get_node(child, parent, mapping, unique=True)
                 parent.add_child(opnode)
                 parent = opnode
                 opcount += 1
     if opcount > 1:
-        raise Exception("Found more than one operator amongst list of siblings: "
-                        "this is not supported")
+        raise Exception("Found more than one operator amongst list of "
+                        "siblings: this is not supported")
 
     for idx, child in enumerate(children):
         if isinstance(child, Name):
@@ -125,11 +130,11 @@ def make_dag(graph, parent, children):
                 # by our check on whether child isa Part_Ref below...
                 suffix = "_" + str_to_node_name(str(children[idx+1]))
             var_name = str(child) + suffix
-            tmpnode = graph.get_node(var_name, parent)
+            tmpnode = graph.get_node(var_name, parent, mapping)
             parent.add_child(tmpnode)
         elif isinstance(child, Real_Literal_Constant):
             # This is a constant and thus a leaf in the tree
-            tmpnode = graph.get_node(str(child), parent, unique=True)
+            tmpnode = graph.get_node(str(child), parent, mapping, unique=True)
             parent.add_child(tmpnode)
         elif isinstance(child, Part_Ref):
             # This can be either a function call or an array reference
@@ -140,21 +145,21 @@ def make_dag(graph, parent, children):
                     print "found intrinsic: {0}".format(str(child.items[0]))
                 # Create a node to represent the intrinsic call
                 tmpnode = graph.get_node(str(child.items[0]), parent,
-                                         unique=True)
+                                         mapping, unique=True)
                 parent.add_child(tmpnode)
                 # Add its dependencies
-                make_dag(graph, tmpnode, child.items[1:])
+                make_dag(graph, tmpnode, child.items[1:], mapping)
             else:
                 name = str_to_node_name(str(child))
-                tmpnode = graph.get_node(name, parent)
+                tmpnode = graph.get_node(name, parent, mapping)
                 parent.add_child(tmpnode)
         elif is_subexpression(child):
             # We don't make nodes to represent sub-expresssions - just
             # carry-on down to the children
-            make_dag(graph, parent, child.items)
+            make_dag(graph, parent, child.items, mapping)
         elif isinstance(child, Section_Subscript_List):
             # We have a list of arguments
-            make_dag(graph, parent, child.items)
+            make_dag(graph, parent, child.items, mapping)
 
 
 def runner (parser, options, args):
@@ -166,7 +171,9 @@ def runner (parser, options, args):
             reader.set_mode_from_str(options.mode)
         try:
             program = Fortran2003.Program(reader)
+            # Find all the subroutines contained in the file
             subroutines = walk(program.content, Subroutine_Subprogram)
+            # Create a DAG for each subroutine
             for subroutine in subroutines:
                 substmt = walk(subroutine.content, Subroutine_Stmt)
                 sub_name = str(substmt[0].get_name())
@@ -176,15 +183,45 @@ def runner (parser, options, args):
 
                 digraph = DirectedAcyclicGraph(sub_name)
                 fo.write("strict digraph {\n")
+
+                # Keep a list of variables that are assigned to. This
+                # enables us to update the name by which they are known
+                # in the graph.
+                # e.g.:
+                #  a = b + c
+                #  a = a + 1 =>  a' = a + 1
+                #  a = a*a   => a'' = a' * a'
+                mapping = {}
+
+                # Find all of the assignment statements in the subroutine
                 assignments = walk(subroutine.content, Assignment_Stmt)
                 for assign in assignments:
                     assigned_to = walk_items([assign.items[0]], Name)
                     var_name = str(assigned_to[0])
-                    dag = digraph.get_node(name=var_name, parent=None)
+                    # If this variable has been assigned to previously
+                    # then this is effectively a new variable for the
+                    # purposes of the graph.
+                    if var_name in mapping:
+                        node_name = mapping[var_name] + "'"
+                    else:
+                        node_name = var_name
+                    dag = digraph.get_node(name=node_name,
+                                           parent=None,
+                                           mapping=mapping)
                     # TODO make_dag should be a method of digraph?
                     # First two items of an Assignment_Stmt are the name of
                     # the var being assigned to and '='.
-                    make_dag(digraph, dag, assign.items[2:])
+                    make_dag(digraph, dag, assign.items[2:], mapping)
+                    # Only update the map once we've created a DAG of the
+                    # assignment statement. This is because, any references
+                    # to this variable in that assignment are to the previous
+                    # version of it, not the one being assigned to.
+                    if var_name in mapping:
+                        mapping[var_name] += "'"
+                    else:
+                        mapping[var_name] = var_name
+
+                    # Output the DAG of thsi assignment
                     #dag.display()
                     dag.to_dot(fo)
                 fo.write("}\n")
