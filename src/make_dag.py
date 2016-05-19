@@ -113,7 +113,8 @@ def make_dag(graph, parent, children, mapping):
                 # This is the operator which is then the parent
                 # of the DAG of this subexpression. All operators
                 # are unique nodes in the DAG.
-                opnode = graph.get_node(child, parent, mapping, unique=True)
+                opnode = graph.get_node(child, parent, mapping, unique=True,
+                                        node_type="operator")
                 parent.add_child(opnode)
                 parent = opnode
                 opcount += 1
@@ -134,7 +135,8 @@ def make_dag(graph, parent, children, mapping):
             parent.add_child(tmpnode)
         elif isinstance(child, Real_Literal_Constant):
             # This is a constant and thus a leaf in the tree
-            tmpnode = graph.get_node(str(child), parent, mapping, unique=True)
+            tmpnode = graph.get_node(str(child), parent, mapping, unique=True,
+                                     node_type="constant")
             parent.add_child(tmpnode)
         elif isinstance(child, Part_Ref):
             # This can be either a function call or an array reference
@@ -151,7 +153,8 @@ def make_dag(graph, parent, children, mapping):
                 make_dag(graph, tmpnode, child.items[1:], mapping)
             else:
                 name = str_to_node_name(str(child))
-                tmpnode = graph.get_node(name, parent, mapping)
+                tmpnode = graph.get_node(name, parent, mapping,
+                                         node_type="array_ref")
                 parent.add_child(tmpnode)
         elif is_subexpression(child):
             # We don't make nodes to represent sub-expresssions - just
