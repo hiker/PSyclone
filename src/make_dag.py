@@ -3,53 +3,16 @@
 ''' A python script to parse a Fortran source file and produce a DAG
     for each subroutine it contains. '''
 
-import os
-import sys
-from fparser.Fortran2003 import Module, Module_Subprogram_Part, \
-    Subroutine_Subprogram, Assignment_Stmt, Add_Operand, \
-    Level_2_Expr, Level_2_Unary_Expr, Real_Literal_Constant, \
-    Subroutine_Stmt, Name, Section_Subscript_List, Parenthesis, Part_Ref
-from dag import DirectedAcyclicGraph, DAGNode
+from fparser.Fortran2003 import Subroutine_Subprogram, Assignment_Stmt, \
+    Subroutine_Stmt, Name
+from dag import DirectedAcyclicGraph, str_to_node_name
 
-### START UPDATE SYS.PATH ###
-### END UPDATE SYS.PATH ###
 try:
     from iocbio.optparse_gui import OptionParser
 except ImportError:
     from optparse import OptionParser
 from fparser.script_options import set_f2003_options
 
-OPERATORS = ["+", "-", "/", "*"]
-FORTRAN_INTRINSICS = ["SIGN", "SIN", "COS"]
-
-def str_to_node_name(astring):
-    ''' Hacky method that takes a string containing a Fortran array reference
-    and returns a string suitable for naming a node in the graph '''
-    new_string = astring.replace(" ","")
-    new_string = new_string.replace(",","_")
-    new_string = new_string.replace("+","p")
-    new_string = new_string.replace("-","m")
-    new_string = new_string.replace("(","_")
-    new_string = new_string.replace(")","")
-    return new_string
-
-def is_subexpression(expr):
-    ''' Returns True if the supplied node is itself a sub-expression. '''
-    if isinstance(expr, Add_Operand) or \
-       isinstance(expr, Level_2_Expr) or \
-       isinstance(expr, Level_2_Unary_Expr) or \
-       isinstance(expr, Parenthesis):
-        return True
-    return False
-
-def is_intrinsic_fn(obj):
-    ''' Checks whether the supplied object is a call to a Fortran
-        intrinsic '''
-    if not isinstance(obj.items[0], Name):
-        raise Exception("is_intrinsic_fn: expects first item to be Name")
-    if str(obj.items[0]) in FORTRAN_INTRINSICS:
-        return True
-    return False
 
 def walk(children, my_type):
     '''' Walk down the tree produced by the f2003 parser where children
@@ -68,7 +31,7 @@ def walk(children, my_type):
 def walk_items(children, my_type):
     ''' Walk down tree produced by f2003 parser where child nodes are listed
     under items '''
-    from fparser.Fortran2003 import Name, Section_Subscript_List
+    from fparser.Fortran2003 import Section_Subscript_List
     ignore_types = [Section_Subscript_List]
     local_list = []
     # children is a tuple
@@ -86,82 +49,17 @@ def walk_items(children, my_type):
             local_list.append(str(child)+suffix)
         try:
             local_list += walk_items(child.items, my_type)
-        except AttributeError as excinfo:
-            #print str(excinfo)
+        except AttributeError:
+            # Catch case where child does not have items member
             pass
     return local_list
 
-def make_dag(graph, parent, children, mapping):
-    ''' Makes a DAG from the RHS of a Fortran assignment statement '''
 
-    debug = False
-
-    if debug:
-        for child in children:
-            if isinstance(child, str):
-                print "String: ", child
-            elif isinstance(child, Part_Ref):
-                print "Part ref", str(child)
-            else:
-                print type(child)
-        print "--------------"
-
-    opcount = 0
-    for child in children:
-        if isinstance(child, str):
-            if child in OPERATORS:
-                # This is the operator which is then the parent
-                # of the DAG of this subexpression. All operators
-                # are unique nodes in the DAG.
-                opnode = graph.get_node(child, parent, mapping, unique=True,
-                                        node_type="operator")
-                parent.add_child(opnode)
-                parent = opnode
-                opcount += 1
-    if opcount > 1:
-        raise Exception("Found more than one operator amongst list of "
-                        "siblings: this is not supported!")
-
-    for idx, child in enumerate(children):
-        if isinstance(child, Name):
-            var_name = str(child)
-            tmpnode = graph.get_node(var_name, parent, mapping)
-            parent.add_child(tmpnode)
-        elif isinstance(child, Real_Literal_Constant):
-            # This is a constant and thus a leaf in the tree
-            tmpnode = graph.get_node(str(child), parent, mapping, unique=True,
-                                     node_type="constant")
-            parent.add_child(tmpnode)
-        elif isinstance(child, Part_Ref):
-            # This can be either a function call or an array reference
-            # TODO sub_class Part_Ref and implement a proper method to
-            # generate a string!
-            if is_intrinsic_fn(child):
-                if debug:
-                    print "found intrinsic: {0}".format(str(child.items[0]))
-                # Create a node to represent the intrinsic call
-                tmpnode = graph.get_node(str(child.items[0]), parent,
-                                         mapping, unique=True)
-                parent.add_child(tmpnode)
-                # Add its dependencies
-                make_dag(graph, tmpnode, child.items[1:], mapping)
-            else:
-                name = str_to_node_name(str(child))
-                tmpnode = graph.get_node(name, parent, mapping,
-                                         node_type="array_ref")
-                parent.add_child(tmpnode)
-        elif is_subexpression(child):
-            # We don't make nodes to represent sub-expresssions - just
-            # carry-on down to the children
-            make_dag(graph, parent, child.items, mapping)
-        elif isinstance(child, Section_Subscript_List):
-            # We have a list of arguments
-            make_dag(graph, parent, child.items, mapping)
-
-
-def runner (parser, options, args):
+def runner(parser, options, args):
+    ''' Parses the files listed in args and generates a DAG for all of the
+    subroutines it finds '''
     from fparser.api import Fortran2003
-    from fparser.readfortran import  FortranFileReader
+    from fparser.readfortran import FortranFileReader
     for filename in args:
         reader = FortranFileReader(filename)
         if options.mode != 'auto':
@@ -205,12 +103,12 @@ def runner (parser, options, args):
                     dag = digraph.get_node(name=node_name,
                                            parent=None,
                                            mapping=mapping)
-                    # TODO make_dag should be a method of digraph?
                     # First two items of an Assignment_Stmt are the name of
                     # the var being assigned to and '='.
-                    make_dag(digraph, dag, assign.items[2:], mapping)
+                    digraph.make_dag(dag, assign.items[2:], mapping)
+
                     # Only update the map once we've created a DAG of the
-                    # assignment statement. This is because, any references
+                    # assignment statement. This is because any references
                     # to this variable in that assignment are to the previous
                     # version of it, not the one being assigned to.
                     if var_name in mapping:
@@ -229,14 +127,14 @@ def runner (parser, options, args):
                 print "Graph has {0} array references in it.".\
                     format(digraph.count_nodes("array_ref"))
 
-        except Fortran2003.NoMatchError, msg:
+        except Fortran2003.NoMatchError:
             print 'parsing %r failed at %s' % (filename, reader.fifo_item[-1])
             print 'started at %s' % (reader.fifo_item[0])
             print 'Quitting'
             return
 
 
-def main ():
+def main():
     parser = OptionParser()
     set_f2003_options(parser)
     if hasattr(parser, 'runner'):

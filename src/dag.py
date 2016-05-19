@@ -2,9 +2,50 @@
 ''' This module provides support for the construction of a Directed
     Acyclic Graph. '''
 
-INDENT_STR = "     "
+from fparser.Fortran2003 import \
+    Add_Operand, Level_2_Expr, Level_2_Unary_Expr, Real_Literal_Constant, \
+    Name, Section_Subscript_List, Parenthesis, Part_Ref
+
 DEBUG = False
+INDENT_STR = "     "
+# Valid types for a node in the DAG
 VALID_NODE_TYPES = ["operator", "constant", "array_ref"]
+# Types of floating-point operation
+OPERATORS = ["+", "-", "/", "*"]
+# Fortran intrinsics that we recognise
+FORTRAN_INTRINSICS = ["SIGN", "SIN", "COS"]
+
+def is_subexpression(expr):
+    ''' Returns True if the supplied node is itself a sub-expression. '''
+    if isinstance(expr, Add_Operand) or \
+       isinstance(expr, Level_2_Expr) or \
+       isinstance(expr, Level_2_Unary_Expr) or \
+       isinstance(expr, Parenthesis):
+        return True
+    return False
+
+
+def is_intrinsic_fn(obj):
+    ''' Checks whether the supplied object is a call to a Fortran
+        intrinsic '''
+    if not isinstance(obj.items[0], Name):
+        raise Exception("is_intrinsic_fn: expects first item to be Name")
+    if str(obj.items[0]) in FORTRAN_INTRINSICS:
+        return True
+    return False
+
+
+def str_to_node_name(astring):
+    ''' Hacky method that takes a string containing a Fortran array reference
+    and returns a string suitable for naming a node in the graph '''
+    new_string = astring.replace(" ", "")
+    new_string = new_string.replace(",", "_")
+    new_string = new_string.replace("+", "p")
+    new_string = new_string.replace("-", "m")
+    new_string = new_string.replace("(", "_")
+    new_string = new_string.replace(")", "")
+    return new_string
+
 
 class DirectedAcyclicGraph(object):
 
@@ -77,10 +118,77 @@ class DirectedAcyclicGraph(object):
 
         return len(node_list)
 
+    def make_dag(self, parent, children, mapping):
+        ''' Makes a DAG from the RHS of a Fortran assignment statement '''
+
+        if DEBUG:
+            for child in children:
+                if isinstance(child, str):
+                    print "String: ", child
+                elif isinstance(child, Part_Ref):
+                    print "Part ref", str(child)
+                else:
+                    print type(child)
+            print "--------------"
+
+        opcount = 0
+        for child in children:
+            if isinstance(child, str):
+                if child in OPERATORS:
+                    # This is the operator which is then the parent
+                    # of the DAG of this subexpression. All operators
+                    # are unique nodes in the DAG.
+                    opnode = self.get_node(child, parent, mapping, unique=True,
+                                           node_type="operator")
+                    parent.add_child(opnode)
+                    parent = opnode
+                    opcount += 1
+        if opcount > 1:
+            raise Exception("Found more than one operator amongst list of "
+                            "siblings: this is not supported!")
+
+        for child in children:
+            if isinstance(child, Name):
+                var_name = str(child)
+                tmpnode = self.get_node(var_name, parent, mapping)
+                parent.add_child(tmpnode)
+            elif isinstance(child, Real_Literal_Constant):
+                # This is a constant and thus a leaf in the tree
+                tmpnode = self.get_node(str(child), parent, mapping,
+                                        unique=True,
+                                        node_type="constant")
+                parent.add_child(tmpnode)
+            elif isinstance(child, Part_Ref):
+                # This can be either a function call or an array reference
+                # TODO sub_class Part_Ref and implement a proper method to
+                # generate a string!
+                if is_intrinsic_fn(child):
+                    if DEBUG:
+                        print "found intrinsic: {0}".\
+                            format(str(child.items[0]))
+                    # Create a node to represent the intrinsic call
+                    tmpnode = self.get_node(str(child.items[0]), parent,
+                                            mapping, unique=True)
+                    parent.add_child(tmpnode)
+                    # Add its dependencies
+                    self.make_dag(tmpnode, child.items[1:], mapping)
+                else:
+                    name = str_to_node_name(str(child))
+                    tmpnode = self.get_node(name, parent, mapping,
+                                            node_type="array_ref")
+                    parent.add_child(tmpnode)
+            elif is_subexpression(child):
+                # We don't make nodes to represent sub-expresssions - just
+                # carry-on down to the children
+                self.make_dag(parent, child.items, mapping)
+            elif isinstance(child, Section_Subscript_List):
+                # We have a list of arguments
+                self.make_dag(parent, child.items, mapping)
+
 
 class DAGNode(object):
     ''' Base class for a node in a Directed Acyclic Graph '''
-    
+
     def __init__(self, parent=None, name=None):
         self._parent = parent
         self._children = []
@@ -152,7 +260,7 @@ class DAGNode(object):
                 node_colour = "blue"
             nodestr += ", color=\"{0}\"".format(node_colour)
         nodestr += "]\n"
-        
+
         fileobj.write(nodestr)
         fileobj.write(self._node_id+" -> {\n")
         for child in self._children:
