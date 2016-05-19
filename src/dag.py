@@ -9,10 +9,17 @@ VALID_NODE_TYPES = ["operator", "constant", "array_ref"]
 class DirectedAcyclicGraph(object):
 
     def __init__(self, name):
+        # Dictionary of all referenceable nodes in the graph.
         self._nodes = {}
+        # Name of this DAG
         self._name = name
+        # List of the top-level nodes (those that have no parent)
+        self._ancestor_nodes = []
 
     def get_node(self, name, parent, mapping, unique=False, node_type=None):
+        ''' Looks-up or creates a node in the graph. If unique is False and
+        we do not already have a node with the supplied name then we create a
+        new one. If unique is True then we always create a new node. '''
         if unique:
             # Node is unique so we make a new one, no questions
             # asked. Since it is unique it will not be referred to again
@@ -35,11 +42,28 @@ class DirectedAcyclicGraph(object):
             else:
                 if DEBUG:
                     print "No existing node with name: ", node_name
+                # Create a new node and store it in our list so we
+                # can refer back to it in future if needed
                 node = DAGNode(parent=parent, name=node_name)
                 self._nodes[node_name] = node
         if node_type:
             node.node_type = node_type
+
+        if parent is None:
+            self._ancestor_nodes.append(node)
+
         return node
+
+    def count_nodes(self, node_type):
+        ''' Count the number of nodes in the graph that are of the
+        specified type '''
+        print "Have {0} ancestor nodes.".format(len(self._ancestor_nodes))
+        node_list = []
+        for node in self._ancestor_nodes:
+            nodes = node.walk(node_type)
+            node_list.extend(nodes)
+
+        return len(node_list)
 
 
 class DAGNode(object):
@@ -56,7 +80,7 @@ class DAGNode(object):
 
     @property
     def _node_id(self):
-        ''' Returns a unique string identify this node in the graph '''
+        ''' Returns a unique string identifying this node in the graph '''
         return "node"+str(id(self))
 
     def display(self, indent=0):
@@ -78,7 +102,15 @@ class DAGNode(object):
             raise Exception("node_type must be one of {0} but "
                             "got '{1}'".format(VALID_NODE_TYPES, mytype))
         self._node_type = mytype
-            
+
+    def walk(self, node_type):
+        local_list = []
+        for child in self._children:
+            if child.node_type == node_type:
+                local_list.append(child)
+            local_list += child.walk(node_type)
+        return local_list
+
     def to_dot(self, fileobj):
         ''' Generate representation in the DOT language '''
         for child in self._children:

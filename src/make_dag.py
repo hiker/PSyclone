@@ -230,6 +230,10 @@ def runner (parser, options, args):
                 fo.write("}\n")
                 print "Wrote DAG to {0}".format(fo.name)
                 fo.close()
+                print "Graph has {0} operators in it.".\
+                    format(digraph.count_nodes("operator"))
+                print "Graph has {0} array references in it.".\
+                    format(digraph.count_nodes("array_ref"))
 
         except Fortran2003.NoMatchError, msg:
             print 'parsing %r failed at %s' % (filename, reader.fifo_item[-1])
