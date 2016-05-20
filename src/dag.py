@@ -50,6 +50,50 @@ def str_to_node_name(astring):
     return new_string
 
 
+# TODO: would it be better to inherit from the built-in list object?
+class Path(object):
+    ''' Class to encapsulate functionality related to a specifc path
+    through a DAG '''
+
+    def __init__(self):
+        self._nodes = []
+
+    def load(self, obj_list):
+        ''' Populate this object using the supplied list of nodes '''
+        self._nodes = obj_list
+
+    def add_node(self, obj):
+        self._nodes.append(obj)
+
+    def cycles(self):
+        ''' The length of the path in cycles '''
+        cost = 0
+        for node in self._nodes:
+            cost += node.weight
+        return cost
+
+    def flops(self):
+        ''' The number of floating point operations in the path '''
+        flop_count = 0
+        for node in self._nodes:
+            if node.node_type in OPERATORS:
+                flop_count += 1
+        return flop_count
+
+    def __len__(self):
+        ''' Over-load the built-in len operation so that it behaves as
+        expected '''
+        return len(self._nodes)
+
+    def to_dot(self, fileobj):
+        ''' Write this path to the supplied DOT file '''
+        pathstr = self._nodes[0].node_id
+        for node in self._nodes[1:]:
+            pathstr += " -> {0}".format(node.node_id)
+        pathstr += "[color=red,penwidth=3.0];"
+        fileobj.write(pathstr)
+
+
 class DirectedAcyclicGraph(object):
 
     def __init__(self, name):
@@ -59,6 +103,8 @@ class DirectedAcyclicGraph(object):
         self._name = name
         # Those nodes that have no parents in the tree
         self._ancestors = None
+        # The critical path through the graph
+        self._critical_path = Path()
 
     def get_node(self, name, parent, mapping, unique=False, node_type=None):
         ''' Looks-up or creates a node in the graph. If unique is False and
@@ -198,15 +244,35 @@ class DirectedAcyclicGraph(object):
                 # We have a list of arguments
                 self.make_dag(parent, child.items, mapping)
 
+    def critical_path(self):
+        ''' Calculate the critical path through the graph '''
+        path = []
+
+        # Compute inclusive weights for each node
+        self.calc_costs()
+
+        for node in self.ancestor_nodes():
+            node.critical_path(path)
+
+        # Use the resulting list of nodes to populate our Path object
+        self._critical_path.load(path)
+
+        return self._critical_path
+
     def to_dot(self):
-        ''' Write the DAG to file in DOT format '''
+        ''' Write the DAG to file in DOT format. If a list of nodes is
+        provided then that path is also written to the file. '''
 
         # Create a file for the graph of this subroutine
         fo = open(self._name+".gv", "w")
         fo.write("strict digraph {\n")
 
-        for node in self.ancestors():
+        for node in self.ancestor_nodes():
             node.to_dot(fo)
+
+        # Write the critical path
+        if len(self._critical_path):
+            self._critical_path.to_dot(fo)
 
         fo.write("}\n")
         print "Wrote DAG to {0}".format(fo.name)
@@ -219,17 +285,20 @@ class DAGNode(object):
     def __init__(self, parent=None, name=None):
         self._parent = parent
         self._children = []
+        # The name of this node - used to label the node in DOT
         self._name = name
+        # The type of this node
         self._node_type = None
         # The inclusive weight (cost) of this node. This is the cost of
-        # this node plust that of all of its descendants.
+        # this node plus that of all of its descendants. This then
+        # enables us to find the critical path through the graph.
         self._incl_weight = 0
 
     def __str__(self):
         return self._name
 
     @property
-    def _node_id(self):
+    def node_id(self):
         ''' Returns a unique string identifying this node in the graph '''
         return "node"+str(id(self))
 
@@ -290,18 +359,36 @@ class DAGNode(object):
                 return 0
 
     def calc_weight(self):
-        ''' Calculate the inclusive weight of this node '''
+        ''' Calculate the inclusive weight of this node by recursing
+        down the tree and summing the weight of all descendants '''
         self._incl_weight = self.weight
         for child in self._children:
             self._incl_weight += child.calc_weight()
         return self._incl_weight
+
+    def critical_path(self, path):
+        ''' Compute the critical (most expensive) path from this node '''
+        # Add ourself to the path
+        path.append(self)
+        # Find the child with the greatest inclusive weight
+        max_weight = 0.0
+        node = None
+        for child in self._children:
+            if child._incl_weight > max_weight:
+                max_weight = child._incl_weight
+                node = child
+        # Move down to that child
+        if node:
+            node.critical_path(path)
 
     def to_dot(self, fileobj):
         ''' Generate representation in the DOT language '''
         for child in self._children:
             child.to_dot(fileobj)
 
-        nodestr = "{0} [label=\"{1}\"".format(self._node_id, self._name)
+        nodestr = "{0} [label=\"{1} w={2}\"".format(self.node_id,
+                                                    self._name,
+                                                    str(self._incl_weight))
         if self._node_type:
             node_size = None
             if self._node_type in OPERATORS:
@@ -327,8 +414,7 @@ class DAGNode(object):
         nodestr += "]\n"
 
         fileobj.write(nodestr)
-        fileobj.write(self._node_id+" -> {\n")
+        fileobj.write(self.node_id+" -> {\n")
         for child in self._children:
-            fileobj.write(" "+child._node_id)
+            fileobj.write(" "+child.node_id)
         fileobj.write("}\n")
-

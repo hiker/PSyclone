@@ -112,6 +112,9 @@ def runner(parser, options, args):
                     else:
                         mapping[var_name] = var_name
 
+                # Work out the critical path through this graph
+                path = digraph.critical_path()
+
                 # Write the digraph to file
                 digraph.to_dot()
 
@@ -122,16 +125,18 @@ def runner(parser, options, args):
                 num_div = digraph.count_nodes("/")
                 num_ref = digraph.count_nodes("array_ref")
                 print "Stats for subroutine {0}:".format(sub_name)
-                print "Graph has {0} addition operators in it.".\
+                print "  Graph has {0} addition operators in it.".\
                     format(num_plus)
-                print "Graph has {0} subtraction operators in it.".\
+                print "  Graph has {0} subtraction operators in it.".\
                     format(num_minus)
-                print "Graph has {0} multiplication operators in it.".\
+                print "  Graph has {0} multiplication operators in it.".\
                     format(num_mult)
-                print "Graph has {0} division operators in it.".\
+                print "  Graph has {0} division operators in it.".\
                     format(num_div)
-                print "Graph has {0} array references in it.".\
+                print "  Graph has {0} array references in it.".\
                     format(num_ref)
+                print "  Critical path contains {0} nodes, {1} FLOPs and is {2} cycles long".format(len(path), path.flops(), path.cycles())
+
                 flop_per_byte = (num_plus + num_minus + num_mult + num_div) / \
                                 (num_ref*8.0)
                 # This is naive for (at least) two reasons: 
@@ -140,7 +145,7 @@ def runner(parser, options, args):
                 #      the same cache line;
                 #   2) all FLOPs are not equal - a division costs ~40x as
                 #      much as an addition.
-                print "Naive FLOPs/byte = {0}".format(flop_per_byte)
+                print "  Naive FLOPs/byte = {0}".format(flop_per_byte)
 
         except Fortran2003.NoMatchError:
             print 'parsing %r failed at %s' % (filename, reader.fifo_item[-1])
