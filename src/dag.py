@@ -10,10 +10,10 @@ DEBUG = False
 INDENT_STR = "     "
 
 # Types of floating-point operation
-OPERATORS = ["+", "-", "/", "*"]
+OPERATORS = {"+":1, "-":1, "/":40, "*":1}
 
 # Valid types for a node in the DAG
-VALID_NODE_TYPES = OPERATORS + ["intrinsic", "constant", "array_ref"]
+VALID_NODE_TYPES = OPERATORS.keys() + ["intrinsic", "constant", "array_ref"]
 
 # Fortran intrinsics that we recognise
 FORTRAN_INTRINSICS = ["SIGN", "SIN", "COS"]
@@ -124,6 +124,12 @@ class DirectedAcyclicGraph(object):
                     node_list.append(new_node)
         return len(node_list)
 
+    def calc_costs(self):
+        ''' Analyse the DAG and calculate a weight for each node. '''
+        ancestors = self.ancestor_nodes()
+        for node in ancestors:
+            node.calc_weight()
+
     def make_dag(self, parent, children, mapping):
         ''' Makes a DAG from the RHS of a Fortran assignment statement '''
 
@@ -201,6 +207,9 @@ class DAGNode(object):
         self._children = []
         self._name = name
         self._node_type = None
+        # The inclusive weight (cost) of this node. This is the cost of
+        # this node plust that of all of its descendants.
+        self._incl_weight = 0
 
     def __str__(self):
         return self._name
@@ -252,6 +261,27 @@ class DAGNode(object):
             local_list += child.walk(node_type)
         return local_list
 
+    @property
+    def weight(self):
+        ''' Returns the (exclusive) weight/cost of this node '''
+        if not self._node_type:
+            return 0
+        else:
+            if self._node_type in OPERATORS:
+                return OPERATORS[self._node_type]
+            elif self._node_type == "intrinsic":
+                # TODO work out the costs of the various intrinsic calls
+                return 0
+            else:
+                return 0
+
+    def calc_weight(self):
+        ''' Calculate the inclusive weight of this node '''
+        self._incl_weight = self.weight
+        for child in self._children:
+            self._incl_weight += child.calc_weight()
+        return self._incl_weight
+
     def to_dot(self, fileobj):
         ''' Generate representation in the DOT language '''
         for child in self._children:
@@ -259,17 +289,27 @@ class DAGNode(object):
 
         nodestr = "{0} [label=\"{1}\"".format(self._node_id, self._name)
         if self._node_type:
+            node_size = None
             if self._node_type in OPERATORS:
                 node_colour = "red"
+                node_shape = "box"
+                node_size = str(0.5 + 0.01*self.weight)
             elif self._node_type == "constant":
                 node_colour = "green"
+                node_shape = "ellipse"
             elif self._node_type == "array_ref":
                 node_colour = "blue"
+                node_shape = "ellipse"
             elif self._node_type == "intrinsic":
                 node_colour = "gold"
+                node_shape = "ellipse"
             else:
                 node_colour = "black"
-            nodestr += ", color=\"{0}\"".format(node_colour)
+                node_shape = "elipse"
+            nodestr += ", color=\"{0}\", shape=\"{1}\"".format(node_colour,
+                                                               node_shape)
+            if node_size:
+                nodestr += ", height=\"{0}\"".format(node_size)
         nodestr += "]\n"
 
         fileobj.write(nodestr)

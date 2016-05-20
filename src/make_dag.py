@@ -141,6 +141,12 @@ def runner(parser, options, args):
                     format(num_ref)
                 flop_per_byte = (num_plus + num_minus + num_mult + num_div) / \
                                 (num_ref*8.0)
+                # This is naive for (at least) two reasons: 
+                #   1) not all array refs will result in memory traffic
+                #      because adjacent elements will almost always be in
+                #      the same cache line;
+                #   2) all FLOPs are not equal - a division costs ~40x as
+                #      much as an addition.
                 print "Naive FLOPs/byte = {0}".format(flop_per_byte)
 
         except Fortran2003.NoMatchError:
