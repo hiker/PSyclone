@@ -73,11 +73,7 @@ def runner(parser, options, args):
                 substmt = walk(subroutine.content, Subroutine_Stmt)
                 sub_name = str(substmt[0].get_name())
 
-                # Create a file for the graph of this subroutine
-                fo = open(sub_name+".gv", "w")
-
                 digraph = DirectedAcyclicGraph(sub_name)
-                fo.write("strict digraph {\n")
 
                 # Keep a list of variables that are assigned to. This
                 # enables us to update the name by which they are known
@@ -116,13 +112,10 @@ def runner(parser, options, args):
                     else:
                         mapping[var_name] = var_name
 
-                    # Output the DAG of this assignment
-                    #dag.display()
-                    dag.to_dot(fo)
-                fo.write("}\n")
-                print "Wrote DAG to {0}".format(fo.name)
-                fo.close()
+                # Write the digraph to file
+                digraph.to_dot()
 
+                # Compute some properties of the graph
                 num_plus = digraph.count_nodes("+")
                 num_minus = digraph.count_nodes("-")
                 num_mult = digraph.count_nodes("*")

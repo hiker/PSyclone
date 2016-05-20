@@ -198,6 +198,20 @@ class DirectedAcyclicGraph(object):
                 # We have a list of arguments
                 self.make_dag(parent, child.items, mapping)
 
+    def to_dot(self):
+        ''' Write the DAG to file in DOT format '''
+
+        # Create a file for the graph of this subroutine
+        fo = open(self._name+".gv", "w")
+        fo.write("strict digraph {\n")
+
+        for node in self.ancestors():
+            node.to_dot(fo)
+
+        fo.write("}\n")
+        print "Wrote DAG to {0}".format(fo.name)
+        fo.close()
+
 
 class DAGNode(object):
     ''' Base class for a node in a Directed Acyclic Graph '''
