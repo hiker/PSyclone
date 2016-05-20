@@ -124,21 +124,22 @@ def runner(parser, options, args):
                 num_mult = digraph.count_nodes("*")
                 num_div = digraph.count_nodes("/")
                 num_ref = digraph.count_nodes("array_ref")
+                total_flops = num_plus + num_minus + num_mult + num_div
                 print "Stats for subroutine {0}:".format(sub_name)
-                print "  Graph has {0} addition operators in it.".\
+                print "  Graph contains {0} addition operators.".\
                     format(num_plus)
-                print "  Graph has {0} subtraction operators in it.".\
+                print "  Graph contains {0} subtraction operators.".\
                     format(num_minus)
-                print "  Graph has {0} multiplication operators in it.".\
+                print "  Graph contains {0} multiplication operators.".\
                     format(num_mult)
-                print "  Graph has {0} division operators in it.".\
+                print "  Graph contains {0} division operators.".\
                     format(num_div)
-                print "  Graph has {0} array references in it.".\
+                print "  Graph contains {0} FLOPs in total.".\
+                    format(total_flops)
+                print "  Graph contains {0} array references.".\
                     format(num_ref)
-                print "  Critical path contains {0} nodes, {1} FLOPs and is {2} cycles long".format(len(path), path.flops(), path.cycles())
 
-                flop_per_byte = (num_plus + num_minus + num_mult + num_div) / \
-                                (num_ref*8.0)
+                flop_per_byte = total_flops / (num_ref*8.0)
                 # This is naive for (at least) two reasons: 
                 #   1) not all array refs will result in memory traffic
                 #      because adjacent elements will almost always be in
@@ -147,6 +148,21 @@ def runner(parser, options, args):
                 #      much as an addition.
                 print "  Naive FLOPs/byte = {0}".format(flop_per_byte)
 
+                ncycles = path.cycles()
+                print ("  Critical path contains {0} nodes, {1} FLOPs and "
+                       "is {2} cycles long".format(len(path),
+                                                   path.flops(),
+                                                   ncycles))
+                # Graph contains total_flops and can be executed in at
+                # least path.cycles() CPU cycles. A cycle has duration
+                # 1/CLOCK_SPEED (s) so kernel will take at least
+                # path.cycles()*1/CLOCK_SPEED (s).
+                # Theoretical max FLOPS = total_flops*CLOCK_SPEED/path.cycles()
+                flops_per_hz = float(total_flops)/float(ncycles)
+                print ("  Theoretical max FLOPS = {:.4f}*CLOCK_SPEED".
+                       format(flops_per_hz))
+                print ("  (e.g. at 3 GHz, this gives {:.2f} GFLOPS)".
+                       format(flops_per_hz*3.0))
         except Fortran2003.NoMatchError:
             print 'parsing %r failed at %s' % (filename, reader.fifo_item[-1])
             print 'started at %s' % (reader.fifo_item[0])

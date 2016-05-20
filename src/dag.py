@@ -9,14 +9,18 @@ from fparser.Fortran2003 import \
 DEBUG = False
 INDENT_STR = "     "
 
-# Types of floating-point operation
+# Types of floating-point operation with their cost in cycles
+# (from http://www.agner.org/optimize/instruction_tables.pdf)
+# TODO these costs are microarchitecture specific.
 OPERATORS = {"+":1, "-":1, "/":40, "*":1}
 
 # Valid types for a node in the DAG
 VALID_NODE_TYPES = OPERATORS.keys() + ["intrinsic", "constant", "array_ref"]
 
-# Fortran intrinsics that we recognise
-FORTRAN_INTRINSICS = ["SIGN", "SIN", "COS"]
+# Fortran intrinsics that we recognise, with their cost in cycles
+# (as obtained from micro-benchmarks: dl_microbench).
+# TODO these costs are microarchitecture (and compiler?) specific.
+FORTRAN_INTRINSICS = {"SIGN":3, "SIN":49, "COS":49}
 
 def is_subexpression(expr):
     ''' Returns True if the supplied node is itself a sub-expression. '''
@@ -303,27 +307,34 @@ class DAGNode(object):
         return "node"+str(id(self))
 
     def display(self, indent=0):
+        ''' Prints a textual representation of this node to stdout '''
         print indent*INDENT_STR, self._name
         for child in self._children:
             child.display(indent=indent+1)
 
     def add_child(self, child):
+        ''' Add a child to this node '''
         self._children.append(child)
 
     @property
     def children(self):
+        ''' Returns the list of children belonging to this node '''
         return self._children
 
     @property
     def parent(self):
+        ''' Returns the parent of this node (or None if it doesn't
+        have one) '''
         return self._parent
 
     @parent.setter
     def parent(self, node):
+        ''' Set the parent of this node '''
         self._parent = node
 
     @property
     def node_type(self):
+        ''' Returns the type of this node (one of VALID_NODE_TYPES) '''
         return self._node_type
 
     @node_type.setter
@@ -353,8 +364,7 @@ class DAGNode(object):
             if self._node_type in OPERATORS:
                 return OPERATORS[self._node_type]
             elif self._node_type == "intrinsic":
-                # TODO work out the costs of the various intrinsic calls
-                return 0
+                return FORTRAN_INTRINSICS[self._name]
             else:
                 return 0
 
