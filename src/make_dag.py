@@ -117,50 +117,16 @@ def runner(parser, options, args):
 
                 # Write the digraph to file
                 digraph.to_dot()
+                digraph.report()
 
-                # Compute some properties of the graph
-                num_plus = digraph.count_nodes("+")
-                num_minus = digraph.count_nodes("-")
-                num_mult = digraph.count_nodes("*")
-                num_div = digraph.count_nodes("/")
-                num_ref = digraph.count_nodes("array_ref")
-                num_cache_ref = digraph.cache_lines()
-                total_flops = num_plus + num_minus + num_mult + num_div
-                print "Stats for subroutine {0}:".format(sub_name)
-                print "  Graph contains {0} addition operators.".\
-                    format(num_plus)
-                print "  Graph contains {0} subtraction operators.".\
-                    format(num_minus)
-                print "  Graph contains {0} multiplication operators.".\
-                    format(num_mult)
-                print "  Graph contains {0} division operators.".\
-                    format(num_div)
-                print "  Graph contains {0} FLOPs in total.".\
-                    format(total_flops)
-                print "  Graph contains {0} array references.".\
-                    format(num_ref)
-                print "  Graph involves {0} distinct cache-line references.".\
-                    format(num_cache_ref)
-                flop_per_byte = total_flops / (num_cache_ref*8.0)
-                # This is naive because all FLOPs are not equal - a division
-                # costs ~40x as much as an addition.
-                print "  Naive FLOPs/byte = {0}".format(flop_per_byte)
+                # Fuse multiply-adds where possible
+                digraph.fuse_multiply_adds()
+                digraph.name = digraph.name + "_fused"
+                # Re-compute the critical path through this graph
+                path = digraph.critical_path()
+                digraph.to_dot()
+                digraph.report()
 
-                ncycles = path.cycles()
-                print ("  Critical path contains {0} nodes, {1} FLOPs and "
-                       "is {2} cycles long".format(len(path),
-                                                   path.flops(),
-                                                   ncycles))
-                # Graph contains total_flops and can be executed in at
-                # least path.cycles() CPU cycles. A cycle has duration
-                # 1/CLOCK_SPEED (s) so kernel will take at least
-                # path.cycles()*1/CLOCK_SPEED (s).
-                # Theoretical max FLOPS = total_flops*CLOCK_SPEED/path.cycles()
-                flops_per_hz = float(total_flops)/float(ncycles)
-                print ("  Theoretical max FLOPS = {:.4f}*CLOCK_SPEED".
-                       format(flops_per_hz))
-                print ("  (e.g. at 3 GHz, this gives {:.2f} GFLOPS)".
-                       format(flops_per_hz*3.0))
         except Fortran2003.NoMatchError:
             print 'parsing %r failed at %s' % (filename, reader.fifo_item[-1])
             print 'started at %s' % (reader.fifo_item[0])

@@ -12,7 +12,7 @@ INDENT_STR = "     "
 # Types of floating-point operation with their cost in cycles
 # (from http://www.agner.org/optimize/instruction_tables.pdf)
 # TODO these costs are microarchitecture specific.
-OPERATORS = {"+":1, "-":1, "/":40, "*":1}
+OPERATORS = {"+":1, "-":1, "/":40, "*":1, "FMA":1}
 
 # Valid types for a node in the DAG
 VALID_NODE_TYPES = OPERATORS.keys() + ["intrinsic", "constant", "array_ref"]
@@ -99,6 +99,7 @@ class Path(object):
 
 
 class DirectedAcyclicGraph(object):
+    ''' Class that encapsulates a Directed Acyclic Graph as a whole '''
 
     def __init__(self, name):
         # Dictionary of all referenceable nodes in the graph.
@@ -110,6 +111,17 @@ class DirectedAcyclicGraph(object):
         # The critical path through the graph
         self._critical_path = Path()
 
+    @property
+    def name(self):
+        ''' Returns the name of this DAG. This is (normally) derived from
+        the subroutine containing the Fortran code from which it is
+        generated. '''
+        return self._name
+
+    @name.setter
+    def name(self, new_name):
+        self._name = new_name
+
     def get_node(self, name, parent, mapping, unique=False, node_type=None):
         ''' Looks-up or creates a node in the graph. If unique is False and
         we do not already have a node with the supplied name then we create a
@@ -117,8 +129,8 @@ class DirectedAcyclicGraph(object):
         if unique:
             # Node is unique so we make a new one, no questions
             # asked. Since it is unique it will not be referred to again
-            # and therefore we don't store it in the list of
-            # cross-referenceable nodes.
+            # (will not be the child of more than one node) and therefore we
+            # don't store it in the list of cross-referenceable nodes.
             if DEBUG:
                 print "Creating a unique node labelled '{0}'".format(name)
             node = DAGNode(parent=parent, name=name)
@@ -200,6 +212,13 @@ class DirectedAcyclicGraph(object):
         ancestors = self.ancestor_nodes()
         for node in ancestors:
             node.calc_weight()
+
+    def fuse_multiply_adds(self):
+        ''' Processes the existing graph and creates FusedMultiplyAdds
+        where possible '''
+        ancestors = self.ancestor_nodes()
+        for node in ancestors:
+            node.fuse_multiply_adds()
 
     def make_dag(self, parent, children, mapping):
         ''' Makes a DAG from the RHS of a Fortran assignment statement '''
@@ -303,6 +322,49 @@ class DirectedAcyclicGraph(object):
         print "Wrote DAG to {0}".format(fo.name)
         fo.close()
 
+    def report(self):
+        ''' Report the properties of this DAG to stdout '''
+        # Compute some properties of the graph
+        num_plus = self.count_nodes("+")
+        num_minus = self.count_nodes("-")
+        num_mult = self.count_nodes("*")
+        num_div = self.count_nodes("/")
+        num_fma = self.count_nodes("FMA")
+        num_ref = self.count_nodes("array_ref")
+        num_cache_ref = self.cache_lines()
+        total_flops = num_plus + num_minus + num_mult + num_div + num_fma
+        print "Stats for DAG {0}:".format(self._name)
+        print "  {0} addition operators.".format(num_plus)
+        print "  {0} subtraction operators.".format(num_minus)
+        print "  {0} multiplication operators.".format(num_mult)
+        print "  {0} division operators.".format(num_div)
+        print "  {0} fused multiply-adds.".format(num_fma)
+        print "  {0} FLOPs in total.".format(total_flops)
+        print "  {0} array references.".format(num_ref)
+        print "  {0} distinct cache-line references.".\
+            format(num_cache_ref)
+        if num_cache_ref > 0:
+            flop_per_byte = total_flops / (num_cache_ref*8.0)
+            # This is naive because all FLOPs are not equal - a division
+            # costs ~40x as much as an addition.
+            print "  Naive FLOPs/byte = {:.3f}".format(flop_per_byte)
+
+        ncycles = self._critical_path.cycles()
+        print ("  Critical path contains {0} nodes, {1} FLOPs and "
+               "is {2} cycles long".format(len(self._critical_path),
+                                           self._critical_path.flops(),
+                                           ncycles))
+        # Graph contains total_flops and will execute in at
+        # least path.cycles() CPU cycles. A cycle has duration
+        # 1/CLOCK_SPEED (s) so kernel will take at least
+        # path.cycles()*1/CLOCK_SPEED (s).
+        # Theoretical max FLOPS = total_flops*CLOCK_SPEED/path.cycles()
+        flops_per_hz = float(total_flops)/float(ncycles)
+        print ("  Theoretical max FLOPS (ignoring memory accesses) = {:.4f}*CLOCK_SPEED".
+               format(flops_per_hz))
+        print ("  (e.g. at 3 GHz, this gives {:.2f} GFLOPS)".
+               format(flops_per_hz*3.0))
+
 
 class DAGNode(object):
     ''' Base class for a node in a Directed Acyclic Graph '''
@@ -401,6 +463,35 @@ class DAGNode(object):
         for child in self._children:
             self._incl_weight += child.calc_weight()
         return self._incl_weight
+
+    def fuse_multiply_adds(self):
+        ''' Recursively take any opportunities to fuse multiplication and
+        addition operations '''
+        for child in self._children:
+            child.fuse_multiply_adds()
+        # If this node is an addition...
+        if self._node_type == "+":
+            # Loop over a copy of the list of children as this loop
+            # modifies the original
+            for child in self._children[:]:
+                if child._node_type == "*":
+                    # We can create an FMA. This replaces the addition
+                    # operation and inherits the children of the 
+                    # multiplication operation
+                    for grandchild in child.children:
+                        self.add_child(grandchild)
+                        grandchild.parent = self
+                    # Delete the multiplication node
+                    self._children.remove(child)
+                    del child
+                    # Change the type of this node
+                    self._name = "FMA"
+                    self._node_type = "FMA"
+                    if len(self._children) != 3:
+                        raise Exception("An FMA node must have 3 children "
+                                        "but found {0}".
+                                        format(len(self._children)))
+                    break
 
     def critical_path(self, path):
         ''' Compute the critical (most expensive) path from this node '''
