@@ -469,19 +469,21 @@ class DAGNode(object):
         addition operations '''
         for child in self._children:
             child.fuse_multiply_adds()
-        # If this node is an addition...
-        if self._node_type == "+":
+        fusable_operations = ["+", "*"]
+        # If this node is an addition or a multiplication
+        if self._node_type in fusable_operations:
             # Loop over a copy of the list of children as this loop
             # modifies the original
             for child in self._children[:]:
-                if child._node_type == "*":
+                if child._node_type != self._node_type and \
+                   child._node_type in fusable_operations:
                     # We can create an FMA. This replaces the addition
                     # operation and inherits the children of the 
                     # multiplication operation
                     for grandchild in child.children:
                         self.add_child(grandchild)
                         grandchild.parent = self
-                    # Delete the multiplication node
+                    # Delete the multiplication/addition node
                     self._children.remove(child)
                     del child
                     # Change the type of this node

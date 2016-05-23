@@ -60,6 +60,9 @@ def runner(parser, options, args):
     subroutines it finds '''
     from fparser.api import Fortran2003
     from fparser.readfortran import FortranFileReader
+
+    apply_fma_transformation = True
+
     for filename in args:
         reader = FortranFileReader(filename)
         if options.mode != 'auto':
@@ -86,6 +89,12 @@ def runner(parser, options, args):
 
                 # Find all of the assignment statements in the subroutine
                 assignments = walk(subroutine.content, Assignment_Stmt)
+                if not assignments:
+                    # If this subroutine has no assignment statements
+                    # then we skip it
+                    print "Subroutine {0} contains no assignment statements - skipping".format(sub_name)
+                    continue
+
                 for assign in assignments:
                     assigned_to = walk_items([assign.items[0]], Name)
                     var_name = str(assigned_to[0])
@@ -120,12 +129,13 @@ def runner(parser, options, args):
                 digraph.report()
 
                 # Fuse multiply-adds where possible
-                digraph.fuse_multiply_adds()
-                digraph.name = digraph.name + "_fused"
-                # Re-compute the critical path through this graph
-                path = digraph.critical_path()
-                digraph.to_dot()
-                digraph.report()
+                if apply_fma_transformation:
+                    digraph.fuse_multiply_adds()
+                    digraph.name = digraph.name + "_fused"
+                    # Re-compute the critical path through this graph
+                    path = digraph.critical_path()
+                    digraph.to_dot()
+                    digraph.report()
 
         except Fortran2003.NoMatchError:
             print 'parsing %r failed at %s' % (filename, reader.fifo_item[-1])
