@@ -174,6 +174,27 @@ class DirectedAcyclicGraph(object):
                     node_list.append(new_node)
         return len(node_list)
 
+    def cache_lines(self):
+        ''' Count the number of cache lines accessed by the graph. This
+        is the number of distinct memory references. We assume that
+        any array reference of the form u(i+1,j) will have been fetched
+        when u(i,j) was accessed. '''
+        array_refs = []
+        # Loop over all nodes in the tree, looking for array references
+        ancestors = self.ancestor_nodes()
+        for ancestor in ancestors:
+            nodes = ancestor.walk("array_ref")
+            for node in nodes:
+                # TODO replace this hack with a nice way of identifying
+                # neighbouring array references.
+                # TODO extend to i+/-n where n > 1.
+                # Map any reference to xxx(i+/-1, j) back on to xxx(i,j)
+                name = node.name.replace("ip1_","i_")
+                name = name.replace("im1_", "i_")
+                if name not in array_refs:
+                    array_refs.append(name)
+        return len(array_refs)
+
     def calc_costs(self):
         ''' Analyse the DAG and calculate a weight for each node. '''
         ancestors = self.ancestor_nodes()
@@ -305,6 +326,11 @@ class DAGNode(object):
     def node_id(self):
         ''' Returns a unique string identifying this node in the graph '''
         return "node"+str(id(self))
+
+    @property
+    def name(self):
+        ''' Returns the name (label) of this node '''
+        return self._name
 
     def display(self, indent=0):
         ''' Prints a textual representation of this node to stdout '''

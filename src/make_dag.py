@@ -124,6 +124,7 @@ def runner(parser, options, args):
                 num_mult = digraph.count_nodes("*")
                 num_div = digraph.count_nodes("/")
                 num_ref = digraph.count_nodes("array_ref")
+                num_cache_ref = digraph.cache_lines()
                 total_flops = num_plus + num_minus + num_mult + num_div
                 print "Stats for subroutine {0}:".format(sub_name)
                 print "  Graph contains {0} addition operators.".\
@@ -138,14 +139,11 @@ def runner(parser, options, args):
                     format(total_flops)
                 print "  Graph contains {0} array references.".\
                     format(num_ref)
-
-                flop_per_byte = total_flops / (num_ref*8.0)
-                # This is naive for (at least) two reasons: 
-                #   1) not all array refs will result in memory traffic
-                #      because adjacent elements will almost always be in
-                #      the same cache line;
-                #   2) all FLOPs are not equal - a division costs ~40x as
-                #      much as an addition.
+                print "  Graph involves {0} distinct cache-line references.".\
+                    format(num_cache_ref)
+                flop_per_byte = total_flops / (num_cache_ref*8.0)
+                # This is naive because all FLOPs are not equal - a division
+                # costs ~40x as much as an addition.
                 print "  Naive FLOPs/byte = {0}".format(flop_per_byte)
 
                 ncycles = path.cycles()
