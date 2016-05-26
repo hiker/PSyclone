@@ -332,7 +332,8 @@ class DirectedAcyclicGraph(object):
         num_fma = self.count_nodes("FMA")
         num_ref = self.count_nodes("array_ref")
         num_cache_ref = self.cache_lines()
-        total_flops = num_plus + num_minus + num_mult + num_div + num_fma
+        # An FMA may only cost 1 (?) cycle but still does 2 FLOPs
+        total_flops = num_plus + num_minus + num_mult + num_div + 2*num_fma
         print "Stats for DAG {0}:".format(self._name)
         print "  {0} addition operators.".format(num_plus)
         print "  {0} subtraction operators.".format(num_minus)
