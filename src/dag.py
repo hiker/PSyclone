@@ -12,7 +12,7 @@ INDENT_STR = "     "
 # Types of floating-point operation with their cost in cycles
 # (from http://www.agner.org/optimize/instruction_tables.pdf)
 # TODO these costs are microarchitecture specific.
-OPERATORS = {"+":1, "-":1, "/":40, "*":1, "FMA":1}
+OPERATORS = {"+":1, "-":1, "/":20, "*":1, "FMA":1}
 
 # Valid types for a node in the DAG
 VALID_NODE_TYPES = OPERATORS.keys() + ["intrinsic", "constant", "array_ref"]
@@ -102,7 +102,7 @@ class DirectedAcyclicGraph(object):
     ''' Class that encapsulates a Directed Acyclic Graph as a whole '''
 
     def __init__(self, name):
-        # Dictionary of all referenceable nodes in the graph.
+        # Dictionary of all nodes in the graph.
         self._nodes = {}
         # Name of this DAG
         self._name = name
@@ -128,12 +128,14 @@ class DirectedAcyclicGraph(object):
         new one. If unique is True then we always create a new node. '''
         if unique:
             # Node is unique so we make a new one, no questions
-            # asked. Since it is unique it will not be referred to again
-            # (will not be the child of more than one node) and therefore we
-            # don't store it in the list of cross-referenceable nodes.
+            # asked.
             if DEBUG:
                 print "Creating a unique node labelled '{0}'".format(name)
-            node = DAGNode(parent=parent, name=name)
+            node = DAGNode(parent=parent, name=name, digraph=self)
+            # Store this node in our list using its unique ID in place of a
+            # name (since a unique node has been requested). This then
+            # ensures we have a list of all nodes in the graph.
+            self._nodes[node.node_id] = node
         else:
             if name in mapping:
                 node_name = mapping[name]
@@ -162,6 +164,21 @@ class DirectedAcyclicGraph(object):
             node.node_type = node_type
 
         return node
+
+    def delete_node(self, node):
+        ''' Removes the supplied node from the list of nodes in
+        this graph and then deletes it altogether '''
+        # We don't know the key with which this node was stored in the
+        # dictionary - it might have been the name or, for a 'unique' node,
+        # its node_id.
+        if node.name in self._nodes and self._nodes[node.name] == node:
+            self._nodes.pop(node.name)
+        elif node.node_id in self._nodes and self._nodes[node.node_id] == node:
+            self._nodes.pop(node.node_id)
+        else:
+            raise Exception("Object {0} not in list of nodes in graph!".
+                            format(str(node)))
+        del node
 
     def ancestor_nodes(self):
         ''' Returns a list of all nodes that do not have a parent '''
@@ -212,6 +229,14 @@ class DirectedAcyclicGraph(object):
         ancestors = self.ancestor_nodes()
         for node in ancestors:
             node.calc_weight()
+
+    def total_cost(self):
+        ''' Calculate the total cost of the graph by summing up the cost of
+        each node '''
+        sum = 0
+        for node in self._nodes.itervalues():
+            sum += node.weight
+        return sum
 
     def fuse_multiply_adds(self):
         ''' Processes the existing graph and creates FusedMultiplyAdds
@@ -344,6 +369,8 @@ class DirectedAcyclicGraph(object):
         print "  {0} array references.".format(num_ref)
         print "  {0} distinct cache-line references.".\
             format(num_cache_ref)
+        print "  Sum of cost of all nodes = {0} (cycles)".format(self.total_cost())
+
         if num_cache_ref > 0:
             flop_per_byte = total_flops / (num_cache_ref*8.0)
             # This is naive because all FLOPs are not equal - a division
@@ -370,8 +397,11 @@ class DirectedAcyclicGraph(object):
 class DAGNode(object):
     ''' Base class for a node in a Directed Acyclic Graph '''
 
-    def __init__(self, parent=None, name=None):
+    def __init__(self, parent=None, name=None, digraph=None):
         self._parent = parent
+        # Keep a reference back to the digraph object containing
+        # this node
+        self._digraph = digraph
         self._children = []
         # The name of this node - used to label the node in DOT
         self._name = name
@@ -486,7 +516,8 @@ class DAGNode(object):
                         grandchild.parent = self
                     # Delete the multiplication/addition node
                     self._children.remove(child)
-                    del child
+                    self._digraph.delete_node(child)
+
                     # Change the type of this node
                     self._name = "FMA"
                     self._node_type = "FMA"
