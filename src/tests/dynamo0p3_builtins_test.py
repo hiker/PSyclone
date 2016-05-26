@@ -105,7 +105,7 @@ def test_builtin_set():
     print code
     output = (
         "    SUBROUTINE invoke_0(f1)\n"
-        "      TYPE(field_type), intent(inout) :: f1\n"
+        "      TYPE(field_type), intent(out) :: f1\n"
         "      INTEGER df\n"
         "      INTEGER ndf_any_space_1, undf_any_space_1\n"
         "      INTEGER nlayers\n"
@@ -144,8 +144,8 @@ def test_builtin_set_by_ref():
     print code
     output = (
         "    SUBROUTINE invoke_0(fred, f1)\n"
-        "      REAL(KIND=r_def), intent(inout) :: fred\n"
-        "      TYPE(field_type), intent(inout) :: f1\n"
+        "      REAL(KIND=r_def), intent(in) :: fred\n"
+        "      TYPE(field_type), intent(out) :: f1\n"
         "      INTEGER df\n"
         "      INTEGER ndf_any_space_1, undf_any_space_1\n"
         "      INTEGER nlayers\n"
@@ -293,7 +293,8 @@ def test_copy():
     print code
     output = (
         "    SUBROUTINE invoke_0(f1, f2)\n"
-        "      TYPE(field_type), intent(inout) :: f1, f2\n"
+        "      TYPE(field_type), intent(out) :: f2\n"
+        "      TYPE(field_type), intent(in) :: f1\n"
         "      INTEGER df\n"
         "      INTEGER ndf_any_space_1, undf_any_space_1\n"
         "      INTEGER nlayers\n"
