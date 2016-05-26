@@ -12,7 +12,7 @@ INDENT_STR = "     "
 # Types of floating-point operation with their cost in cycles
 # (from http://www.agner.org/optimize/instruction_tables.pdf)
 # TODO these costs are microarchitecture specific.
-OPERATORS = {"+":1, "-":1, "/":20, "*":1, "FMA":1}
+OPERATORS = {"+":1, "-":1, "/":14, "*":1, "FMA":1}
 
 # Valid types for a node in the DAG
 VALID_NODE_TYPES = OPERATORS.keys() + ["intrinsic", "constant", "array_ref"]
@@ -357,6 +357,7 @@ class DirectedAcyclicGraph(object):
         num_fma = self.count_nodes("FMA")
         num_ref = self.count_nodes("array_ref")
         num_cache_ref = self.cache_lines()
+        total_cycles = self.total_cost()
         # An FMA may only cost 1 (?) cycle but still does 2 FLOPs
         total_flops = num_plus + num_minus + num_mult + num_div + 2*num_fma
         print "Stats for DAG {0}:".format(self._name)
@@ -369,14 +370,21 @@ class DirectedAcyclicGraph(object):
         print "  {0} array references.".format(num_ref)
         print "  {0} distinct cache-line references.".\
             format(num_cache_ref)
-        print "  Sum of cost of all nodes = {0} (cycles)".format(self.total_cost())
+        # Performance estimate using whole graph
+        print "  Sum of cost of all nodes = {0} (cycles)".format(total_cycles)
+        print "  {0} FLOPs in {1} cycles => {2:.4f}*CLOCK_SPEED FLOPS".\
+            format(total_flops, total_cycles,
+                   float(total_flops)/float(total_cycles))
 
         if num_cache_ref > 0:
             flop_per_byte = total_flops / (num_cache_ref*8.0)
             # This is naive because all FLOPs are not equal - a division
-            # costs ~40x as much as an addition.
+            # costs ~20-40x as much as an addition.
             print "  Naive FLOPs/byte = {:.3f}".format(flop_per_byte)
+        else:
+            print "  Did not find any array/memory references"
 
+        # Performance estimate using critical path
         ncycles = self._critical_path.cycles()
         print ("  Critical path contains {0} nodes, {1} FLOPs and "
                "is {2} cycles long".format(len(self._critical_path),
@@ -388,9 +396,9 @@ class DirectedAcyclicGraph(object):
         # path.cycles()*1/CLOCK_SPEED (s).
         # Theoretical max FLOPS = total_flops*CLOCK_SPEED/path.cycles()
         flops_per_hz = float(total_flops)/float(ncycles)
-        print ("  Theoretical max FLOPS (ignoring memory accesses) = {:.4f}*CLOCK_SPEED".
-               format(flops_per_hz))
-        print ("  (e.g. at 3 GHz, this gives {:.2f} GFLOPS)".
+        print ("  Theoretical max FLOPS (ignoring memory accesses) = "
+               "{:.4f}*CLOCK_SPEED".format(flops_per_hz))
+        print ("  (e.g. at 3.8 GHz, this gives {:.2f} GFLOPS)".
                format(flops_per_hz*3.0))
 
 
