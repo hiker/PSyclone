@@ -313,24 +313,40 @@ class DirectedAcyclicGraph(object):
                 # We have a list of arguments
                 self.make_dag(parent, child.items, mapping)
 
-    def critical_path(self):
+    def calc_critical_path(self):
         ''' Calculate the critical path through the graph '''
-        path = []
+        paths = []
 
         # Compute inclusive weights for each node
         self.calc_costs()
 
+        # Each of the ancestor (output) nodes represents a starting
+        # point for a critical path. The longest of the resulting set
+        # of paths is then the critical path of the DAG as a whole.
         for node in self.ancestor_nodes():
-            node.critical_path(path)
+            path = Path()
+            node_list = []
+            node.critical_path(node_list)
+            if node_list:
+                path.load(node_list)
+                paths.append(path)
 
-        # Use the resulting list of nodes to populate our Path object
-        self._critical_path.load(path)
+        # Find the longest of these paths
+        max_cycles = 0
+        for path in paths:
+            if path.cycles() > max_cycles:
+                max_cycles = path.cycles()
+                crit_path = path
 
+        self._critical_path = crit_path
+
+    @property
+    def critical_path(self):
         return self._critical_path
-
+    
     def to_dot(self):
-        ''' Write the DAG to file in DOT format. If a list of nodes is
-        provided then that path is also written to the file. '''
+        ''' Write the DAG to file in DOT format. If a critical path has
+        been computed then it is also written to the file. '''
 
         # Create a file for the graph of this subroutine
         fo = open(self._name+".gv", "w")

@@ -122,7 +122,7 @@ def runner(parser, options, args):
                         mapping[var_name] = var_name
 
                 # Work out the critical path through this graph
-                path = digraph.critical_path()
+                path = digraph.calc_critical_path()
 
                 # Write the digraph to file
                 digraph.to_dot()
@@ -133,7 +133,7 @@ def runner(parser, options, args):
                     digraph.fuse_multiply_adds()
                     digraph.name = digraph.name + "_fused"
                     # Re-compute the critical path through this graph
-                    path = digraph.critical_path()
+                    path = digraph.calc_critical_path()
                     digraph.to_dot()
                     digraph.report()
 
