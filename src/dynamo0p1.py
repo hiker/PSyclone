@@ -8,7 +8,7 @@
 
 ''' This module implements the PSyclone Dynamo 0.1 API by specialising the
     required base classes (PSy, Invokes, Invoke, Schedule, Loop, Kern,
-    Inf, Arguments and Argument). '''
+    Arguments and Argument). '''
 
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
                    Argument, GenerationError
@@ -83,7 +83,7 @@ class DynSchedule(Schedule):
         loop and infrastructure classes to the base class so it creates the
         ones we require. '''
     def __init__(self, arg):
-        Schedule.__init__(self, DynKernCallFactory, DynInfCallFactory, arg)
+        Schedule.__init__(self, DynKernCallFactory, DynBuiltInCallFactory, arg)
 
 
 class DynLoop(Loop):
@@ -131,12 +131,12 @@ class DynLoop(Loop):
         Loop.gen_code(self,parent)
 
 
-class DynInfCallFactory(object):
-    ''' A Dynamo 0.1 specific infrastructure call factory. No infrastructure
-        calls are supported in Dynamo at the moment so we do nothing. '''
+class DynBuiltInCallFactory(object):
+    ''' A Dynamo 0.1 specific Built-In call factory. No built-in
+        calls are supported in Dynamo 0.1 so we do nothing. '''
     @staticmethod
     def create(call, parent=None):
-        ''' Creates a specific infrastructure call. Currently does
+        ''' Creates a specific built-in call. Currently does
         nothing '''
         return None
 
