@@ -1218,7 +1218,10 @@ class DynLoop(Loop):
         elif self._loop_type == "colour":
             self._variable_name = "cell"
         elif self._loop_type == "dofs":
-            self._variable_name = "df"
+            self._variable_name = self._name_space_manager.\
+                                  create_name(root_name="df",
+                                              context="PSyVars",
+                                              label="dof_loop_idx")
         else:
             self._variable_name = "cell"
 
@@ -2506,8 +2509,12 @@ class DynBuiltIn(BuiltIn):
     ''' Parent class for a call to a Dynamo Built-in. '''
 
     def __init__(self):
-        # The name of the loop variable for the loop over DoFs
-        self._idx_name = "df"
+        self._name_space_manager = NameSpaceFactory().create()
+        # Look=up/create the name of the loop variable for the loop over DoFs
+        self._idx_name = self._name_space_manager.\
+                                  create_name(root_name="df",
+                                              context="PSyVars",
+                                              label="dof_loop_idx")
         BuiltIn.__init__(self)
 
     def load(self, call, parent=None):
