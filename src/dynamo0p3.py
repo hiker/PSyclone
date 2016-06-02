@@ -61,16 +61,6 @@ FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
 # horizontal plane).
 VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 
-# The built-in operations that we support for this API. The meta-data
-# describing these kernels is in dynamo0p3_builtins_mod.f90.
-BUILTIN_NAMES = ["axpy", "inc_axpy", "axpby", "inc_axpby",
-                 "copy_field", "copy_scaled_field",
-                 "divide_field", "divide_fields",
-                 "inc_field", "inner_product",
-                 "minus_fields", "multiply_fields",
-                 "plus_fields", "scale_field",
-                 "set_field_scalar", "sum_field"]
-
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
 BUILTIN_DEFINITIONS_FILE = "dynamo0p3_builtins_mod.f90"
@@ -2466,11 +2456,11 @@ class DynBuiltInCallFactory(object):
         ''' Create the objects needed for a call to the built-in
         described in the call (InfCall) object '''
 
-        if call.func_name not in BUILTIN_NAMES:
+        if call.func_name not in BUILTIN_MAP:
             raise ParseError(
                 "Unrecognised built-in call. Found '{0}' but expected "
                 "one of '{1}'".format(call.func_name,
-                                      BUILTIN_NAMES))
+                                      BUILTIN_MAP.keys()))
 
         # We do not currently support built-in kernel calls if we're
         # generating code for distributed-memory parallelism
@@ -2479,50 +2469,9 @@ class DynBuiltInCallFactory(object):
                 "Calls to built-in kernels are not supported when "
                 "generating distributed-memory code")
 
-        # The built-in operation itself
-        if call.func_name == "set_field_scalar":
-            pwkern = DynSetFieldScalarKern()
-        elif call.func_name == "sum_field":
-            pwkern = DynSumFieldKern()
-        elif call.func_name == "copy_field":
-            pwkern = DynCopyFieldKern()
-        elif call.func_name == "copy_scaled_field":
-            pwkern = DynCopyScaledFieldKern()
-        elif call.func_name == "minus_fields":
-            pwkern = DynSubtractFieldsKern()
-        elif call.func_name == "plus_fields":
-            pwkern = DynAddFieldsKern()
-        elif call.func_name == "divide_field":
-            pwkern = DynDivideFieldKern()
-        elif call.func_name == "divide_fields":
-            pwkern = DynDivideFieldsKern()
-        elif call.func_name == "inc_field":
-            pwkern = DynIncFieldKern()
-        elif call.func_name == "inner_product":
-            pwkern = DynInnerProductKern()
-        elif call.func_name == "multiply_fields":
-            pwkern = DynMultiplyFieldsKern()
-        elif call.func_name == "axpy":
-            pwkern = DynAXPYKern()
-        elif call.func_name == "inc_axpy":
-            pwkern = DynIncAXPYKern()
-        elif call.func_name == "axpby":
-            pwkern = DynAXPBYKern()
-        elif call.func_name == "inc_axpby":
-            pwkern = DynIncAXPBYKern()
-        elif call.func_name == "scale_field":
-            pwkern = DynScaleFieldKern()
-        else:
-            # TODO is there a better way of handling this mapping such that
-            # it is harder to make this mistake?
-            # We should only get to here if a developer has added the
-            # name of a new built-in to the BUILTIN_NAMES list *and* to
-            # the file containing the meta-data of all the built-ins for
-            # this API but has not added it to the above if-block.
-            raise ParseError(
-                "Internal error: built-in call '{0}' is listed in "
-                "BUILTIN_NAMES but is not handled by "
-                "DynBuiltInCallFactory".format(call.func_name))
+        # Use our dictionary to get the correct Python object for
+        # this built-in.
+        pwkern = BUILTIN_MAP[call.func_name]()
 
         # Use the call object (created by the parser) to set-up the state
         # of the infrastructure kernel
@@ -2893,3 +2842,23 @@ class DynInnerProductKern(DynBuiltIn):
         invar_name2 = self.array_ref(self._arguments.args[1].proxy_name)
         rhs_expr = sum_name + "+" + invar_name1 + "*" + invar_name2
         parent.add(AssignGen(parent, lhs=sum_name, rhs=rhs_expr))
+
+        
+# The built-in operations that we support for this API. The meta-data
+# describing these kernels is in dynamo0p3_builtins_mod.f90. This dictionary
+# can only be defined after all of the necessary 'class' statements have
+# been executed (happens when this module is imported into another).
+BUILTIN_MAP = {"axpy":DynAXPYKern, "inc_axpy":DynIncAXPYKern,
+               "axpby":DynAXPBYKern, "inc_axpby":DynIncAXPBYKern,
+               "copy_field":DynCopyFieldKern,
+               "copy_scaled_field":DynCopyScaledFieldKern,
+               "divide_field":DynDivideFieldKern,
+               "divide_fields":DynDivideFieldsKern,
+               "inc_field":DynIncFieldKern,
+               "inner_product":DynInnerProductKern,
+               "minus_fields":DynSubtractFieldsKern,
+               "multiply_fields":DynMultiplyFieldsKern,
+               "plus_fields":DynAddFieldsKern,
+               "scale_field":DynScaleFieldKern,
+               "set_field_scalar":DynSetFieldScalarKern,
+               "sum_field":DynSumFieldKern}

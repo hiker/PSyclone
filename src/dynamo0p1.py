@@ -104,7 +104,6 @@ class DynLoop(Loop):
         else:
             self._variable_name = "cell"
 
-
     def load(self, kern):
         ''' Load the state of this Loop using the supplied Kernel
         object. This method is provided so that we can individually
@@ -112,7 +111,6 @@ class DynLoop(Loop):
         self._field = kern.arguments.iteration_space_arg()
         self._field_name = self._field.name
         self._field_space = self._field.function_space
-
 
     def gen_code(self,parent):
         ''' Work out the appropriate loop bounds and then call the base
