@@ -1462,8 +1462,9 @@ class Kern(Call):
 class BuiltIn(Call):
     '''Base class for all built-ins. '''
     def __init__(self):
-        # Cannot call Call.__init__ as don't have necessary information
-        # here
+        # We cannot call Call.__init__ as don't have necessary information
+        # here. This is typically performed by a load method in any
+        # classes that inherit from this one.
         self._arg_descriptors = None
 
 
