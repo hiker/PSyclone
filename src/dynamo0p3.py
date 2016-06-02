@@ -1895,19 +1895,6 @@ class DynKern(Kern):
             my_mapping = mapping
         return Kern.written_field(self, my_mapping)
 
-    @property
-    def updated_field(self, mapping=None):
-        '''Returns the kernel argument corresponding to a field that is
-        written to in any fashion (i.e. has inc, write or readwrite
-        access)
-
-        '''
-        if mapping is None:
-            my_mapping = FIELD_ACCESS_MAP
-        else:
-            my_mapping = mapping
-        return Kern.updated_field(self, my_mapping)
-
     def gen_code(self, parent):
         ''' Generates dynamo version 0.3 specific psy code for a call to
             the dynamo kernel instance. '''

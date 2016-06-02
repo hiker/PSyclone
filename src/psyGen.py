@@ -1439,20 +1439,6 @@ class Kern(Call):
                                  format(self.name, mapping["write"],
                                         mapping["readwrite"]))
 
-    def updated_field(self, mapping={}):
-        '''Returns the kernel argument corresponding to a field that is
-        written to in any fashion (i.e. has inc, write or readwrite
-        access)
-
-        '''
-        assert mapping != {}, "psyGen:Kern:updated_field: Error - a "\
-            "mapping must be provided"
-        try:
-            arg = Kern.incremented_field(self, mapping=mapping)
-        except FieldNotFoundError:
-            arg = Kern.written_field(self, mapping=mapping)
-        return arg
-
     def is_coloured(self):
         ''' Returns true if this kernel is being called from within a
         coloured loop '''
