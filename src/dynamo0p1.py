@@ -109,13 +109,9 @@ class DynLoop(Loop):
         ''' Load the state of this Loop using the supplied Kernel
         object. This method is provided so that we can individually
         construct Loop objects for a given kernel call. '''
-        self._field = None
-        for arg in kern.arguments.args:
-            if arg.text:
-                self._field = arg
-                self._field_name = arg.name
-                self._field_space = arg.function_space
-                break
+        self._field = kern.arguments.iteration_space_arg()
+        self._field_name = self._field.name
+        self._field_space = self._field.function_space
 
 
     def gen_code(self,parent):
