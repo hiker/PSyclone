@@ -18,7 +18,7 @@ import os
 from parse import Descriptor, KernelType, ParseError
 import expression as expr
 import fparser
-from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, BuiltinKern, \
+from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, BuiltIn, \
     Arguments, Argument, KernelArgument, NameSpaceFactory, GenerationError, \
     FieldNotFoundError, HaloExchange, FORTRAN_INTENT_NAMES
 import psyGen
@@ -1240,7 +1240,7 @@ class DynLoop(Loop):
         # Loop bounds
         self.set_lower_bound("start")
 
-        if isinstance(kern, DynBuiltinKern):
+        if isinstance(kern, DynBuiltIn):
             # If the kernel is an infrastructure/pointwise kernel
             # then this loop must be over DoFs
             self.set_upper_bound("dofs")
@@ -2563,9 +2563,9 @@ class DynKernCallFactory(object):
         return cloop
 
 
-class DynBuiltinKern(DynKern, BuiltinKern):
+class DynBuiltIn(DynKern, BuiltIn):
     ''' Base class for a Dynamo Infrastructure/Pointwise call. Has the
-    (abstract) BuiltinKern as a base class to enable us to identify it as
+    (abstract) BuiltIn as a base class to enable us to identify it as
     an Infrastructure kernel in the psyGen base classes (because it is
     otherwise identical to a normal kernel). '''
 
@@ -2587,7 +2587,7 @@ class DynBuiltinKern(DynKern, BuiltinKern):
         return self.fs_descriptors.undf_name(field.function_space)
 
 
-class DynScaleFieldKern(DynBuiltinKern):
+class DynScaleFieldKern(DynBuiltIn):
     ''' Multiply a field by a scalar and return it '''
 
     def __str__(self):
@@ -2603,7 +2603,7 @@ class DynScaleFieldKern(DynBuiltinKern):
                              rhs=value + "*" + var_name))
 
 
-class DynSetFieldScalarKern(DynBuiltinKern):
+class DynSetFieldScalarKern(DynBuiltIn):
     ''' Set a field equal to a scalar value '''
 
     def __str__(self):
@@ -2618,7 +2618,7 @@ class DynSetFieldScalarKern(DynBuiltinKern):
         parent.add(AssignGen(parent, lhs=var_name, rhs=value))
 
 
-class DynSumFieldKern(DynBuiltinKern):
+class DynSumFieldKern(DynBuiltIn):
     ''' Computes the sum of the elements of a field '''
 
     def __str__(self):
@@ -2633,7 +2633,7 @@ class DynSumFieldKern(DynBuiltinKern):
         parent.add(AssignGen(parent, lhs=sum_name, rhs=rhs_expr))
 
 
-class DynCopyFieldKern(DynBuiltinKern):
+class DynCopyFieldKern(DynBuiltIn):
     ''' Set a field equal to another field '''
 
     def __str__(self):
@@ -2648,7 +2648,7 @@ class DynCopyFieldKern(DynBuiltinKern):
         parent.add(AssignGen(parent, lhs=outvar_name, rhs=invar_name))
 
 
-class DynMultiplyFieldsKern(DynBuiltinKern):
+class DynMultiplyFieldsKern(DynBuiltIn):
     ''' DoF-wise product of one field with another with the result
     returned as a third field '''
 
@@ -2667,7 +2667,7 @@ class DynMultiplyFieldsKern(DynBuiltinKern):
         parent.add(assign)
 
 
-class DynSubtractFieldsKern(DynBuiltinKern):
+class DynSubtractFieldsKern(DynBuiltIn):
     ''' Subtract one field from another and return the result as a
     third field '''
 
@@ -2686,7 +2686,7 @@ class DynSubtractFieldsKern(DynBuiltinKern):
         parent.add(assign)
 
 
-class DynAddFieldsKern(DynBuiltinKern):
+class DynAddFieldsKern(DynBuiltIn):
     ''' Add one field to another and return the result as a third field '''
 
     def __str__(self):
@@ -2703,7 +2703,7 @@ class DynAddFieldsKern(DynBuiltinKern):
                              rhs=invar_name1 + " + " + invar_name2))
 
 
-class DynDivideFieldKern(DynBuiltinKern):
+class DynDivideFieldKern(DynBuiltIn):
     ''' Divide the first field by the second and return it '''
 
     def __str__(self):
@@ -2719,7 +2719,7 @@ class DynDivideFieldKern(DynBuiltinKern):
                              rhs=invar_name1 + " / " + invar_name2))
 
 
-class DynDivideFieldsKern(DynBuiltinKern):
+class DynDivideFieldsKern(DynBuiltIn):
     ''' Divide the first field by the second and return the result as
     a third field '''
 
@@ -2737,7 +2737,7 @@ class DynDivideFieldsKern(DynBuiltinKern):
                              rhs=invar_name1 + " / " + invar_name2))
 
 
-class DynIncFieldKern(DynBuiltinKern):
+class DynIncFieldKern(DynBuiltIn):
     ''' Add the 2nd field to the first field and return it '''
 
     def __str__(self):
@@ -2753,7 +2753,7 @@ class DynIncFieldKern(DynBuiltinKern):
                              rhs=invar_name1 + " + " + invar_name2))
 
 
-class DynCopyScaledFieldKern(DynBuiltinKern):
+class DynCopyScaledFieldKern(DynBuiltIn):
     ''' Multiply the first field by a scalar and return the result as
     a second field (y = a*x) '''
 
@@ -2771,7 +2771,7 @@ class DynCopyScaledFieldKern(DynBuiltinKern):
                              rhs=scalar_name + " * " + invar_name))
 
 
-class DynAXPYKern(DynBuiltinKern):
+class DynAXPYKern(DynBuiltIn):
     ''' f = a.x + y where 'a' is a scalar and 'f', 'x' and
     'y' are fields '''
 
@@ -2792,7 +2792,7 @@ class DynAXPYKern(DynBuiltinKern):
         parent.add(AssignGen(parent, lhs=outvar_name, rhs=rhs_expr))
 
 
-class DynIncAXPYKern(DynBuiltinKern):
+class DynIncAXPYKern(DynBuiltIn):
     ''' x = a.x + y where 'a' is a scalar and 'x' and 'y' are fields '''
 
     def __str__(self):
@@ -2807,7 +2807,7 @@ class DynIncAXPYKern(DynBuiltinKern):
         parent.add(AssignGen(parent, lhs=fld_name1, rhs=rhs_expr))
 
 
-class DynAXPBYKern(DynBuiltinKern):
+class DynAXPBYKern(DynBuiltIn):
     ''' f = a.x + b.y where 'a' and 'b' are scalars and 'f', 'x' and
     'y' are fields '''
 
@@ -2831,7 +2831,7 @@ class DynAXPBYKern(DynBuiltinKern):
         parent.add(AssignGen(parent, lhs=outvar_name, rhs=rhs_expr))
 
 
-class DynIncAXPBYKern(DynBuiltinKern):
+class DynIncAXPBYKern(DynBuiltIn):
     ''' x = a.x + b.y where 'a' and 'b' are scalars and 'x' and 'y' are
     fields '''
 
@@ -2853,7 +2853,7 @@ class DynIncAXPBYKern(DynBuiltinKern):
         parent.add(AssignGen(parent, lhs=invar_name1, rhs=rhs_expr))
 
 
-class DynInnerProductKern(DynBuiltinKern):
+class DynInnerProductKern(DynBuiltIn):
     ''' Calculates the inner product of two fields,
     asum = SUM( field1(:)*field2(:) ) '''
 

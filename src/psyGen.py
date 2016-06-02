@@ -1451,8 +1451,8 @@ class Kern(Call):
         return self.parent.loop_type == "colour"
 
 
-class BuiltinKern(object):
-    '''Abstract base class for all built-in kernels. Uses the abc
+class BuiltIn(object):
+    '''Abstract base class for all built-ins. Uses the abc
        module so it cannot be instantiated.
 
     '''
