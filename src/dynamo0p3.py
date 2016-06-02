@@ -2503,9 +2503,7 @@ class DynKernCallFactory(object):
 
 
 class DynBuiltIn(BuiltIn):
-    ''' Base class for a Dynamo Infrastructure/Pointwise call. Has the
-    BuiltIn as a base class to enable us to identify it as
-    an Infrastructure kernel in the psyGen base classes. '''
+    ''' Parent class for a call to a Dynamo Built-in. '''
 
     def __init__(self):
         # The name of the loop variable for the loop over DoFs
