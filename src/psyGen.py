@@ -755,9 +755,12 @@ class Node(object):
         return all_calls[:position-1]
 
     def kern_calls(self):
-        '''return all (both user-supplied and infrastructure) 
-        kernel calls in this schedule'''
+        '''return all user-supplied kernel calls in this schedule'''
         return self.walk(self._children, Kern)
+
+    def builtin_calls(self):
+        '''return all built-in calls in this schedule'''
+        return self.walk(self._children, BuiltIn)
 
     def loops(self):
         ''' return all loops currently in this schedule '''
@@ -1320,6 +1323,15 @@ class Call(Node):
         self._shape = None
         self._text = None
         self._canvas = None
+        self._arg_descriptors = None
+
+    @property
+    def arg_descriptors(self):
+        return self._arg_descriptors
+
+    @arg_descriptors.setter
+    def arg_descriptors(self, obj):
+        self._arg_descriptors = obj
 
     def set_constraints(self):
         # first set up the dependencies of my arguments
@@ -1363,7 +1375,7 @@ class Kern(Call):
                 format(call.ktype.procedure.name,
                        len(call.ktype.arg_descriptors),
                        len(call.args)))
-        self._arg_descriptors = call.ktype.arg_descriptors
+        self.arg_descriptors = call.ktype.arg_descriptors
 
     def __str__(self):
         return "kern call: "+self._name
@@ -1394,10 +1406,6 @@ class Kern(Call):
             "[module_inline=" + str(self._module_inline) + "]"
         for entity in self._children:
             entity.view(indent=indent + 1)
-
-    @property
-    def arg_descriptors(self):
-        return self._arg_descriptors
 
     def gen_code(self, parent):
         from f2pygen import CallGen, UseGen
@@ -1451,12 +1459,12 @@ class Kern(Call):
         return self.parent.loop_type == "colour"
 
 
-class BuiltIn(object):
-    '''Abstract base class for all built-ins. Uses the abc
-       module so it cannot be instantiated.
-
-    '''
-    __metaclass__ = abc.ABCMeta
+class BuiltIn(Call):
+    '''Base class for all built-ins. '''
+    def __init__(self):
+        # Cannot call Call.__init__ as don't have necessary information
+        # here
+        self._arg_descriptors = None
 
 
 class Arguments(object):

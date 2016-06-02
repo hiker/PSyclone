@@ -83,7 +83,19 @@ psyGen.MAPPING_ACCESSES = {"inc": "gh_inc", "write": "gh_write",
 psyGen.VALID_ARG_TYPE_NAMES = VALID_ARG_TYPE_NAMES
 psyGen.VALID_ACCESS_DESCRIPTOR_NAMES = VALID_ACCESS_DESCRIPTOR_NAMES
 
-# classes
+# Functions
+
+def field_on_space(func_space, arguments):
+    ''' Returns True if the supplied list of arguments contains a field
+    that exists on the specified space. '''
+    if func_space in arguments.unique_fss:
+        for arg in arguments.args:
+            if arg.function_space == func_space and \
+               arg.type == "gh_field":
+                return True
+    return False
+
+# Classes
 
 
 class DynFuncDescriptor03(object):
@@ -582,7 +594,7 @@ class DynInvoke(Invoke):
         # the space used by each kernel and at the moment neither of
         # these has been coded for.
         any_space_call_count = 0
-        for call in self.schedule.kern_calls():
+        for call in self.schedule.calls():
             found_any_space = False
             for arg_descriptor in call.arg_descriptors:
                 if arg_descriptor.is_any_space:
@@ -600,7 +612,7 @@ class DynInvoke(Invoke):
         # list. However, the base class currently ignores any qr
         # arguments so we need to add them in.
         self._alg_unique_qr_args = []
-        for call in self.schedule.kern_calls():
+        for call in self.schedule.calls():
             if call.qr_required:
                 if call.qr_text not in self._alg_unique_qr_args:
                     self._alg_unique_qr_args.append(call.qr_text)
@@ -609,7 +621,7 @@ class DynInvoke(Invoke):
         # arguments within the psy layer. These are stored in the
         # _psy_unique_qr_vars list
         self._psy_unique_qr_vars = []
-        for call in self.schedule.kern_calls():
+        for call in self.schedule.calls():
             if call.qr_required:
                 if call.qr_name not in self._psy_unique_qr_vars:
                     self._psy_unique_qr_vars.append(call.qr_name)
@@ -642,7 +654,7 @@ class DynInvoke(Invoke):
         ''' Returns True if at least one of the kernels in this invoke
         requires QR, otherwise returns False. '''
         required = False
-        for call in self.schedule.kern_calls():
+        for call in self.schedule.calls():
             if call.qr_required:
                 required = True
                 break
@@ -676,7 +688,7 @@ class DynInvoke(Invoke):
         function space. Searches through all Kernel calls in this
         invoke. Currently the first argument object that is found is
         used. Throws an exception if no argument exists. '''
-        for kern_call in self.schedule.kern_calls():
+        for kern_call in self.schedule.calls():
             if fs_name in kern_call.arguments.unique_fss:
                 for arg in kern_call.arguments.args:
                     if fs_name in arg.function_spaces:
@@ -687,7 +699,7 @@ class DynInvoke(Invoke):
         ''' Returns the unique function space names over all kernel
         calls in this invoke. '''
         unique_fs_names = []
-        for kern_call in self.schedule.kern_calls():
+        for kern_call in self.schedule.calls():
             for fs_name in kern_call.arguments.unique_fss:
                 if fs_name not in unique_fs_names:
                     unique_fs_names.append(fs_name)
@@ -746,7 +758,7 @@ class DynInvoke(Invoke):
         function_space_descriptors objects contained within Kernel
         objects. The first Kernel in the invoke is used to return the
         name. If no Kernel exist in this invoke an error is thrown. '''
-        kern_calls = self.schedule.kern_calls()
+        kern_calls = self.schedule.calls()
         if len(kern_calls) == 0:
             raise GenerationError(
                 "ndf_name makes no sense if there are no kernel calls")
@@ -758,7 +770,7 @@ class DynInvoke(Invoke):
         function_space_descriptors objects contained within Kernel
         objects. The first Kernel in the invoke is used to return the
         name. If no Kernel exists in this invoke an error is thrown. '''
-        kern_calls = self.schedule.kern_calls()
+        kern_calls = self.schedule.calls()
         if len(kern_calls) == 0:
             raise GenerationError(
                 "undf_name makes no sense if there are no kernel calls")
@@ -784,8 +796,8 @@ class DynInvoke(Invoke):
     def field_on_space(self, func_space):
         ''' Returns true if a field exists on this space for any
         kernel in this invoke. '''
-        for kern_call in self.schedule.kern_calls():
-            if kern_call.field_on_space(func_space):
+        for kern_call in self.schedule.calls():
+            if field_on_space(func_space, kern_call.arguments):
                 return True
         return False
 
@@ -1575,7 +1587,7 @@ class DynKern(Kern):
         lvars = []
         # Dof maps for fields
         for unique_fs in self.arguments.unique_fss:
-            if self.field_on_space(unique_fs):
+            if field_on_space(unique_fs, self.arguments):
                 # A map is required as there is a field on this space
                 lvars.append(self._fs_descriptors.map_name(unique_fs))
         # Orientation maps
@@ -1585,15 +1597,6 @@ class DynKern(Kern):
                 if fs_descriptor.orientation:
                     lvars.append(fs_descriptor.orientation_name)
         return lvars
-
-    def field_on_space(self, func_space):
-        ''' Returns True if a field exists on this space for this kernel. '''
-        if func_space in self.arguments.unique_fss:
-            for arg in self.arguments.args:
-                if arg.function_space == func_space and \
-                        arg.type == "gh_field":
-                    return True
-        return False
 
     def _create_arg_list(self, parent, my_type="call"):
         ''' creates the kernel call or kernel stub subroutine argument
@@ -1730,7 +1733,7 @@ class DynKern(Kern):
                             entity_decls=[ndf_name]))
             # 3.1.1 Provide additional compulsory arguments if there
             # is a field on this space
-            if self.field_on_space(unique_fs):
+            if field_on_space(unique_fs, self.arguments):
                 undf_name = self._fs_descriptors.undf_name(unique_fs)
                 arglist.append(undf_name)
                 map_name = self._fs_descriptors.map_name(unique_fs)
@@ -1980,14 +1983,14 @@ class DynKern(Kern):
         # spacer comments if necessary
         maps_required = False
         for unique_fs in self.arguments.unique_fss:
-            if self.field_on_space(unique_fs):
+            if field_on_space(unique_fs, self.arguments):
                 maps_required = True
 
         # function-space maps initialisation and their declarations
         if maps_required:
             parent.add(CommentGen(parent, ""))
         for unique_fs in self.arguments.unique_fss:
-            if self.field_on_space(unique_fs):
+            if field_on_space(unique_fs, self.arguments):
                 # A map is required as there is a field on this space
                 map_name = self._fs_descriptors.map_name(unique_fs)
                 field = self._arguments.get_arg_on_space(unique_fs)
@@ -1999,7 +2002,7 @@ class DynKern(Kern):
             parent.add(CommentGen(parent, ""))
         decl_map_names = []
         for unique_fs in self.arguments.unique_fss:
-            if self.field_on_space(unique_fs):
+            if field_on_space(unique_fs, self.arguments):
                 # A map is required as there is a field on this space
                 map_name = self._fs_descriptors.map_name(unique_fs)
                 decl_map_names.append(map_name+"(:) => null()")
@@ -2563,16 +2566,25 @@ class DynKernCallFactory(object):
         return cloop
 
 
-class DynBuiltIn(DynKern, BuiltIn):
+class DynBuiltIn(BuiltIn):
     ''' Base class for a Dynamo Infrastructure/Pointwise call. Has the
-    (abstract) BuiltIn as a base class to enable us to identify it as
-    an Infrastructure kernel in the psyGen base classes (because it is
-    otherwise identical to a normal kernel). '''
+    BuiltIn as a base class to enable us to identify it as
+    an Infrastructure kernel in the psyGen base classes. '''
 
     def __init__(self):
         # The name of the loop variable for the loop over DoFs
         self._idx_name = "df"
-        DynKern.__init__(self)
+        BuiltIn.__init__(self)
+
+    def load(self, call, parent=None):
+        ''' Populate the state of this object using the supplied call
+        object. '''
+        from psyGen import Call
+        Call.__init__(self, parent, call, call.ktype.procedure.name,
+                      DynKernelArguments(call, self))
+        self.arg_descriptors = call.ktype.arg_descriptors
+        self._func_descriptors = call.ktype.func_descriptors
+        self._fs_descriptors = FSDescriptors(call.ktype.func_descriptors)
 
     def array_ref(self, fld_name):
         ''' Returns a string containing the array reference for a
@@ -2585,6 +2597,18 @@ class DynBuiltIn(DynKern, BuiltIn):
         space that this kernel updates '''
         field = self._arguments.iteration_space_arg()
         return self.fs_descriptors.undf_name(field.function_space)
+
+    @property
+    def qr_required(self):
+        ''' Built-ins never require quadrature '''
+        return False
+
+    @property
+    def fs_descriptors(self):
+        ''' Returns a list of function space descriptor objects of
+        type FSDescriptor which contain information about the function
+        spaces. '''
+        return self._fs_descriptors
 
 
 class DynScaleFieldKern(DynBuiltIn):
