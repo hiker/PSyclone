@@ -1144,3 +1144,20 @@ def test_scalar_sum_and_OpenMP_unsupported():
     with pytest.raises(GenerationError) as excinfo:
         _ = str(psy.gen)
     assert "OpenMP reductions are not yet supported" in str(excinfo.value)
+
+
+def test_builtin_and_OpenMP_unsupported():
+    ''' Test that we raise an error if we attempt to use OpenMP on 
+    code containing a call to a built-in. '''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15_single_pointwise_invoke.f90"),
+                    api=TEST_API, distributed_memory=False)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    schedule.view()
+    otrans = DynamoOMPParallelLoopTrans()
+    # Apply OpenMP parallelisation to the loop
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = otrans.apply(schedule.children[0])
+    assert "The iteration space is not 'cells'." in str(excinfo.value)
