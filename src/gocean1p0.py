@@ -9,7 +9,7 @@
 
 '''This module implements the PSyclone GOcean 1.0 API by specialising
     the required base classes for both code generation (PSy, Invokes,
-    Invoke, Schedule, Loop, Kern, Inf, Arguments and KernelArgument)
+    Invoke, Schedule, Loop, Kern, Arguments and KernelArgument)
     and parsing (Descriptor and KernelType). It adds a
     GOKernelGridArgument class to capture information on kernel arguments
     that supply properties of the grid (and are generated in the PSy
@@ -253,10 +253,10 @@ class GOInvoke(Invoke):
 class GOSchedule(Schedule):
     ''' The GOcean specific schedule class. We call the base class
     constructor and pass it factories to create GO-specific calls to both
-    user-supplied and infrastructure kernels. '''
+    user-supplied kernels and built-ins. '''
 
     def __init__(self, alg_calls):
-        Schedule.__init__(self, GOKernCallFactory, GOInfCallFactory, alg_calls)
+        Schedule.__init__(self, GOKernCallFactory, GOBuiltInCallFactory, alg_calls)
 
         # Configuration of this Schedule - we default to having
         # constant loop bounds. If we end up having a long list
@@ -568,44 +568,17 @@ class GOLoop(Loop):
         Loop.gen_code(self, parent)
 
 
-class GOInfCallFactory(object):
-    ''' A GOcean specific infrastructure call factory. No infrastructure
-        calls are supported in GOcean at the moment so we just call the base
-        class (which currently recognises the set() infrastructure call). '''
+class GOBuiltInCallFactory(object):
+    ''' A GOcean-specific built-in call factory. No built-ins
+        are supported in GOcean at the moment. '''
+
     @staticmethod
     def create(call, parent=None):
-        ''' Creates a GOocean-specific infrastructure call. This requires
-        us to create a doubly-nested loop and then create the body of
-        the particular infrastructure kernel '''
-        # Loop over j
-        jloop = GOLoop(parent=parent,
-                       loop_type="outer")
-        # Loop over i
-        iloop = GOLoop(parent=cloop,
-                       loop_type="inner")
-        jloop.addchild(iloop)
-
-        # The infrastructure call itself
-        if call.func_name == "set_field_scalar":
-            # TODO implement infrastructure kernels for GOcean
-            # pwkern = GOSetFieldScalarKern(parent=iloop)
-            pass
-        elif call.func_name == "copy_field":
-            # pwkern = GOFieldCopyKern(parent=iloop)
-            pass
-        else:
-            raise GenerationError(
-                "Unrecognised infrastructure call: {0}".format(call.func_name))
-        # Create the state of the kernel using the call object which was
-        # created by the parser
-        pwkern.load(call)
-
-        # Use this kernel to set-up the state of the two loops
-        jloop.load(pwkern)
-        iloop.load(pwkern)
-        
-        # Add the infrastructure-call object as a child of the inner loop
-        iloop.addchild(pwkern)
+        ''' Placeholder to create a GOocean-specific built-in call.
+        This will require us to create a doubly-nested loop and then create
+        the body of the particular built-in operation. '''
+        raise GenerationError(
+            "Built-ins are not supported for the GOcean 1.0 API")
 
 
 class GOKernCallFactory(object):
