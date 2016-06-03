@@ -80,6 +80,48 @@ def test_invalid_builtin_kernel():
             str(excinfo.value))
 
 
+def test_dynbuiltin_str():
+    ''' Check that we raise an error if we attempt to call the __str__
+    method on the parent DynBuiltIn class '''
+    from dynamo0p3_builtins import DynBuiltIn
+    distmem = False
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15_single_pointwise_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].children[0]
+    with pytest.raises(NotImplementedError) as excinfo:
+        DynBuiltIn.__str__(kern)
+    assert ("DynBuiltIn.__str__ must be overridden" in str(excinfo.value))
+
+
+def test_dynbuiltin_gen_code():
+    ''' Check that we raise an error if we attempt to call the gen_code()
+    method on the parent DynBuiltIn class '''
+    from dynamo0p3_builtins import DynBuiltIn
+    distmem = False
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15_single_pointwise_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=distmem).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.children[0].children[0]
+    with pytest.raises(NotImplementedError) as excinfo:
+        DynBuiltIn.gen_code(kern, None)
+    assert ("DynBuiltIn.gen_code must be overridden" in str(excinfo.value))
+
+
+def test_dynbuiltfactory_str():
+    ''' Check that the str method of DynBuiltInCallFactory works as
+    expected. '''
+    from dynamo0p3_builtins import DynBuiltInCallFactory
+    factory = DynBuiltInCallFactory()
+    assert "Factory for a call to a Dynamo built-in" in str(factory)
+
+
 def test_builtin_set_str():
     ''' Check that the str method of DynSetFieldScalarKern returns the
     expected string '''

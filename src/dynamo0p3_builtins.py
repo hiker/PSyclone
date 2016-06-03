@@ -69,7 +69,7 @@ class DynBuiltIn(BuiltIn):
     ''' Parent class for a call to a Dynamo Built-in. '''
 
     def __str__(self):
-        return "DynBuiltIn"
+        raise NotImplementedError("DynBuiltIn.__str__ must be overridden")
 
     def __init__(self):
         self._name_space_manager = NameSpaceFactory().create()
@@ -116,14 +116,8 @@ class DynBuiltIn(BuiltIn):
         return self._fs_descriptors
 
     def gen_code(self, parent):
-        raise NotImplementedError("DynBuiltIn.gen_code must be overriden")
+        raise NotImplementedError("DynBuiltIn.gen_code must be overridden")
 
-    def local_vars(self):
-        ''' Returns the names used by the built-in that vary from one
-        invocation to the next and therefore require privatisation
-        when parallelised. Currently always returns an empty list. '''
-        lvars = []
-        return lvars
 
 class DynScaleFieldKern(DynBuiltIn):
     ''' Multiply a field by a scalar and return it '''

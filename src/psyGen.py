@@ -1354,9 +1354,6 @@ class Call(Node):
     def __str__(self):
         raise NotImplementedError("Call.__str__ should be implemented")
 
-    def local_vars(self):
-        raise NotImplementedError("Call.local_vars should be implemented")
-
     def gen_code(self, parent):
         raise NotImplementedError("Call.gen_code should be implemented")
 
@@ -1380,6 +1377,9 @@ class Kern(Call):
 
     def __str__(self):
         return "kern call: "+self._name
+
+    def local_vars(self):
+        raise NotImplementedError("Kern.local_vars should be implemented")
 
     @property
     def module_inline(self):
@@ -1443,7 +1443,8 @@ class Kern(Call):
 
 
 class BuiltIn(Call):
-    '''Base class for all built-ins. '''
+    ''' Parent class for all built-ins (field operations for which the user
+    does not have to provide a kernel). '''
     def __init__(self):
         # We cannot call Call.__init__ as don't have necessary information
         # here. This is typically performed by a load method in any
