@@ -389,13 +389,7 @@ def test_reset():
     assert ns1 != ns2
 
 
-# Kern class test
-
-
-def test_kern_class_view(capsys):
-    ''' tests the view method in the Kern class. The simplest way to
-    do this is via the dynamo0.3 subclass '''
-    meta = '''
+FAKE_KERNEL_METADATA = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
      type(arg_type), meta_args(1) =    &
@@ -410,7 +404,14 @@ contains
   end subroutine dummy_code
 end module dummy_mod
 '''
-    ast = fpapi.parse(meta, ignore_comments=False)
+
+# Kern class test
+
+
+def test_kern_class_view(capsys):
+    ''' tests the view method in the Kern class. The simplest way to
+    do this is via the dynamo0.3 subclass '''
+    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     my_kern = DynKern()
     my_kern.load_meta(metadata)
@@ -419,6 +420,19 @@ end module dummy_mod
     expected_output = \
         "KernCall dummy_code(field_1) [module_inline=False]"
     assert expected_output in out
+
+
+def test_kern_local_vars():
+    ''' Check that calling the abstract local_vars() method of Kern raises
+    the expected exception '''
+    from psyGen import Kern
+    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    my_kern = DynKern()
+    my_kern.load_meta(metadata)
+    with pytest.raises(NotImplementedError) as excinfo:
+        Kern.local_vars(my_kern)
+    assert ("Kern.local_vars should be implemented" in str(excinfo.value))
 
 
 def test_OMPDoDirective_class_view(capsys):
@@ -483,3 +497,5 @@ def test_call_abstract_methods():
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.gen_code(None)
     assert ("Call.gen_code should be implemented" in str(excinfo.value))
+
+
