@@ -432,7 +432,7 @@ def test_kern_local_vars():
     my_kern.load_meta(metadata)
     with pytest.raises(NotImplementedError) as excinfo:
         Kern.local_vars(my_kern)
-    assert ("Kern.local_vars should be implemented" in str(excinfo.value))
+    assert "Kern.local_vars should be implemented" in str(excinfo.value)
 
 
 def test_OMPDoDirective_class_view(capsys):
@@ -493,9 +493,8 @@ def test_call_abstract_methods():
     my_call = Call(fake_call, fake_call, name="a_name", arguments=None)
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.__str__()
-    assert ("Call.__str__ should be implemented" in str(excinfo.value))
+    assert "Call.__str__ should be implemented" in str(excinfo.value)
+
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.gen_code(None)
-    assert ("Call.gen_code should be implemented" in str(excinfo.value))
-
-
+    assert "Call.gen_code should be implemented" in str(excinfo.value)
