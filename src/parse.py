@@ -335,6 +335,8 @@ class KernelProcedure(object):
 
 
 class KernelTypeFactory(object):
+    ''' Factory for calls to user-supplied Kernels '''
+
     def __init__(self, api=""):
         if api == "":
             from config import DEFAULTAPI
@@ -346,36 +348,8 @@ class KernelTypeFactory(object):
                 raise ParseError("KernelTypeFactory: Unsupported API '{0}' "
                                  "specified. Supported types are {1}.".
                                  format(self._type, supportedTypes))
-        # Set-up built-ins for this API
-        # TODO parse the meta-data just once and use it to generate the
-        # list of recognised built-ins.
-        self._builtin_names, \
-            self._builtin_defs_file = get_builtin_defs(self._type)
 
     def create(self, ast, name=None):
-
-        if name in self._builtin_names:
-            # The meta-data for these lives in a Fortran module file
-            # in the psyclone src directory - i.e. in the same
-            # location as this python file. The precise name of this
-            # file for this api is specified in BUILTIN_DEFINITIONS
-            fname = os.path.join(
-                os.path.dirname(os.path.abspath(__file__)),
-                self._builtin_defs_file)
-            if not os.path.isfile(fname):
-                raise ParseError(
-                    "Kernel '{0}' is a recognised Built-in but cannot "
-                    "find file '{1}' containing the meta-data describing "
-                    "the Built-in operations for API '{2}'".format(name,
-                                                                   fname,
-                                                                   self._type))
-            # Attempt to parse the meta-data
-            try:
-                ast = fpapi.parse(fname)
-            except:
-                raise ParseError(
-                    "Failed to parse the meta-data for PSyclone "
-                    "built-ins in {0}".format(fname))
 
         if self._type == "gunghoproto":
             return GHProtoKernelType(ast, name=name)
@@ -394,6 +368,40 @@ class KernelTypeFactory(object):
                 "KernelTypeFactory: Internal Error: Unsupported "
                 "kernel type '{0}' found. Should not be possible.".
                 format(self._type))
+
+
+class BuiltInKernelTypeFactory(KernelTypeFactory):
+    ''' Factory class for calls to built-ins '''
+
+    def create(self, builtin_names, builtin_defs_file, name=None):
+        ''' Create a built-in call object '''
+        if name not in builtin_names:
+            raise ParseError(
+                "BuiltInKernelTypeFactory: unrecognised built-in name. "
+                "Got {0} but expected one of {1}".format(name,
+                                                         builtin_names))
+        # The meta-data for these lives in a Fortran module file
+        # passed in to this method.
+        fname = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            builtin_defs_file)
+        if not os.path.isfile(fname):
+            raise ParseError(
+                "Kernel '{0}' is a recognised Built-in but cannot "
+                "find file '{1}' containing the meta-data describing "
+                "the Built-in operations for API '{2}'".format(name,
+                                                               fname,
+                                                               self._type))
+        # Attempt to parse the meta-data
+        try:
+            ast = fpapi.parse(fname)
+        except:
+            raise ParseError(
+                "Failed to parse the meta-data for PSyclone "
+                "built-ins in {0}".format(fname))
+
+        # Now we have the AST, call our parent class to create the object
+        return KernelTypeFactory.create(self, ast, name)
 
 
 class KernelType(object):
@@ -765,7 +773,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                 "are {1}.".format(api, SUPPORTEDAPIS))
 
     # Get the names of the supported Built-in operations for this API
-    builtin_names, _ = get_builtin_defs(api)
+    builtin_names, builtin_defs_file = get_builtin_defs(api)
 
     # drop cache
     fparser.parsefortran.FortranParser.cache.clear()
@@ -861,8 +869,9 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                     # KernelTypeFactory will generate appropriate meta-data
                     statement_kcalls.append(
                         BuiltInCall(argname,
-                                    KernelTypeFactory(api=api).create(
-                                        None, name=argname),
+                                    BuiltInKernelTypeFactory(api=api).create(
+                                        builtin_names, builtin_defs_file,
+                                        name=argname),
                                     argargs))
                 else:
                     try:
