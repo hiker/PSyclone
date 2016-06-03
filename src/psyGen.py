@@ -634,8 +634,11 @@ class Node(object):
                 result += ","
         return result
 
-    def __init__(self, children=[], parent=None):
-        self._children = children
+    def __init__(self, children=None, parent=None):
+        if not children:
+            self._children = []
+        else:
+            self._children = children
         self._parent = parent
 
     def __str__(self):
@@ -756,10 +759,6 @@ class Node(object):
         '''return all user-supplied kernel calls in this schedule'''
         return self.walk(self._children, Kern)
 
-    def builtin_calls(self):
-        '''return all built-in calls in this schedule'''
-        return self.walk(self._children, BuiltIn)
-
     def loops(self):
         ''' return all loops currently in this schedule '''
         return self.walk(self._children, Loop)
@@ -813,7 +812,7 @@ class Schedule(Node):
     def invoke(self, my_invoke):
         self._invoke = my_invoke
 
-    def __init__(self, Kern, builtin, alg_calls=[]):
+    def __init__(self, KernFactory, BuiltInFactory, alg_calls=[]):
 
         # we need to separate calls into loops (an iteration space really)
         # and calls so that we can perform optimisations separately on the
@@ -822,9 +821,9 @@ class Schedule(Node):
         from parse import BuiltInCall
         for call in alg_calls:
             if isinstance(call, BuiltInCall):
-                sequence.append(builtin.create(call, parent=self))
+                sequence.append(BuiltInFactory.create(call, parent=self))
             else:
-                sequence.append(Kern.create(call, parent=self))
+                sequence.append(KernFactory.create(call, parent=self))
         Node.__init__(self, children=sequence)
         self._invoke = None
 
@@ -1094,7 +1093,6 @@ class Loop(Node):
                  topology_name="topology",
                  valid_loop_types=[]):
 
-        children = []
         # we need to determine whether this is a built-in or kernel
         # call so our schedule can do the right thing.
 
@@ -1108,7 +1106,7 @@ class Loop(Node):
         # TODO replace iterates_over with iteration_space
         self._iterates_over = "unknown"
 
-        Node.__init__(self, children=children, parent=parent)
+        Node.__init__(self, parent=parent)
 
         self._variable_name = variable_name
 
@@ -1408,10 +1406,10 @@ class Kern(Call):
         parent.add(UseGen(parent, name=self._module_name, only=True,
                           funcnames=[self._name]))
 
-    def incremented_field(self, mapping={}):
-        ''' Returns the argument corresponding to a field that has
-        INC access. Raises a GenerationError if none is found. '''
-        assert mapping != {}, "psyGen:Kern:incremented_field: Error - a "\
+    def incremented_arg(self, mapping={}):
+        ''' Returns the argument that has INC access. Raises a
+        FieldNotFoundError if none is found. '''
+        assert mapping != {}, "psyGen:Kern:incremented_arg: Error - a "\
             "mapping must be provided"
         for arg in self.arguments.args:
             if arg.access.lower() == mapping["inc"]:
@@ -1420,10 +1418,9 @@ class Kern(Call):
                                  "{1} access".
                                  format(self.name, mapping["inc"]))
 
-    def written_field(self, mapping={}):
-        ''' Returns the argument corresponding to a field that has
-        WRITE access '''
-        assert mapping != {}, "psyGen:Kern:written_field: Error - a "\
+    def written_arg(self, mapping={}):
+        ''' Returns the argument that has WRITE access '''
+        assert mapping != {}, "psyGen:Kern:written_arg: Error - a "\
             "mapping must be provided"
         for access in ["write", "readwrite"]:
             for arg in self.arguments.args:
