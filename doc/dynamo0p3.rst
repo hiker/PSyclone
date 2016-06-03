@@ -37,11 +37,6 @@ objects and their use are discussed in the following sections.
                kernel2(field1, stencil_extent, field3, scalar1) &
              )
 
-Built-ins
-+++++++++
-
-.. note:: To be written.
-
 Field
 +++++
 
@@ -442,8 +437,8 @@ rules, along with PSyclone's naming conventions, are:
     4) include ``wv``. This is a real array of kind r_def with intent ``in``. It has one dimension of size ``nqp_v``.
 
 
-Supported Built-ins
--------------------
+Built-ins
+---------
 
 The basic concept of a PSyclone Built-in is described in the
 :ref:`built-ins` section.  In the Dynamo 0.3 API, calls to
@@ -453,7 +448,7 @@ built-ins may be on any space, the arguments to any given
 call must all be on the same space.
 
 The built-ins supported for the Dynamo 0.3 API are
-described (in alphabetical order) below. For clarity, the calculation
+listed in alphabetical order below. For clarity, the calculation
 performed by each built-in is described using Fortran array syntax; this
 does not necessarily reflect the actual implementation of the
 built-in (*e.g.* it could be implemented by PSyclone

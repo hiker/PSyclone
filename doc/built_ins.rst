@@ -212,28 +212,24 @@ Adding support for additional built-in operations to a specific API
 -------------------------------------------------------------------
 
  1. Identify the PSyclone source file for the API to be extended. *e.g.* for
-    Dynamo 0.3 it is ``src/dynamo0p3.py``.
- 2. Add the name of the new built-in operation to the
-    ``BUILTIN_NAMES`` list in that source file.
- 3. Add meta-data describing this call to the appropriate file specified in
+    Dynamo 0.3 it is ``src/dynamo0p3_builtins.py``.
+ 2. Edit this source file to create the class for this new call. It must
+    inherit from the API-specific parent class for built-in operations
+    (``DynBuiltInKern`` for Dynamo0.3).
+ 3. Implement ``__str__`` and ``gen_code()`` methods for this new class.
+ 4. Add the name of the new built-in operation and its corresponding class
+    to the ``BUILTIN_MAP`` dictionary in that source file.
+ 5. Add meta-data describing this call to the appropriate file specified in
     the ``BUILTIN_DEFINITIONS_FILE`` in that source file. For dynamo0.3
     this is ``dynamo0p3_builtins_mod.f90``.
- 4. Add a hook to create an object for this new call in the ``create()``
-    method of the appropriate ``BuiltInCallFactory``. For Dynamo0.3 this is
-    ``dynamo0p3.DynBuiltInCallFactory``.
- 5. Create the class for this new call. It must inherit from the
-    API-specific base class for built-in operations (``DynBuiltInKern`` for
-    Dynamo0.3).
- 6. Implement ``__str__`` and ``gen_code()`` methods for this new class.
- 7. Document the new built-in in the documentation of the
+ 6. Document the new built-in in the documentation of the
     relevant API (*e.g.* ``doc/dynamo0p3.rst``)
 
 If the API being extended does not currently support any built-ins
-then the ``BUILTIN_NAMES`` and
-``BUILTIN_DEFINITIONS_FILE`` module variables must be added to the
-source file for the API.  A Fortran module file must be created in the
-PSyclone src directory (with the name specified in
-``BUILTIN_DEFINITIONS_FILE``) containing meta-data describing the
-built-in operations. Finally, ``parse.get_builtin_defs()`` must be
-extended to import ``PSYCLONE_BUILTIN_NAMES`` and
-``BUILTIN_DEFINITIONS_FILE`` for this API.
+then the ``BUILTIN_MAP`` and ``BUILTIN_DEFINITIONS_FILE`` module
+variables must be added to the source file for the API.  A Fortran
+module file must be created in the PSyclone src directory (with the
+name specified in ``BUILTIN_DEFINITIONS_FILE``) containing meta-data
+describing the built-in operations. Finally,
+``parse.get_builtin_defs()`` must be extended to import
+``BUILTIN_MAP`` and ``BUILTIN_DEFINITIONS_FILE`` for this API.
