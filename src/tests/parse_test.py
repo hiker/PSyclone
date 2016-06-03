@@ -88,3 +88,17 @@ def test_broken_builtin_metadata():
                            defs_file, name="axpy")
     assert ("Failed to parse the meta-data for PSyclone built-ins in" in
             str(excinfo.value))
+
+
+def test_unrecognised_builtin():
+    ''' Check that we raise an error if we call the BuiltInKernelTypeFactory
+    with an unrecognised built-in name '''
+    import dynamo0p3_builtins
+    from parse import BuiltInKernelTypeFactory
+    factory = BuiltInKernelTypeFactory()
+    with pytest.raises(ParseError) as excinfo:
+        _ = factory.create(dynamo0p3_builtins.BUILTIN_MAP,
+                           None,
+                           name="not_a_builtin")
+    assert ("unrecognised built-in name. Got 'not_a_builtin' but" 
+            in str(excinfo.value))

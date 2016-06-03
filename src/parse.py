@@ -379,7 +379,7 @@ class BuiltInKernelTypeFactory(KernelTypeFactory):
         if name not in builtin_names:
             raise ParseError(
                 "BuiltInKernelTypeFactory: unrecognised built-in name. "
-                "Got {0} but expected one of {1}".format(name,
+                "Got '{0}' but expected one of {1}".format(name,
                                                          builtin_names))
         # The meta-data for these lives in a Fortran module file
         # passed in to this method.
@@ -599,14 +599,14 @@ class GHProtoKernelType(KernelType):
                                          init.args[2].name))
 
 
-class KernelCall(object):
-    """A kernel call (appearing in
-    `call invoke(kernel_name(field_name, ...))`"""
+class ParsedCall(object):
+    ''' A call to either a user-supplied kernel or a built-in appearing
+    in an invoke. '''
 
-    def __init__(self, module_name, ktype, args):
-        self._module_name = module_name
+    def __init__(self, ktype, args):
         self._ktype = ktype
         self._args = args
+        self._module_name = None
         if len(self._args) < self._ktype.nargs:
             # we cannot test for equality here as API's may have extra
             # arguments passed in from the algorithm layer (e.g. 'QR'
@@ -631,6 +631,15 @@ class KernelCall(object):
     def module_name(self):
         return self._module_name
 
+
+class KernelCall(ParsedCall):
+    """A call to a user-supplied kernel (appearing in
+    `call invoke(kernel_name(field_name, ...))`"""
+
+    def __init__(self, module_name, ktype, args):
+        ParsedCall.__init__(self, ktype, args)
+        self._module_name = module_name
+
     @property
     def type(self):
         return "kernelCall"
@@ -639,13 +648,12 @@ class KernelCall(object):
         return 'KernelCall(%s, %s)' % (self.ktype, self.args)
 
 
-class BuiltInCall(KernelCall):
-    """ A built-in call (appearing in
-    `call invoke(kernel_name(field_name, ...))` """
+class BuiltInCall(ParsedCall):
+    ''' A built-in call (appearing in
+    `call invoke(kernel_name(field_name, ...))` '''
+
     def __init__(self, ktype, args):
-        # A Built-In has no associated module so pass None in for
-        # the module name
-        KernelCall.__init__(self, None, ktype, args)
+        ParsedCall.__init__(self, ktype, args)
         self._func_name = ktype.name
 
     @property
