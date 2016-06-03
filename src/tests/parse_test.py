@@ -102,3 +102,18 @@ def test_unrecognised_builtin():
                            name="not_a_builtin")
     assert ("unrecognised built-in name. Got 'not_a_builtin' but" 
             in str(excinfo.value))
+
+
+def test_builtin_with_use():
+    ''' Check that we raise an error if we encounter a use statement for
+    a built-in operation '''
+    with pytest.raises(ParseError) as excinfo:
+        _, invoke_info = parse(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3",
+                         "15.0.3_builtin_with_use.f90"),
+            api="dynamo0.3")
+    assert ("A built-in cannot be named in a use statement but "
+            "'set_field_scalar' is used from module 'fake_builtin_mod' in "
+            in str(excinfo.value))
+

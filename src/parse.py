@@ -872,6 +872,13 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                                                variableName,
                                                variableName))
                 if argname in builtin_names:
+                    if argname in name_to_module:
+                        raise ParseError("A built-in cannot be named in a "
+                                         "use statement but '{0}' is used from "
+                                         "module '{1}' in file {2}".
+                                         format(argname,
+                                                name_to_module[argname],
+                                                alg_filename))
                     # this is a call to a built-in operation. The
                     # KernelTypeFactory will generate appropriate meta-data
                     statement_kcalls.append(
