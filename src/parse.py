@@ -34,8 +34,6 @@ def get_builtin_defs(api):
     check_api(api)
 
     if api == "dynamo0.3":
-        # TODO consider replacing this with module-scope variables
-        # whose values are set in the API-specific modules.
         from dynamo0p3_builtins import BUILTIN_MAP as builtins
         from dynamo0p3_builtins import BUILTIN_DEFINITIONS_FILE as fname
     else:
@@ -644,8 +642,10 @@ class KernelCall(object):
 class BuiltInCall(KernelCall):
     """ A built-in call (appearing in
     `call invoke(kernel_name(field_name, ...))` """
-    def __init__(self, module_name, ktype, args):
-        KernelCall.__init__(self, module_name, ktype, args)
+    def __init__(self, ktype, args):
+        # A Built-In has no associated module so pass None in for
+        # the module name
+        KernelCall.__init__(self, None, ktype, args)
         self._func_name = ktype.name
 
     @property
@@ -657,7 +657,7 @@ class BuiltInCall(KernelCall):
         return "BuiltInCall"
 
     def __repr__(self):
-        return 'BuiltInCall(%s, %s)' % (self.module_name, self.args)
+        return 'BuiltInCall(%s, %s)' % (self.args)
 
 
 class Arg(object):
@@ -867,11 +867,11 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                     # this is a call to a built-in operation. The
                     # KernelTypeFactory will generate appropriate meta-data
                     statement_kcalls.append(
-                        BuiltInCall(argname,
-                                    BuiltInKernelTypeFactory(api=api).create(
-                                        builtin_names, builtin_defs_file,
-                                        name=argname),
-                                    argargs))
+                        BuiltInCall(
+                            BuiltInKernelTypeFactory(api=api).create(
+                                builtin_names, builtin_defs_file,
+                                name=argname),
+                            argargs))
                 else:
                     try:
                         modulename = name_to_module[argname]
