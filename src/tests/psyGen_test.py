@@ -463,3 +463,23 @@ def test_OMPDoDirective_class_view(capsys):
                 "[module_inline=False]")
 
             assert expected_output in out
+
+
+def test_call_abstract_methods():
+    ''' Check that calling __str__() and gen_code() on the base Call
+    class raises the expected exception '''
+    from psyGen import Call
+    # Monkey-patch a GenerationError object to mock-up suitable
+    # arguments to create a Call
+    fake_call = GenerationError("msg")
+    fake_ktype = GenerationError("msg")
+    fake_ktype.iterates_over = "something"
+    fake_call.ktype = fake_ktype
+    fake_call.module_name = "a_name"
+    my_call = Call(fake_call, fake_call, name="a_name", arguments=None)
+    with pytest.raises(NotImplementedError) as excinfo:
+        my_call.__str__()
+    assert ("Call.__str__ should be implemented" in str(excinfo.value))
+    with pytest.raises(NotImplementedError) as excinfo:
+        my_call.gen_code(None)
+    assert ("Call.gen_code should be implemented" in str(excinfo.value))
