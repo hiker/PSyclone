@@ -1452,6 +1452,11 @@ class BuiltIn(Call):
         # here. This is typically performed by a load method in any
         # classes that inherit from this one.
         self._arg_descriptors = None
+        self._func_descriptors = None
+        self._fs_descriptors = None
+
+    def gen_code(self):
+        raise NotImplementedError("BuiltIn.gen_code must be overriden")
 
 
 class Arguments(object):

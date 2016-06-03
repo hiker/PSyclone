@@ -29,8 +29,8 @@ def get_builtin_defs(api):
     if api == "dynamo0.3":
         # TODO consider replacing this with module-scope variables
         # whose values are set in the API-specific modules.
-        from dynamo0p3 import BUILTIN_MAP as builtins
-        from dynamo0p3 import BUILTIN_DEFINITIONS_FILE as fname
+        from dynamo0p3_builtins import BUILTIN_MAP as builtins
+        from dynamo0p3_builtins import BUILTIN_DEFINITIONS_FILE as fname
     else:
         # We don't support any built-ins for this API
         builtins = []

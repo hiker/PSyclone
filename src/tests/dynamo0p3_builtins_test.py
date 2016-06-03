@@ -20,21 +20,21 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 def test_dynbuiltin_missing_defs():
     ''' Check that we raise an appropriate error if we cannot find the
     file specifying meta-data for built-in kernels '''
-    import dynamo0p3
-    old_name = dynamo0p3.BUILTIN_DEFINITIONS_FILE[:]
-    dynamo0p3.BUILTIN_DEFINITIONS_FILE = 'broken'
+    import dynamo0p3_builtins
+    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
+    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = 'broken'
     with pytest.raises(ParseError) as excinfo:
         _, _ = parse(os.path.join(BASE_PATH,
                                   "15_single_pointwise_invoke.f90"),
                      api="dynamo0.3")
     assert ("broken' containing the meta-data describing the "
             "Built-in operations" in str(excinfo.value))
-    dynamo0p3.BUILTIN_DEFINITIONS_FILE = old_name
+    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
 
 
 def test_dynbuiltin_str():
     ''' Check that the str method of DynInfCallFactory works as expected '''
-    from dynamo0p3 import DynBuiltInCallFactory
+    from dynamo0p3_builtins import DynBuiltInCallFactory
     dyninf = DynBuiltInCallFactory()
     assert str(dyninf) == "Factory for a call to a Dynamo built-in"
 
@@ -42,7 +42,7 @@ def test_dynbuiltin_str():
 def test_dynbuiltin_wrong_name():
     ''' Check that DynInfCallFactory.create() raises an error if it
     doesn't recognise the name of the kernel it is passed '''
-    from dynamo0p3 import DynBuiltInCallFactory
+    from dynamo0p3_builtins import DynBuiltInCallFactory
     dyninf = DynBuiltInCallFactory()
     # We use 'duck-typing' - rather than attempt to create a rather
     # complex Kernel object we use a ParseError object and monkey
