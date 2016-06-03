@@ -1316,6 +1316,7 @@ class Call(Node):
         self._module_name = call.module_name
         self._arguments = arguments
         self._name = name
+        self._iterates_over = call.ktype.iterates_over
 
         # visual properties
         self._width = 250
@@ -1346,16 +1347,17 @@ class Call(Node):
     def name(self):
         return self._name
 
+    @property
+    def iterates_over(self):
+        return self._iterates_over
+
     def __str__(self):
         raise NotImplementedError("Call.__str__ should be implemented")
-
-    def iterates_over(self):
-        raise NotImplementedError("Call.iterates_over should be implemented")
 
     def local_vars(self):
         raise NotImplementedError("Call.local_vars should be implemented")
 
-    def gen_code(self):
+    def gen_code(self, parent):
         raise NotImplementedError("Call.gen_code should be implemented")
 
 
@@ -1363,7 +1365,6 @@ class Kern(Call):
     def __init__(self, KernelArguments, call, parent=None, check=True):
         Call.__init__(self, parent, call, call.ktype.procedure.name,
                       KernelArguments(call, self))
-        self._iterates_over = call.ktype.iterates_over
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
         self._module_inline = False
@@ -1379,10 +1380,6 @@ class Kern(Call):
 
     def __str__(self):
         return "kern call: "+self._name
-
-    @property
-    def iterates_over(self):
-        return self._iterates_over
 
     @property
     def module_inline(self):
@@ -1454,9 +1451,6 @@ class BuiltIn(Call):
         self._arg_descriptors = None
         self._func_descriptors = None
         self._fs_descriptors = None
-
-    def gen_code(self):
-        raise NotImplementedError("BuiltIn.gen_code must be overriden")
 
 
 class Arguments(object):

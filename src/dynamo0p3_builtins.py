@@ -115,9 +115,15 @@ class DynBuiltIn(BuiltIn):
         spaces. '''
         return self._fs_descriptors
 
-    def gen_code(self):
+    def gen_code(self, parent):
         raise NotImplementedError("DynBuiltIn.gen_code must be overriden")
 
+    def local_vars(self):
+        ''' Returns the names used by the built-in that vary from one
+        invocation to the next and therefore require privatisation
+        when parallelised. Currently always returns an empty list. '''
+        lvars = []
+        return lvars
 
 class DynScaleFieldKern(DynBuiltIn):
     ''' Multiply a field by a scalar and return it '''
