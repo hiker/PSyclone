@@ -31,6 +31,22 @@ VALID_ARG_TYPE_NAMES = []
 VALID_ACCESS_DESCRIPTOR_NAMES = []
 
 
+def get_api(api):
+    ''' If no API is specified then return the default. Otherwise, check that
+    the supplied API is valid. '''
+    if api == "":
+        from config import DEFAULTAPI
+        api = DEFAULTAPI
+    else:
+        from config import SUPPORTEDAPIS as supported_types
+        if api not in supported_types:
+            raise GenerationError("get_api: Unsupported API '{0}' "
+                                  "specified. Supported types are "
+                                  "{1}.".format(api,
+                                                supported_types))
+    return api
+
+
 class GenerationError(Exception):
     ''' Provides a PSyclone specific error class for errors found during PSy
         code generation. '''
@@ -53,24 +69,7 @@ class FieldNotFoundError(Exception):
         return repr(self.value)
 
 
-class Factory(object):
-    ''' Generic Factory base class. '''
-
-    def __init__(self, api=""):
-        if api == "":
-            from config import DEFAULTAPI
-            self._type = DEFAULTAPI
-        else:
-            from config import SUPPORTEDAPIS as supported_types
-            self._type = api
-            if self._type not in supported_types:
-                raise GenerationError("Factory: Unsupported API '{0}' "
-                                      "specified. Supported types are "
-                                      "{1}.".format(self._type,
-                                                    supported_types))
-
-
-class PSyFactory(Factory):
+class PSyFactory(object):
     '''Creates a specific version of the PSy. If a particular api is not
         provided then the default api, as specified in the config.py
         file, is chosen. Note, for pytest to work we need to set
@@ -86,8 +85,7 @@ class PSyFactory(Factory):
                 "The distributed_memory flag in PSyFactory must be set to"
                 " 'True' or 'False'")
         config.DISTRIBUTED_MEMORY = distributed_memory
-
-        Factory.__init__(self, api=api)
+        self._type = get_api(api)
 
     def create(self, invoke_info):
         ''' Return the specified version of PSy. '''
@@ -1097,7 +1095,7 @@ class Loop(Node):
                  valid_loop_types=[]):
 
         children = []
-        # we need to determine whether this is an infrastructure or kernel
+        # we need to determine whether this is a built-in or kernel
         # call so our schedule can do the right thing.
 
         self._valid_loop_types = valid_loop_types
