@@ -39,7 +39,7 @@ def test_get_builtin_defs_wrong_api():
     import parse
     with pytest.raises(ParseError) as excinfo:
         _, _ = parse.get_builtin_defs('invalid_api')
-    assert ("get_builtin_defs: Unsupported API" in str(excinfo.value))
+    assert ("check_api: Unsupported API 'invalid_api'" in str(excinfo.value))
 
 
 def test_kerneltypefactory_wrong_api():
@@ -48,7 +48,7 @@ def test_kerneltypefactory_wrong_api():
     from parse import KernelTypeFactory
     with pytest.raises(ParseError) as excinfo:
         _ = KernelTypeFactory(api="invalid_api")
-    assert ("KernelTypeFactory: Unsupported API" in str(excinfo.value))
+    assert ("check_api: Unsupported API 'invalid_api'" in str(excinfo.value))
 
 
 def test_kerneltypefactory_default_api():

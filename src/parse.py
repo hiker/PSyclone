@@ -17,15 +17,22 @@ from line_length import FortLineLength
 import config
 
 
-def get_builtin_defs(api):
-    '''Get the names of the supported built-in operations
-    and the file containing the associated meta-data for the supplied API '''
+def check_api(api):
+    ''' Check that the supplied API is valid '''
     from config import SUPPORTEDAPIS
     if api not in SUPPORTEDAPIS:
         raise ParseError(
-            "get_builtin_defs: Unsupported API '{0}' specified. "
+            "check_api: Unsupported API '{0}' specified. "
             "Supported types are {1}.".format(api,
                                               SUPPORTEDAPIS))
+
+def get_builtin_defs(api):
+    '''Get the names of the supported built-in operations
+    and the file containing the associated meta-data for the supplied API '''
+
+    # Check that the supplied API is valid
+    check_api(api)
+
     if api == "dynamo0.3":
         # TODO consider replacing this with module-scope variables
         # whose values are set in the API-specific modules.
@@ -342,12 +349,8 @@ class KernelTypeFactory(object):
             from config import DEFAULTAPI
             self._type = DEFAULTAPI
         else:
-            from config import SUPPORTEDAPIS as supportedTypes
+            check_api(api)
             self._type = api
-            if self._type not in supportedTypes:
-                raise ParseError("KernelTypeFactory: Unsupported API '{0}' "
-                                 "specified. Supported types are {1}.".
-                                 format(self._type, supportedTypes))
 
     def create(self, ast, name=None):
 
@@ -766,11 +769,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
         from config import DEFAULTAPI
         api = DEFAULTAPI
     else:
-        from config import SUPPORTEDAPIS
-        if api not in SUPPORTEDAPIS:
-            raise ParseError(
-                "parse: Unsupported API '{0}' specified. Supported types "
-                "are {1}.".format(api, SUPPORTEDAPIS))
+        check_api(api)
 
     # Get the names of the supported Built-in operations for this API
     builtin_names, builtin_defs_file = get_builtin_defs(api)
