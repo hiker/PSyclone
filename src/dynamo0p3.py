@@ -1257,7 +1257,7 @@ class DynLoop(Loop):
 
         from dynamo0p3_builtins import DynBuiltIn
         if isinstance(kern, DynBuiltIn):
-            # If the kernel is an infrastructure/pointwise kernel
+            # If the kernel is a built-in/pointwise operation
             # then this loop must be over DoFs
             self.set_upper_bound("dofs")
         else:
