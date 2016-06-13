@@ -134,7 +134,8 @@ class GOSchedule(Schedule):
     API-specific factories to the base Schedule class constructor. '''
 
     def __init__(self, alg_calls):
-        Schedule.__init__(self, GOKernCallFactory, GOInfCallFactory, alg_calls)
+        Schedule.__init__(self, GOKernCallFactory, GOBuiltInCallFactory,
+                          alg_calls)
 
 
 class GOLoop(Loop):
@@ -184,8 +185,8 @@ class GOLoop(Loop):
         Loop.gen_code(self, parent)
 
 
-class GOInfCallFactory(object):
-    ''' A GOcean specific infrastructure call factory. No infrastructure
+class GOBuiltInCallFactory(object):
+    ''' A GOcean-specific built-in call factory. No built-in
         calls are supported in GOcean 0.1 so we do nothing. '''
     @staticmethod
     def create(call, parent=None):

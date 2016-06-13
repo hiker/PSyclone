@@ -30,7 +30,7 @@ class DynBuiltInCallFactory(object):
     @staticmethod
     def create(call, parent=None):
         ''' Create the objects needed for a call to the built-in
-        described in the call (InfCall) object '''
+        described in the call (BuiltInCall) object '''
 
         if call.func_name not in BUILTIN_MAP:
             raise ParseError(
