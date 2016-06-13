@@ -865,7 +865,7 @@ class DynInvoke(Invoke):
             invoke_sub.add(CommentGen(invoke_sub, ""))
             for arg in zero_args:
                 invoke_sub.add(AssignGen(invoke_sub,
-                                         lhs=arg, rhs="0.0"))
+                                         lhs=arg, rhs="0.0_r_def"))
 
         # declare and initialise proxies for each of the (non-scalar)
         # arguments
