@@ -443,8 +443,8 @@ Built-ins
 The basic concept of a PSyclone Built-in is described in the
 :ref:`built-ins` section.  In the Dynamo 0.3 API, calls to
 built-ins generally follow a convention that the field/scalar written
-to comes last in the argument list. Although field arguments to
-built-ins may be on any space, the arguments to any given
+to comes last in the argument list. Although field arguments to all currently
+supported built-ins may be on any space, the arguments to any given
 call must all be on the same space.
 
 The built-ins supported for the Dynamo 0.3 API are
@@ -452,7 +452,7 @@ listed in alphabetical order below. For clarity, the calculation
 performed by each built-in is described using Fortran array syntax; this
 does not necessarily reflect the actual implementation of the
 built-in (*e.g.* it could be implemented by PSyclone
-generating a call to an optimised math library).
+generating a call to an optimised maths library).
 
 axpby
 +++++

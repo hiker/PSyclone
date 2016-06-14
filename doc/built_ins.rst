@@ -16,7 +16,7 @@ specification of what is required without an implementation. Therefore
 the PSy layer is free to implement these operations in whatever way it
 chooses.
 
-.. note:: In general, PSyclone will need to know the types of the arguments being passed to any built-ins. The parser obtains this information from an API-specifc file that contains the meta-data for all built-in operations supported for that API.
+.. note:: In general, PSyclone will need to know the types of the arguments being passed to any built-ins. The parser obtains this information from an API-specific file that contains the meta-data for all built-in operations supported for that API.
 
 Example
 -------
@@ -208,8 +208,8 @@ Supported built-in operations
 The list of supported built-ins is API-specific and
 therefore is described under the documentation of each API.
 
-Adding support for additional built-in operations to a specific API
--------------------------------------------------------------------
+Adding new additional built-in operations
+-----------------------------------------
 
  1. Identify the PSyclone source file for the API to be extended. *e.g.* for
     Dynamo 0.3 it is ``src/dynamo0p3_builtins.py``.
