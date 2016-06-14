@@ -238,7 +238,7 @@ def test_omp_do_not_over_cells():
         with pytest.raises(TransformationError) as excinfo:
             _, _ = otrans.apply(schedule.children[index])
         assert "Error in Dynamo0p3OMPLoopTrans trans" in str(excinfo.value)
-        assert "The iteration space (points) is not 'cells'" in \
+        assert "The iteration space (dofs) is not 'cells'" in \
             str(excinfo.value)
 
 

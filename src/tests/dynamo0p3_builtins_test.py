@@ -1,7 +1,8 @@
 # Author A. R. Porter, STFC Daresbury Lab
 
-''' This module tests the support for infrastructure/pointwise kernels
-in the Dynamo 0.3 API using pytest. '''
+''' This module tests the support for built-in operations in the Dynamo 0.3 API
+    using pytest. Currently all built-in operations are 'pointwise' in that
+    they iterate over DOFs. However this may change in the future. '''
 
 # imports
 import os
@@ -52,8 +53,9 @@ def test_dynbuiltin_not_over_dofs():
             "Built-in: Set field " in str(excinfo.value))
 
 
-def test_dynbuiltin_str():
-    ''' Check that the str method of DynInfCallFactory works as expected '''
+def test_dynbuiltincallfactory_str():
+    ''' Check that the str method of DynBuiltInCallFactory works as
+    expected '''
     from dynamo0p3_builtins import DynBuiltInCallFactory
     dyninf = DynBuiltInCallFactory()
     assert str(dyninf) == "Factory for a call to a Dynamo built-in"
@@ -93,7 +95,7 @@ def test_invalid_builtin_kernel():
     built-in is specified in the algorithm layer '''
     with pytest.raises(ParseError) as excinfo:
         _, _ = parse(os.path.join(BASE_PATH,
-                                  "15.0.0_invalid_pw_kernel.f90"),
+                                  "15.0.0_invalid_builtin_kernel.f90"),
                      api="dynamo0.3")
     assert ("kernel call 'set_field_scala' must either be named in a "
             "use statement or be a recognised built-in" in
@@ -198,9 +200,10 @@ def test_builtin_set():
 def test_builtin_set_by_ref():
     ''' Tests that we generate correct code for a builtin
     set operation with a scalar passed by reference '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.0.1_single_pw_set_by_ref.f90"),
-                           api="dynamo0.3")
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.0.1_single_builtin_set_by_ref.f90"),
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
     print code
@@ -294,7 +297,7 @@ def test_builtin_set_plus_normal():
     set operation when the invoke also contains a normal kernel '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.1_pw_and_normal_kernel_invoke.f90"),
+                     "15.1_builtin_and_normal_kernel_invoke.f90"),
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     code = str(psy.gen)
