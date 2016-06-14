@@ -80,7 +80,6 @@ class LoopFuseTrans(Transformation):
                                       "Loops do not have the same "
                                       "iteration space")
 
-
     def apply(self, node1, node2):
         ''' Fuse the loops represented by :py:obj:`node1` and
         :py:obj:`node2` '''

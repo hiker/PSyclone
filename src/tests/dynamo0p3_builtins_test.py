@@ -621,7 +621,6 @@ def test_copy_scaled_field():
 def test_axpy_field_str():
     ''' Test that the str method of DynAXPYKern returns the
     expected string '''
-    distmem = False
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.3_axpy_invoke.f90"),
                            api="dynamo0.3")

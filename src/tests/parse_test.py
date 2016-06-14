@@ -13,6 +13,7 @@ from parse import parse, ParseError
 import os
 import pytest
 
+
 def test_continuators_kernel():
     '''Tests that an input kernel file with long lines that already has
        continuators to make the code conform to the line length limit
@@ -100,7 +101,7 @@ def test_unrecognised_builtin():
         _ = factory.create(dynamo0p3_builtins.BUILTIN_MAP,
                            None,
                            name="not_a_builtin")
-    assert ("unrecognised built-in name. Got 'not_a_builtin' but" 
+    assert ("unrecognised built-in name. Got 'not_a_builtin' but"
             in str(excinfo.value))
 
 
@@ -116,4 +117,3 @@ def test_builtin_with_use():
     assert ("A built-in cannot be named in a use statement but "
             "'set_field_scalar' is used from module 'fake_builtin_mod' in "
             in str(excinfo.value))
-

@@ -1147,7 +1147,7 @@ def test_scalar_sum_and_OpenMP_unsupported():
 
 
 def test_builtin_and_OpenMP_unsupported():
-    ''' Test that we raise an error if we attempt to use OpenMP on 
+    ''' Test that we raise an error if we attempt to use OpenMP on
     code containing a call to a built-in. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "15_single_pointwise_invoke.f90"),
