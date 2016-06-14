@@ -71,6 +71,7 @@ psyGen.VALID_ACCESS_DESCRIPTOR_NAMES = VALID_ACCESS_DESCRIPTOR_NAMES
 
 # Functions
 
+
 def field_on_space(func_space, arguments):
     ''' Returns True if the supplied list of arguments contains a field
     that exists on the specified space. '''
@@ -2307,8 +2308,7 @@ class DynKernelArgument(KernelArgument):
     arguments as specified by the kernel argument metadata. '''
 
     def __init__(self, arg_meta_data, arg_info, call):
-        self._arg = arg_meta_data
-        Argument.__init__(self, call, arg_info, arg_meta_data.access)
+        KernelArgument.__init__(self, arg_meta_data, arg_info, call)
         self._vector_size = arg_meta_data.vector_size
         self._type = arg_meta_data.type
 
