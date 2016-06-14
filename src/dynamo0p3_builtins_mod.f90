@@ -128,8 +128,9 @@ module dynamo0p3_builtins_mod
           arg_type(GH_FIELD, GH_INC,  ANY_SPACE_1),                    &
           arg_type(GH_FIELD, GH_READ, ANY_SPACE_1)                     &
           /)
-     contains
-       procedure, nopass :: inc_field_code
+     integer :: iterates_over = DOFS
+   contains
+     procedure, nopass :: inc_field_code
   end type inc_field
 
   !> sum = sum + field1(i,j,..) * field2(i,j,...)
