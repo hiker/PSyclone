@@ -26,6 +26,7 @@ def check_api(api):
             "Supported types are {1}.".format(api,
                                               SUPPORTEDAPIS))
 
+
 def get_builtin_defs(api):
     '''Get the names of the supported built-in operations
     and the file containing the associated meta-data for the supplied API '''
@@ -380,7 +381,7 @@ class BuiltInKernelTypeFactory(KernelTypeFactory):
             raise ParseError(
                 "BuiltInKernelTypeFactory: unrecognised built-in name. "
                 "Got '{0}' but expected one of {1}".format(name,
-                                                         builtin_names))
+                                                           builtin_names))
         # The meta-data for these lives in a Fortran module file
         # passed in to this method.
         fname = os.path.join(
@@ -475,7 +476,7 @@ class KernelType(object):
                 "{0}, please use (/.../) instead".format(var_name))
         try:
             inits = expr.expression.parseString(descs.init)[0]
-        except expr.ParseException as e:
+        except expr.ParseException:
             raise ParseError("kernel metadata has an invalid format {0}".
                              format(descs.init))
         nargs = int(descs.shape[0])
@@ -847,7 +848,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
             for arg in statement.items:
                 try:
                     parsed = expr.expression.parseString(arg)[0]
-                except ParseException:
+                except expr.ParseException:
                     raise ParseError("Failed to parse string: {0}".format(arg))
 
                 argname = parsed.name
@@ -872,8 +873,8 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                                                variableName))
                 if argname in builtin_names:
                     if argname in name_to_module:
-                        raise ParseError("A built-in cannot be named in a "
-                                         "use statement but '{0}' is used from "
+                        raise ParseError("A built-in cannot be named in a use "
+                                         "statement but '{0}' is used from "
                                          "module '{1}' in file {2}".
                                          format(argname,
                                                 name_to_module[argname],
