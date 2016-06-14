@@ -606,7 +606,6 @@ class ParsedCall(object):
     def __init__(self, ktype, args):
         self._ktype = ktype
         self._args = args
-        self._module_name = None
         if len(self._args) < self._ktype.nargs:
             # we cannot test for equality here as API's may have extra
             # arguments passed in from the algorithm layer (e.g. 'QR'

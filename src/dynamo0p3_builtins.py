@@ -90,10 +90,8 @@ class DynBuiltIn(BuiltIn):
     def load(self, call, parent=None):
         ''' Populate the state of this object using the supplied call
         object. '''
-        from psyGen import Call
         from dynamo0p3 import FSDescriptors
-        Call.__init__(self, parent, call, call.ktype.procedure.name,
-                      DynKernelArguments(call, self))
+        BuiltIn.load(self, call, DynKernelArguments(call, self), parent)
         self.arg_descriptors = call.ktype.arg_descriptors
         self._func_descriptors = call.ktype.func_descriptors
         self._fs_descriptors = FSDescriptors(call.ktype.func_descriptors)

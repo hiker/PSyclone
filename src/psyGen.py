@@ -1448,6 +1448,13 @@ class BuiltIn(Call):
         self._func_descriptors = None
         self._fs_descriptors = None
 
+    def load(self, call, arguments, parent=None):
+        ''' Set-up the state of this BuiltIn call '''
+        Node.__init__(self, children=[], parent=parent)
+        self._arguments = arguments
+        self._name = call.ktype.procedure.name
+        self._iterates_over = call.ktype.iterates_over
+
 
 class Arguments(object):
     ''' arguments abstract base class '''
