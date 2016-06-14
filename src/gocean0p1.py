@@ -12,7 +12,7 @@
     Arguments and KernelArgument). '''
 
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
-                   KernelArgument, Node
+                   KernelArgument
 
 
 class GOPSy(PSy):
@@ -189,7 +189,7 @@ class GOBuiltInCallFactory(object):
     ''' A GOcean-specific factory for calls to built-ins. No built-in
         calls are supported in GOcean 0.1 so we do nothing. '''
     @staticmethod
-    def create(call, parent=None):
+    def create():
         ''' Creates a specific built-in call. Currently just an
             empty stub. '''
         return None
@@ -200,9 +200,9 @@ class GOKernCallFactory(object):
     @staticmethod
     def create(call, parent=None):
         ''' Creates a kernel call and associated Loop structure '''
-        outer_loop = GOLoop(parent=parent, 
+        outer_loop = GOLoop(parent=parent,
                             loop_type="outer")
-        inner_loop = GOLoop(parent=outer_loop, 
+        inner_loop = GOLoop(parent=outer_loop,
                             loop_type="inner")
         outer_loop.addchild(inner_loop)
         gocall = GOKern()
@@ -215,10 +215,10 @@ class GOKernCallFactory(object):
         inner_loop.iteration_space = gocall.iterates_over
         outer_loop.iteration_space = inner_loop.iteration_space
         inner_loop.field_space = gocall.arguments.\
-                                 iteration_space_arg().function_space
+            iteration_space_arg().function_space
         outer_loop.field_space = inner_loop.field_space
         inner_loop.field_name = gocall.arguments.\
-                                        iteration_space_arg().name
+            iteration_space_arg().name
         outer_loop.field_name = inner_loop.field_name
         return outer_loop
 

@@ -1141,5 +1141,5 @@ def test14_no_builtins():
     built-in '''
     from gocean1p0 import GOBuiltInCallFactory
     with pytest.raises(GenerationError) as excinfo:
-        GOBuiltInCallFactory.create(None)
+        GOBuiltInCallFactory.create()
     assert ("Built-ins are not supported for the GOcean" in str(excinfo.value))

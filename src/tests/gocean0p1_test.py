@@ -48,5 +48,5 @@ def test_gobuiltin_call_factory():
     ''' Test that the GOBuiltInCallFactory does nothing in version 0.1
     of the GOcean API '''
     from gocean0p1 import GOBuiltInCallFactory
-    builtin = GOBuiltInCallFactory.create(None)
+    builtin = GOBuiltInCallFactory.create()
     assert builtin is None

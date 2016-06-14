@@ -19,7 +19,7 @@
 
 from parse import Descriptor, KernelType, ParseError
 from psyGen import PSy, Invokes, Invoke, Schedule, \
-    Loop, Kern, Arguments, KernelArgument, GenerationError, Node
+    Loop, Kern, Arguments, KernelArgument, GenerationError
 
 # The different grid-point types that a field can live on
 VALID_FIELD_GRID_TYPES = ["cu", "cv", "ct", "cf", "every"]
@@ -256,7 +256,8 @@ class GOSchedule(Schedule):
     user-supplied kernels and built-ins. '''
 
     def __init__(self, alg_calls):
-        Schedule.__init__(self, GOKernCallFactory, GOBuiltInCallFactory, alg_calls)
+        Schedule.__init__(self, GOKernCallFactory, GOBuiltInCallFactory,
+                          alg_calls)
 
         # Configuration of this Schedule - we default to having
         # constant loop bounds. If we end up having a long list
@@ -573,7 +574,7 @@ class GOBuiltInCallFactory(object):
         are supported in GOcean at the moment. '''
 
     @staticmethod
-    def create(call, parent=None):
+    def create():
         ''' Placeholder to create a GOocean-specific built-in call.
         This will require us to create a doubly-nested loop and then create
         the body of the particular built-in operation. '''
@@ -587,6 +588,8 @@ class GOKernCallFactory(object):
     the user-supplied kernel routine. '''
     @staticmethod
     def create(call, parent=None):
+        ''' Create a new instance of a call to a GO kernel. Includes the
+        looping structure as well as the call to the kernel itself. '''
         outer_loop = GOLoop(parent=parent,
                             loop_type="outer")
         inner_loop = GOLoop(parent=outer_loop,
@@ -601,11 +604,11 @@ class GOKernCallFactory(object):
         # loop.
         inner_loop.iteration_space = gocall.iterates_over
         outer_loop.iteration_space = inner_loop.iteration_space
-        inner_loop.field_space = gocall.arguments.iteration_space_arg().\
-                                         function_space
+        inner_loop.field_space = gocall.\
+            arguments.iteration_space_arg().function_space
         outer_loop.field_space = inner_loop.field_space
-        inner_loop.field_name = gocall.arguments.iteration_space_arg().\
-                                name
+        inner_loop.field_name = gocall.\
+            arguments.iteration_space_arg().name
         outer_loop.field_name = inner_loop.field_name
         return outer_loop
 
