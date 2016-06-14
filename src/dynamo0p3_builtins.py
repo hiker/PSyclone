@@ -47,19 +47,26 @@ class DynBuiltInCallFactory(object):
 
         # Use our dictionary to get the correct Python object for
         # this built-in.
-        pwkern = BUILTIN_MAP[call.func_name]()
+        builtin = BUILTIN_MAP[call.func_name]()
 
         # Use the call object (created by the parser) to set-up the state
         # of the infrastructure kernel
-        pwkern.load(call)
+        builtin.load(call)
+
+        # Check that our assumption that we're looping over DOFS is valid
+        if builtin.iterates_over != "dofs":
+            raise NotImplementedError(
+                "In the Dynamo 0.3 API built-in calls must iterate over "
+                "DoFs but found {0} for {1}".format(builtin.iterates_over,
+                                                    str(builtin)))
 
         # Create the loop over DoFs
         dofloop = DynLoop(parent=parent,
                           loop_type="dofs")
         # Set-up its state
-        dofloop.load(pwkern)
+        dofloop.load(builtin)
         # As it is the innermost loop it has the kernel as a child
-        dofloop.addchild(pwkern)
+        dofloop.addchild(builtin)
 
         # Return the outermost loop
         return dofloop
