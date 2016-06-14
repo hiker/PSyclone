@@ -186,11 +186,11 @@ class GOLoop(Loop):
 
 
 class GOBuiltInCallFactory(object):
-    ''' A GOcean-specific built-in call factory. No built-in
+    ''' A GOcean-specific factory for calls to built-ins. No built-in
         calls are supported in GOcean 0.1 so we do nothing. '''
     @staticmethod
     def create(call, parent=None):
-        ''' Creates a specific infrastructure call. Currently just an
+        ''' Creates a specific built-in call. Currently just an
             empty stub. '''
         return None
 
