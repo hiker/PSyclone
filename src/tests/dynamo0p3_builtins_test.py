@@ -38,7 +38,7 @@ def test_dynbuiltin_not_over_dofs():
     import dynamo0p3_builtins
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = os.path.join(BASE_PATH,
-                                  "broken_builtins_mod.f90")
+                                  "not_dofs_builtins_mod.f90")
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15_single_pointwise_invoke.f90"),
                            api="dynamo0.3")
