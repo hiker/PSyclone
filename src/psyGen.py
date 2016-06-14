@@ -1442,8 +1442,8 @@ class BuiltIn(Call):
     does not have to provide a kernel). '''
     def __init__(self):
         # We cannot call Call.__init__ as don't have necessary information
-        # here. This is typically performed by a load method in any
-        # classes that inherit from this one.
+        # here. Instead we provide a load() method that can be called once
+        # that information is available.
         self._arg_descriptors = None
         self._func_descriptors = None
         self._fs_descriptors = None
