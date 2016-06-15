@@ -44,33 +44,6 @@ def walk(children, my_type, indent=0, debug=False):
     return local_list
 
 
-def walk_items(children, my_type):
-    ''' Walk down tree produced by f2003 parser where child nodes are listed
-    under items '''
-    from fparser.Fortran2003 import Section_Subscript_List, Name
-    ignore_types = [Section_Subscript_List]
-    local_list = []
-    # children is a tuple
-    for idx, child in enumerate(children):
-        # Drop anything that is a child of any of our
-        # ignored types
-        if type(child) in ignore_types:
-            continue
-        if isinstance(child, Name):
-            suffix = ""
-            if idx < len(children)-1 and isinstance(children[idx+1],
-                                                    Section_Subscript_List):
-                # This is an array reference
-                suffix = "_" + str_to_node_name(str(children[idx+1]))
-            local_list.append(str(child)+suffix)
-        try:
-            local_list += walk_items(child.items, my_type)
-        except AttributeError:
-            # Catch case where child does not have items member
-            pass
-    return local_list
-
-
 def dag_of_code_block(parent_node, name):
     ''' Creates and returns a DAG for the code that is a child of the
     supplied node '''
@@ -99,11 +72,12 @@ def dag_of_code_block(parent_node, name):
     if not assignments:
         # If this subroutine has no assignment statements
         # then we skip it
-        print "Code {0} contains no assignment statements - skipping".format(name)
+        print "Code {0} contains no assignment statements - skipping".\
+            format(name)
         return None
 
     for assign in assignments:
-        assigned_to = walk_items([assign.items[0]], Name)
+        assigned_to = walk([assign.items[0]], Name)
         var_name = str(assigned_to[0])
         # If this variable has been assigned to previously
         # then this is effectively a new variable for the
