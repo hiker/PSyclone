@@ -42,18 +42,6 @@ def is_intrinsic_fn(obj):
     return False
 
 
-def str_to_node_name(astring):
-    ''' Hacky method that takes a string containing a Fortran array reference
-    and returns a string suitable for naming a node in the graph '''
-    new_string = astring.replace(" ", "")
-    new_string = new_string.replace(",", "_")
-    new_string = new_string.replace("+", "p")
-    new_string = new_string.replace("-", "m")
-    new_string = new_string.replace("(", "_")
-    new_string = new_string.replace(")", "")
-    return new_string
-
-
 # TODO: would it be better to inherit from the built-in list object?
 class Path(object):
     ''' Class to encapsulate functionality related to a specifc path
@@ -301,6 +289,7 @@ class DirectedAcyclicGraph(object):
                     # Add its dependencies
                     self.make_dag(tmpnode, child.items[1:], mapping)
                 else:
+                    from parse2003 import str_to_node_name
                     name = str_to_node_name(str(child))
                     tmpnode = self.get_node(name, parent, mapping,
                                             node_type="array_ref")

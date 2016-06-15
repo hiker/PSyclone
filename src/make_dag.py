@@ -3,45 +3,14 @@
 ''' A python script to parse a Fortran source file and produce a DAG
     for each subroutine it contains. '''
 
-from dag import DirectedAcyclicGraph, str_to_node_name
+from dag import DirectedAcyclicGraph
+from parse2003 import walk
 
 try:
     from iocbio.optparse_gui import OptionParser
 except ImportError:
     from optparse import OptionParser
 from fparser.script_options import set_f2003_options
-
-
-def walk(children, my_type, indent=0, debug=False):
-    '''' Walk down the tree produced by the f2003 parser where children
-    are listed under 'content'.  Returns a list of all nodes with the
-    specified type. '''
-    from fparser.Fortran2003 import Section_Subscript_List, Name
-    ignore_types = [Section_Subscript_List]
-    local_list = []
-    for idx, child in enumerate(children):
-        if debug:
-            print indent*"  " + "child type = ", type(child)
-        if isinstance(child, my_type):
-            if isinstance(child, Name):
-                suffix = ""
-                if idx < len(children)-1 and isinstance(children[idx+1],
-                                                        Section_Subscript_List):
-                    # This is an array reference
-                    suffix = "_" + str_to_node_name(str(children[idx+1]))
-                local_list.append(str(child)+suffix)
-            else:
-                local_list.append(child)
-            
-        try:
-            local_list += walk(child.content, my_type, indent+1, debug)
-        except AttributeError:
-            pass
-        try:
-            local_list += walk(child.items, my_type, indent+1, debug)
-        except AttributeError:
-            pass
-    return local_list
 
 
 def dag_of_code_block(parent_node, name):
@@ -114,7 +83,8 @@ def runner(parser, options, args):
     from fparser.api import Fortran2003
     from fparser.readfortran import FortranFileReader
     from fparser.Fortran2003 import Subroutine_Subprogram, Assignment_Stmt, \
-    Subroutine_Stmt, Name, Block_Nonlabel_Do_Construct, Execution_Part
+        Subroutine_Stmt, Name, Block_Nonlabel_Do_Construct, Execution_Part
+    from parse2003 import Loop
 
     apply_fma_transformation = True
 
@@ -131,18 +101,25 @@ def runner(parser, options, args):
                 substmt = walk(subroutine.content, Subroutine_Stmt)
                 sub_name = str(substmt[0].get_name())
                 
+                # Make a list of all Do loops in the routine
                 loops = walk(subroutine.content, Block_Nonlabel_Do_Construct)
-                print "Found {0} loops in subroutine {1}".format(len(loops),
-                                                                 sub_name)
                 digraphs = []
                 
                 if not loops:
+                    # There are no Do loops in this subroutine so just
+                    # generate a DAG for the body of the routine
                     exe_part = walk(subroutine.content, Execution_Part)
                     digraph = dag_of_code_block(exe_part[0], sub_name)
                     if digraph:
                         digraphs.append(digraph)
                 else:
+                    # Create a DAG for each loop body
+                    print "Found {0} loops in subroutine {1}".format(len(loops),
+                                                                     sub_name)
                     for idx, loop in enumerate(loops):
+                        myloop = Loop()
+                        myloop.load(loop)
+                        print "Loop variable = {0}".format(myloop.var_name)
                         digraph = dag_of_code_block(loop,
                                                     sub_name+"_loop"+str(idx))
                         if digraph:
