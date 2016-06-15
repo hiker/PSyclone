@@ -233,7 +233,7 @@ class GOInvoke(Invoke):
             # Look-up the loop bounds using the first field object in the
             # list
             sim_domain = self.unique_args_arrays[0] +\
-                         "%grid%simulation_domain%"
+                "%grid%simulation_domain%"
             position = invoke_sub.last_declaration()
 
             invoke_sub.add(CommentGen(invoke_sub, ""),

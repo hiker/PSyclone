@@ -5,7 +5,6 @@
 
 ''' This module tests the GOcean 0.1 API using pytest. '''
 
-import pytest
 from parse import parse
 from psyGen import PSyFactory
 import os

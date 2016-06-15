@@ -473,7 +473,7 @@ def test_OMPDoDirective_class_view(capsys):
         for dist_mem in [False, True]:
 
             psy = PSyFactory("dynamo0.3", distributed_memory=dist_mem).\
-                  create(invoke_info)
+                create(invoke_info)
             invoke = psy.invokes.invoke_list[0]
             schedule = invoke.schedule
             otrans = OMPParallelLoopTrans()

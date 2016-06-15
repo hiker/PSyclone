@@ -38,14 +38,14 @@ def test_dynbuiltin_not_over_dofs():
     built-in that does not iterate over dofs '''
     import dynamo0p3_builtins
     old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = os.path.join(BASE_PATH,
-                                  "not_dofs_builtins_mod.f90")
+    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
+        os.path.join(BASE_PATH, "not_dofs_builtins_mod.f90")
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15_single_pointwise_invoke.f90"),
                            api="dynamo0.3")
     with pytest.raises(NotImplementedError) as excinfo:
         _ = PSyFactory("dynamo0.3",
-                         distributed_memory=False).create(invoke_info)
+                       distributed_memory=False).create(invoke_info)
     # Restore the original file name before doing the assert in case
     # it fails
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name

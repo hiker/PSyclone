@@ -12,7 +12,7 @@
     Arguments and KernelArgument). '''
 
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
-                   KernelArgument
+    KernelArgument
 
 
 class GOPSy(PSy):
