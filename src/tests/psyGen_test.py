@@ -18,8 +18,9 @@
 import os
 import pytest
 from psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
-    NameSpaceFactory, GenerationError, OMPParallelDoDirective, \
+    NameSpaceFactory, OMPParallelDoDirective, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive
+from psyGen import GenerationError, FieldNotFoundError
 from dynamo0p3 import DynKern, DynKernMetadata
 from fparser import api as fpapi
 from parse import parse
@@ -433,6 +434,25 @@ def test_kern_local_vars():
     with pytest.raises(NotImplementedError) as excinfo:
         Kern.local_vars(my_kern)
     assert "Kern.local_vars should be implemented" in str(excinfo.value)
+
+
+def test_written_arg():
+    ''' Check that we raise the expected exception when Kern.written_arg()
+    is called for a kernel that doesn't have an argument that is written
+    to '''
+    from psyGen import Kern
+    # Change the kernel metadata so that the only kernel argument has
+    # read access
+    kernel_metadata = FAKE_KERNEL_METADATA.replace("gh_write", "gh_read", 1)
+    ast = fpapi.parse(kernel_metadata, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    my_kern = DynKern()
+    my_kern.load_meta(metadata)
+    with pytest.raises(FieldNotFoundError) as excinfo:
+        Kern.written_arg(my_kern,
+                         mapping={"write": "gh_write", "readwrite": "gh_inc"})
+    assert "does not have an argument with gh_write or gh_inc access" in \
+        str(excinfo.value)
 
 
 def test_OMPDoDirective_class_view(capsys):
