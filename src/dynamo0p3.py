@@ -19,7 +19,7 @@ from parse import Descriptor, KernelType, ParseError
 import expression as expr
 import fparser
 from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
-    Arguments, Argument, KernelArgument, NameSpaceFactory, GenerationError, \
+    Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     FieldNotFoundError, HaloExchange, FORTRAN_INTENT_NAMES
 import psyGen
 import config
@@ -1230,9 +1230,9 @@ class DynLoop(Loop):
             self._variable_name = "cell"
         elif self._loop_type == "dofs":
             self._variable_name = self._name_space_manager.\
-                                  create_name(root_name="df",
-                                              context="PSyVars",
-                                              label="dof_loop_idx")
+                create_name(root_name="df",
+                            context="PSyVars",
+                            label="dof_loop_idx")
         else:
             self._variable_name = "cell"
 
