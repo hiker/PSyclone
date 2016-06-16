@@ -110,13 +110,21 @@ class DirectedAcyclicGraph(object):
     def name(self, new_name):
         self._name = new_name
 
-    def get_node(self, name, parent, mapping, unique=False, node_type=None):
+    def get_node(self, parent, mapping, name=None, unique=False, node_type=None,
+                 variable=None):
         ''' Looks-up or creates a node in the graph. If unique is False and
         we do not already have a node with the supplied name then we create a
         new one. If unique is True then we always create a new node. '''
+        from parse2003 import Variable
+
+        if not name and not variable:
+            raise Exception("get_node: one of 'name' or 'variable' must "
+                            "be supplied")
+        if not name:
+            name = str(variable)
+
         if unique:
-            # Node is unique so we make a new one, no questions
-            # asked.
+            # Node is unique so we make a new one, no questions asked.
             if DEBUG:
                 print "Creating a unique node labelled '{0}'".format(name)
             node = DAGNode(parent=parent, name=name, digraph=self)
@@ -235,6 +243,7 @@ class DirectedAcyclicGraph(object):
 
     def make_dag(self, parent, children, mapping):
         ''' Makes a DAG from the RHS of a Fortran assignment statement '''
+        from parse2003 import Variable
 
         if DEBUG:
             for child in children:
@@ -253,8 +262,8 @@ class DirectedAcyclicGraph(object):
                     # This is the operator which is then the parent
                     # of the DAG of this subexpression. All operators
                     # are unique nodes in the DAG.
-                    opnode = self.get_node(child, parent, mapping, unique=True,
-                                           node_type=child)
+                    opnode = self.get_node(parent, mapping, name=child,
+                                           unique=True, node_type=child)
                     parent.add_child(opnode)
                     parent = opnode
                     opcount += 1
@@ -264,12 +273,17 @@ class DirectedAcyclicGraph(object):
 
         for child in children:
             if isinstance(child, Name):
-                var_name = str(child)
-                tmpnode = self.get_node(var_name, parent, mapping)
+                var = Variable()
+                var.load(child)
+                tmpnode = self.get_node(parent, mapping,
+                                        variable=var)
                 parent.add_child(tmpnode)
             elif isinstance(child, Real_Literal_Constant):
                 # This is a constant and thus a leaf in the tree
-                tmpnode = self.get_node(str(child), parent, mapping,
+                const_var = Variable()
+                const_var.load(child)
+                tmpnode = self.get_node(parent, mapping,
+                                        variable=const_var,
                                         unique=True,
                                         node_type="constant")
                 parent.add_child(tmpnode)
@@ -280,8 +294,9 @@ class DirectedAcyclicGraph(object):
                         print "found intrinsic: {0}".\
                             format(str(child.items[0]))
                     # Create a unique node to represent the intrinsic call
-                    tmpnode = self.get_node(str(child.items[0]), parent,
-                                            mapping, unique=True,
+                    tmpnode = self.get_node(parent, mapping,
+                                            name=str(child.items[0]),
+                                            unique=True,
                                             node_type="intrinsic")
                     parent.add_child(tmpnode)
                     # Add its dependencies
@@ -290,8 +305,8 @@ class DirectedAcyclicGraph(object):
                     from parse2003 import Variable
                     arrayvar = Variable()
                     arrayvar.load(child, mapping)
-                    name = str(arrayvar)
-                    tmpnode = self.get_node(name, parent, mapping,
+                    tmpnode = self.get_node(parent, mapping,
+                                            variable=arrayvar,
                                             node_type="array_ref")
                     parent.add_child(tmpnode)
             elif is_subexpression(child):
@@ -420,6 +435,8 @@ class DAGNode(object):
         self._name = name
         # The type of this node
         self._node_type = None
+        # The variable (if any) that this node represents
+        self._variable = None
         # The inclusive weight (cost) of this node. This is the cost of
         # this node plus that of all of its descendants. This then
         # enables us to find the critical path through the graph.
@@ -437,6 +454,11 @@ class DAGNode(object):
     def name(self):
         ''' Returns the name (label) of this node '''
         return self._name
+
+    @name.setter
+    def name(self, new_name):
+        ''' Set (or change) the name/label of this node '''
+        self._name = new_name
 
     def display(self, indent=0):
         ''' Prints a textual representation of this node to stdout '''

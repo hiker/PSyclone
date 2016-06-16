@@ -79,7 +79,7 @@ class Variable(object):
     def load(self, node, mapping=None):
         ''' Populate the state of this Variable object using the supplied
         output of the f2003 parser '''
-        from fparser.Fortran2003 import Name, Part_Ref
+        from fparser.Fortran2003 import Name, Part_Ref, Real_Literal_Constant
         from parse import ParseError
         if isinstance(node, Name):
             name = str(node)
@@ -98,6 +98,19 @@ class Variable(object):
                     self._indices.append(mapping[name])
                 else:
                     self._indices.append(name)
+        elif isinstance(node, Real_Literal_Constant):
+            self._name = str(node)
+            self._is_array_ref = False
         else:
             raise ParseError("Unrecognised type for variable: {0}".
                              format(type(node)))
+
+    @property
+    def name(self):
+        ''' Return the name of this variable as a string '''
+        return self._name
+
+    @name.setter
+    def name(self, new_name):
+        ''' Set or change the name of this variable '''
+        self._name = new_name

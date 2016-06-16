@@ -55,11 +55,12 @@ def dag_of_code_block(parent_node, name):
         # purposes of the graph.
         if var_name in mapping:
             node_name = mapping[var_name] + "'"
+            lhs.name = node_name
         else:
             node_name = var_name
-        dag = digraph.get_node(name=node_name,
-                               parent=None,
-                               mapping=mapping)
+        dag = digraph.get_node(parent=None,
+                               mapping=mapping,
+                               variable=lhs)
         # First two items of an Assignment_Stmt are the name of
         # the var being assigned to and '='.
         digraph.make_dag(dag, assign.items[2:], mapping)
@@ -97,7 +98,8 @@ def runner(parser, options, args):
         try:
             program = Fortran2003.Program(reader)
             # Find all the subroutines contained in the file
-            subroutines = walk(program.content, Subroutine_Subprogram, debug=True)
+            subroutines = walk(program.content, Subroutine_Subprogram,
+                               debug=True)
             # Create a DAG for each subroutine
             for subroutine in subroutines:
                 substmt = walk(subroutine.content, Subroutine_Stmt)
@@ -109,15 +111,17 @@ def runner(parser, options, args):
                 
                 if not loops:
                     # There are no Do loops in this subroutine so just
-                    # generate a DAG for the body of the routine
+                    # generate a DAG for the body of the routine...
+                    # First, find the executable section of the subroutine
                     exe_part = walk(subroutine.content, Execution_Part)
+                    # Next, generate the DAG of that section
                     digraph = dag_of_code_block(exe_part[0], sub_name)
                     if digraph:
                         digraphs.append(digraph)
                 else:
                     # Create a DAG for each loop body
-                    print "Found {0} loops in subroutine {1}".format(len(loops),
-                                                                     sub_name)
+                    print "Found {0} loops in subroutine {1}".\
+                        format(len(loops), sub_name)
                     for idx, loop in enumerate(loops):
                         myloop = Loop()
                         myloop.load(loop)
