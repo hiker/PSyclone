@@ -2,18 +2,6 @@
     the f2003 parser '''
 
 
-def str_to_node_name(astring):
-    ''' Hacky method that takes a string containing a Fortran array reference
-    and returns a string suitable for naming a node in the graph '''
-    new_string = astring.replace(" ", "")
-    new_string = new_string.replace(",", "_")
-    new_string = new_string.replace("+", "p")
-    new_string = new_string.replace("-", "m")
-    new_string = new_string.replace("(", "_")
-    new_string = new_string.replace(")", "")
-    return new_string
-
-
 def walk(children, my_type, indent=0, debug=False):
     '''' Walk down the tree produced by the f2003 parser where children
     are listed under 'content'.  Returns a list of all nodes with the
@@ -24,24 +12,18 @@ def walk(children, my_type, indent=0, debug=False):
         if debug:
             print indent*"  " + "child type = ", type(child)
         if isinstance(child, my_type):
-            if isinstance(child, Name):
-                suffix = ""
-                if idx < len(children)-1 and isinstance(children[idx+1],
-                                                        Section_Subscript_List):
-                    # This is an array reference
-                    suffix = "_" + str_to_node_name(str(children[idx+1]))
-                local_list.append(str(child)+suffix)
-            else:
-                local_list.append(child)
+            local_list.append(child)
             
-        try:
+        # Depending on their level in the tree produced by fparser2003,
+        # some nodes have children listed in .content and some have them
+        # listed under .items...
+        if hasattr(child, "content"):
             local_list += walk(child.content, my_type, indent+1, debug)
-        except AttributeError:
-            pass
-        try:
+        elif hasattr(child, "items"):
             local_list += walk(child.items, my_type, indent+1, debug)
-        except AttributeError:
+        else:
             pass
+
     return local_list
 
 
