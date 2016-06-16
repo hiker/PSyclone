@@ -87,10 +87,12 @@ class Path(object):
 
 
 class DirectedAcyclicGraph(object):
-    ''' Class that encapsulates a Directed Acyclic Graph as a whole '''
+    ''' Class that encapsulates a Directed Acyclic Graph representing a
+    piece of Fortran code '''
 
     def __init__(self, name):
-        # Dictionary of all nodes in the graph.
+        # Dictionary of all nodes in the graph. Keys are the node names,
+        # values are the corresponding DAGNode objects themselves.
         self._nodes = {}
         # Name of this DAG
         self._name = name
@@ -110,12 +112,11 @@ class DirectedAcyclicGraph(object):
     def name(self, new_name):
         self._name = new_name
 
-    def get_node(self, parent, mapping, name=None, unique=False, node_type=None,
-                 variable=None):
+    def get_node(self, parent, mapping, name=None, unique=False,
+                 node_type=None, variable=None):
         ''' Looks-up or creates a node in the graph. If unique is False and
         we do not already have a node with the supplied name then we create a
         new one. If unique is True then we always create a new node. '''
-        from parse2003 import Variable
 
         if not name and not variable:
             raise Exception("get_node: one of 'name' or 'variable' must "
@@ -127,7 +128,8 @@ class DirectedAcyclicGraph(object):
             # Node is unique so we make a new one, no questions asked.
             if DEBUG:
                 print "Creating a unique node labelled '{0}'".format(name)
-            node = DAGNode(parent=parent, name=name, digraph=self)
+            node = DAGNode(parent=parent, name=name, digraph=self,
+                           variable=variable)
             # Store this node in our list using its unique ID in place of a
             # name (since a unique node has been requested). This then
             # ensures we have a list of all nodes in the graph.
@@ -348,6 +350,13 @@ class DirectedAcyclicGraph(object):
     def critical_path(self):
         return self._critical_path
     
+    def rename_nodes(self, old_name, new_name):
+        ''' Go through all nodes of the graph and re-name any variables
+        that match "old_name" '''
+        for node in self._nodes.itervalues():
+            if node.variable:
+                node.variable.rename(old_name, new_name)
+
     def to_dot(self):
         ''' Write the DAG to file in DOT format. If a critical path has
         been computed then it is also written to the file. '''
@@ -425,7 +434,7 @@ class DirectedAcyclicGraph(object):
 class DAGNode(object):
     ''' Base class for a node in a Directed Acyclic Graph '''
 
-    def __init__(self, parent=None, name=None, digraph=None):
+    def __init__(self, parent=None, name=None, digraph=None, variable=None):
         self._parent = parent
         # Keep a reference back to the digraph object containing
         # this node
@@ -436,14 +445,14 @@ class DAGNode(object):
         # The type of this node
         self._node_type = None
         # The variable (if any) that this node represents
-        self._variable = None
+        self._variable = variable
         # The inclusive weight (cost) of this node. This is the cost of
         # this node plus that of all of its descendants. This then
         # enables us to find the critical path through the graph.
         self._incl_weight = 0
 
     def __str__(self):
-        return self._name
+        return self.name
 
     @property
     def node_id(self):
@@ -453,7 +462,10 @@ class DAGNode(object):
     @property
     def name(self):
         ''' Returns the name (label) of this node '''
-        return self._name
+        if self._variable:
+            return self._variable.name
+        else:
+            return self._name
 
     @name.setter
     def name(self, new_name):
@@ -498,6 +510,12 @@ class DAGNode(object):
             raise Exception("node_type must be one of {0} but "
                             "got '{1}'".format(VALID_NODE_TYPES, mytype))
         self._node_type = mytype
+
+    @property
+    def variable(self):
+        ''' Return the Variable object associated with this node or None
+        if there isn't one '''
+        return self._variable
 
     def walk(self, node_type):
         ''' Walk down the tree from this node and generate a list of all

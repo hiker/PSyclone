@@ -6,9 +6,8 @@ def walk(children, my_type, indent=0, debug=False):
     '''' Walk down the tree produced by the f2003 parser where children
     are listed under 'content'.  Returns a list of all nodes with the
     specified type. '''
-    from fparser.Fortran2003 import Section_Subscript_List, Name
     local_list = []
-    for idx, child in enumerate(children):
+    for child in children:
         if debug:
             print indent*"  " + "child type = ", type(child)
         if isinstance(child, my_type):
@@ -114,3 +113,12 @@ class Variable(object):
     def name(self, new_name):
         ''' Set or change the name of this variable '''
         self._name = new_name
+
+    def rename(self, old_name, new_name):
+        ''' Re-name the root name of this variable and/or its array
+        index variables (if any) '''
+        if self._name == old_name:
+            self._name = new_name
+        for idx, index  in enumerate(self._indices):
+            if index == old_name:
+                self._indices[idx] = new_name

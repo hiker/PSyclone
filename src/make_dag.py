@@ -12,6 +12,8 @@ except ImportError:
     from optparse import OptionParser
 from fparser.script_options import set_f2003_options
 
+# How many times to attempt to unroll each loop
+UNROLL_FACTOR = 1
 
 def dag_of_code_block(parent_node, name):
     ''' Creates and returns a DAG for the code that is a child of the
@@ -48,7 +50,6 @@ def dag_of_code_block(parent_node, name):
         lhs = Variable()
         lhs.load(assign.items[0], mapping)
         var_name = str(lhs)
-        print "LHS variable name = {0}".format(var_name)
 
         # If this variable has been assigned to previously
         # then this is effectively a new variable for the
@@ -130,6 +131,12 @@ def runner(parser, options, args):
                                                     sub_name+"_loop"+str(idx))
                         if digraph:
                             digraphs.append(digraph)
+                        for unroll_count in range(1, UNROLL_FACTOR):
+                            # Increment loop variable
+                            pass
+                            # Duplicate body of digraph with this new
+                            # 'value' of the loop variable
+                            pass
 
                 for digraph in digraphs:
                     # Write the digraph to file
