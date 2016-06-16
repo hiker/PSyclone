@@ -274,9 +274,7 @@ class DirectedAcyclicGraph(object):
                                         node_type="constant")
                 parent.add_child(tmpnode)
             elif isinstance(child, Part_Ref):
-                # This can be either a function call or an array reference
-                # TODO sub_class Part_Ref and implement a proper method to
-                # generate a string!
+                # This may be either a function call or an array reference
                 if is_intrinsic_fn(child):
                     if DEBUG:
                         print "found intrinsic: {0}".\
@@ -289,8 +287,10 @@ class DirectedAcyclicGraph(object):
                     # Add its dependencies
                     self.make_dag(tmpnode, child.items[1:], mapping)
                 else:
-                    from parse2003 import str_to_node_name
-                    name = str_to_node_name(str(child))
+                    from parse2003 import Variable
+                    arrayvar = Variable()
+                    arrayvar.load(child, mapping)
+                    name = str(arrayvar)
                     tmpnode = self.get_node(name, parent, mapping,
                                             node_type="array_ref")
                     parent.add_child(tmpnode)

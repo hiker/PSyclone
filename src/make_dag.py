@@ -45,9 +45,8 @@ def dag_of_code_block(parent_node, name):
         return None
 
     for assign in assignments:
-        print "LHS of assignment is of type {0}".format(type(assign.items[0]))
         lhs = Variable()
-        lhs.load(assign.items[0])
+        lhs.load(assign.items[0], mapping)
         var_name = str(lhs)
         print "LHS variable name = {0}".format(var_name)
 

@@ -19,7 +19,6 @@ def walk(children, my_type, indent=0, debug=False):
     are listed under 'content'.  Returns a list of all nodes with the
     specified type. '''
     from fparser.Fortran2003 import Section_Subscript_List, Name
-    ignore_types = [Section_Subscript_List]
     local_list = []
     for idx, child in enumerate(children):
         if debug:
@@ -79,7 +78,7 @@ class Variable(object):
     ''' Representation of a Fortran variable. Can be a scalar or an
     array reference '''
 
-    def init(self):
+    def __init__(self):
         self._name = None
         self._is_array_ref = False
         self._indices = []
@@ -95,18 +94,28 @@ class Variable(object):
             name += ")"
         return name
 
-    def load(self, node):
+    def load(self, node, mapping=None):
         ''' Populate the state of this Variable object using the supplied
         output of the f2003 parser '''
         from fparser.Fortran2003 import Name, Part_Ref
         from parse import ParseError
         if isinstance(node, Name):
-            self._name = str(node)
+            name = str(node)
+            if mapping and name in mapping:
+                self._name = mapping[name]
+            else:
+                self._name = name
             self._is_array_ref = False
         elif isinstance(node, Part_Ref):
             self._name = str(node.items[0])
             self._is_array_ref = True
-            self._indices = walk(node.items[1].items, Name)
+            array_indices = walk(node.items[1].items, Name)
+            for index in array_indices:
+                name = str(index)
+                if mapping and name in mapping:                    
+                    self._indices.append(mapping[name])
+                else:
+                    self._indices.append(name)
         else:
             raise ParseError("Unrecognised type for variable: {0}".
                              format(type(node)))
