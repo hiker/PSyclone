@@ -42,12 +42,12 @@ class Loop(object):
             if isinstance(node, Nonlabel_Do_Stmt):
                 var_name = walk(node.items, Name)
                 self._var_name = str(var_name[0])
-                for item in node.items:
-                    print "    "+str(type(item))
-                    if isinstance(item, Loop_Control):
-                        for lcitem in item.items:
-                            print "      "+str(type(lcitem))
-                            print "      "+str(lcitem)
+                #for item in node.items:
+                #    print "    "+str(type(item))
+                #    if isinstance(item, Loop_Control):
+                #        for lcitem in item.items:
+                #            print "      "+str(type(lcitem))
+                #            print "      "+str(lcitem)
 
     @property
     def var_name(self):
@@ -62,16 +62,21 @@ class Variable(object):
     def __init__(self):
         self._name = None
         self._is_array_ref = False
+        # List of the variables used to index into the array
         self._indices = []
+        # String representation of the array-index expression
+        # e.g. "ji, jj+1"
+        self._index_expr = ""
 
     def __str__(self):
         name = self._name
         if self._is_array_ref:
             name += "("
-            for idx, index in enumerate(self._indices):
-                if idx > 0:
-                    name += ", "
-                name += index
+            #for idx, index in enumerate(self._indices):
+            #    if idx > 0:
+            #        name += ", "
+            #    name += str(index)
+            name += self._index_expr
             name += ")"
         return name
 
@@ -89,14 +94,17 @@ class Variable(object):
             self._is_array_ref = False
         elif isinstance(node, Part_Ref):
             self._name = str(node.items[0])
+            self._index_expr = str(node.items[1])
+            print "Index part of array ref = {0}".format(self._index_expr)
             self._is_array_ref = True
-            array_indices = walk(node.items[1].items, Name)
+            # This recurses down and finds the names of all of the variables
+            # in the array-index expression
+            array_indices = walk(node.items[1].items, Name, debug=True)
             for index in array_indices:
-                name = str(index)
-                if mapping and name in mapping:                    
-                    self._indices.append(mapping[name])
-                else:
-                    self._indices.append(name)
+                name = index.string
+                if mapping and name in mapping:
+                    index.string = mapping[name]
+                self._indices.append(index)
         elif isinstance(node, Real_Literal_Constant):
             self._name = str(node)
             self._is_array_ref = False

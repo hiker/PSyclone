@@ -304,6 +304,7 @@ class DirectedAcyclicGraph(object):
                     # Add its dependencies
                     self.make_dag(tmpnode, child.items[1:], mapping)
                 else:
+                    # Assume it's an array reference
                     from parse2003 import Variable
                     arrayvar = Variable()
                     arrayvar.load(child, mapping)
@@ -311,6 +312,8 @@ class DirectedAcyclicGraph(object):
                                             variable=arrayvar,
                                             node_type="array_ref")
                     parent.add_child(tmpnode)
+                    # Include the array index expression in the DAG
+                    #self.make_dag(tmpnode, child.items, mapping)
             elif is_subexpression(child):
                 # We don't make nodes to represent sub-expresssions - just
                 # carry-on down to the children
