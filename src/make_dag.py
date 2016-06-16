@@ -17,6 +17,7 @@ def dag_of_code_block(parent_node, name):
     ''' Creates and returns a DAG for the code that is a child of the
     supplied node '''
     from fparser.Fortran2003 import Assignment_Stmt, Name
+    from parse2003 import Variable
 
     # Create a new DAG object
     digraph = DirectedAcyclicGraph(name)
@@ -32,8 +33,6 @@ def dag_of_code_block(parent_node, name):
 
     # Find all of the assignment statements in the code block
     if hasattr(parent_node, "items"):
-        print type(parent_node)
-        print dir(parent_node)
         assignments = walk(parent_node.items, Assignment_Stmt)
     else:
         assignments = walk(parent_node.content, Assignment_Stmt)
@@ -46,8 +45,12 @@ def dag_of_code_block(parent_node, name):
         return None
 
     for assign in assignments:
-        assigned_to = walk([assign.items[0]], Name)
-        var_name = str(assigned_to[0])
+        print "LHS of assignment is of type {0}".format(type(assign.items[0]))
+        lhs = Variable()
+        lhs.load(assign.items[0])
+        var_name = str(lhs)
+        print "LHS variable name = {0}".format(var_name)
+
         # If this variable has been assigned to previously
         # then this is effectively a new variable for the
         # purposes of the graph.

@@ -103,6 +103,46 @@ contains
 
   end subroutine invoke_continuity_arrays
 
+  !=================================================================
+
+  subroutine invoke_continuity_arrays_unrolled(nx, ny, M, N, rdt, ssha, &
+                                      sshn_t, sshn_u, sshn_v, &
+                                      hu, hv, un, vn, area_t)
+    use kind_params_mod
+    implicit none
+    integer, intent(in) :: nx, ny, M, N
+    real(wp), intent(in) :: rdt
+    real(wp), intent(out) :: ssha(nx,ny)
+    real(wp), intent(in)  :: sshn_u(nx,ny), sshn_v(nx,ny), sshn_t(nx,ny)
+    real(wp), intent(in)  :: un(nx,ny), vn(nx,ny)
+    real(wp), intent(in)  :: hu(nx,ny), hv(nx,ny), area_t(nx,ny)
+    ! Locals
+    integer :: jj, ji, idx
+    real(wp) :: rtmp1, rtmp2, rtmp3, rtmp4
+
+    do jj = 2, N, 1
+      
+      do ji = 2, M, 2
+         idx = ji
+         rtmp1 = (sshn_u(idx  ,jj ) + hu(idx  ,jj  ))*un(idx  ,jj)
+         rtmp2 = (sshn_u(idx-1,jj ) + hu(idx-1,jj))*un(idx-1,jj)
+         rtmp3 = (sshn_v(idx ,jj )  + hv(idx  ,jj  ))*vn(idx ,jj)
+         rtmp4 = (sshn_v(idx ,jj-1) + hv(idx ,jj-1))*vn(idx,jj-1)
+         ssha(idx,jj) = sshn_t(idx,jj) + (rtmp2 - rtmp1 + rtmp4 - rtmp3) * &
+                       rdt / area_t(idx,jj)
+         idx = ji + 1
+         rtmp1 = (sshn_u(idx  ,jj ) + hu(idx  ,jj  ))*un(idx  ,jj)
+         rtmp2 = (sshn_u(idx-1,jj ) + hu(idx-1,jj))*un(idx-1,jj)
+         rtmp3 = (sshn_v(idx ,jj )  + hv(idx  ,jj  ))*vn(idx ,jj)
+         rtmp4 = (sshn_v(idx ,jj-1) + hv(idx ,jj-1))*vn(idx,jj-1)
+         ssha(idx,jj) = sshn_t(idx,jj) + (rtmp2 - rtmp1 + rtmp4 - rtmp3) * &
+                       rdt / area_t(idx,jj)
+      end do
+      
+    end do
+
+  end subroutine invoke_continuity_arrays_unrolled
+
   !===================================================
 
   subroutine continuity_code(ji, jj,                     &

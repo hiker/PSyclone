@@ -73,3 +73,40 @@ class Loop(object):
     def var_name(self):
         ''' Return a string containing the name of the loop variable '''
         return self._var_name
+
+
+class Variable(object):
+    ''' Representation of a Fortran variable. Can be a scalar or an
+    array reference '''
+
+    def init(self):
+        self._name = None
+        self._is_array_ref = False
+        self._indices = []
+
+    def __str__(self):
+        name = self._name
+        if self._is_array_ref:
+            name += "("
+            for idx, index in enumerate(self._indices):
+                if idx > 0:
+                    name += ", "
+                name += index
+            name += ")"
+        return name
+
+    def load(self, node):
+        ''' Populate the state of this Variable object using the supplied
+        output of the f2003 parser '''
+        from fparser.Fortran2003 import Name, Part_Ref
+        from parse import ParseError
+        if isinstance(node, Name):
+            self._name = str(node)
+            self._is_array_ref = False
+        elif isinstance(node, Part_Ref):
+            self._name = str(node.items[0])
+            self._is_array_ref = True
+            self._indices = walk(node.items[1].items, Name)
+        else:
+            raise ParseError("Unrecognised type for variable: {0}".
+                             format(type(node)))
