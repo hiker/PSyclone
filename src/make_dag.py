@@ -13,9 +13,48 @@ except ImportError:
 from fparser.script_options import set_f2003_options
 
 # How many times to attempt to unroll each loop
-UNROLL_FACTOR = 1
+UNROLL_FACTOR = 2
 
-def dag_of_code_block(parent_node, name):
+
+def unroll_loop(digraph, loop, mapping=None):
+    ''' Unroll the body of the loop represented by the DAG in digraph '''
+
+    if UNROLL_FACTOR == 1:
+        return
+
+    # Create a node to represent the loop index
+    loopidx_node = digraph.get_node(parent=None,
+                                    mapping=mapping,
+                                    name=loop.var_name)
+
+    # Create a temporary variable in place of the loop index
+    counter_node = digraph.get_node(parent=loopidx_node,
+                                    mapping=mapping,
+                                    name="uridx")
+    loopidx_node.add_child(counter_node)
+
+    # Rename the loop variable
+    digraph.rename_nodes(loop.var_name, "uridx")
+
+    return
+    for unroll_count in range(1, UNROLL_FACTOR):
+        # Increment loop variable
+        new_node = digraph.get_node(parent=None,
+                                    mapping=mapping,
+                                    name=myloop.var_name)
+        plus = new_node.digraph.get_node(name="+",
+                                         unique=True,
+                                         node_type="+")
+        one = new_node.digraph.get_node(name="1",
+                                        unique=True,
+                                        node_type="constant")
+
+        # Duplicate body of digraph with this new
+        # 'value' of the loop variable
+        pass
+
+
+def dag_of_code_block(parent_node, name, loop=None):
     ''' Creates and returns a DAG for the code that is a child of the
     supplied node '''
     from fparser.Fortran2003 import Assignment_Stmt, Name
@@ -74,6 +113,10 @@ def dag_of_code_block(parent_node, name):
             mapping[var_name] += "'"
         else:
             mapping[var_name] = var_name
+
+    # If this code block is the body of a loop then unroll it...
+    if loop:
+        unroll_loop(digraph, loop, mapping)
 
     # Work out the critical path through this graph
     path = digraph.calc_critical_path()
@@ -136,31 +179,12 @@ def runner(parser, options, args):
                         # Create a Loop object for this loop
                         myloop = Loop()
                         myloop.load(loop)
-                        print "Loop variable = '{0}'".format(myloop.var_name)
+
                         digraph = dag_of_code_block(
-                            loop, sub_name+"_loop"+str(loop_count))
+                            loop, sub_name+"_loop"+str(loop_count),
+                            loop=myloop)
                         if digraph:
                             digraphs.append(digraph)
-
-                            # Rename the loop variable
-                            digraph.rename_nodes(myloop.var_name, "andy")
-
-                            for unroll_count in range(1, UNROLL_FACTOR):
-                                # Increment loop variable
-                                new_node = digraph.get_node(parent=None,
-                                                            mapping=mapping,
-                                                            name=myloop.var_name)
-                                plus = new_node.digraph.get_node(name="+",
-                                                                 unique=True,
-                                                                 node_type="+")
-                                one = new_node.digraph.get_node(name="1",
-                                                                unique=True,
-                                                                node_type="constant")
-
-                                pass
-                                # Duplicate body of digraph with this new
-                                # 'value' of the loop variable
-                                pass
 
                 for digraph in digraphs:
                     # Write the digraph to file
