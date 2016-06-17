@@ -16,69 +16,38 @@ from fparser.script_options import set_f2003_options
 UNROLL_FACTOR = 2
 
 
-def unroll_loop(digraph, loop, mapping=None):
-    ''' Unroll the body of the loop represented by the DAG in digraph '''
-    import copy
+def dag_of_assignments(digraph, assignments, mapping):
+    ''' Add to the existing DAG using the supplied list of assignments '''
+    from parse2003 import Variable
 
-    if UNROLL_FACTOR == 1:
-        return
+    for assign in assignments:
+        lhs = Variable()
+        lhs.load(assign.items[0], mapping)
+        var_name = str(lhs)
 
-    # Create a node to represent the loop index
-    loopidx_node = digraph.get_node(parent=None,
-                                    mapping=mapping,
-                                    name=loop.var_name)
+        # If this variable has been assigned to previously
+        # then this is effectively a new variable for the
+        # purposes of the graph.
+        if var_name in mapping:
+            node_name = mapping[var_name] + "'"
+            lhs.name = node_name
+        else:
+            node_name = var_name
+        dag = digraph.get_node(parent=None,
+                               mapping=mapping,
+                               variable=lhs)
+        # First two items of an Assignment_Stmt are the name of
+        # the var being assigned to and '='.
+        digraph.make_dag(dag, assign.items[2:], mapping)
 
-    # Create a temporary variable in place of the loop index and assign
-    # the value of the loop index to it - this just gives us a 
-    # dependency.
-    counter_name = "uridx"
-    counter_node = digraph.get_node(loopidx_node,
-                                    mapping=mapping,
-                                    name=counter_name)
-    loopidx_node.add_child(counter_node)
-
-    # Rename the loop variable in the original loop body
-    digraph.rename_nodes(loop.var_name, "uridx")
-
-    # Increment the loop counter and thus create a 'new' object
-    counter_name += "'"
-
-    plus = digraph.get_node(counter_node,
-                            mapping,
-                            name="+",
-                            unique=True,
-                            node_type="+")
-    one = digraph.get_node(counter_node,
-                           mapping,
-                           name="1",
-                           unique=True,
-                           node_type="constant")
-    counter_node = digraph.get_node(counter_node,
-                                    mapping=mapping,
-                                    name=counter_name)
-
-    # Take a copy of the loop body
-    digraph2 = copy.deepcopy(digraph)
-    digraph2.rename_nodes("uridx", "uridx'")
-    digraph.extend(digraph2)
-
-    return
-
-    for unroll_count in range(1, UNROLL_FACTOR):
-        # Increment loop variable
-        new_node = digraph.get_node(parent=None,
-                                    mapping=mapping,
-                                    name=myloop.var_name)
-        plus = new_node.digraph.get_node(name="+",
-                                         unique=True,
-                                         node_type="+")
-        one = new_node.digraph.get_node(name="1",
-                                        unique=True,
-                                        node_type="constant")
-
-        # Duplicate body of digraph with this new
-        # 'value' of the loop variable
-        pass
+        # Only update the map once we've created a DAG of the
+        # assignment statement. This is because any references
+        # to this variable in that assignment are to the previous
+        # version of it, not the one being assigned to.
+        if var_name in mapping:
+            mapping[var_name] += "'"
+        else:
+            mapping[var_name] = var_name
 
 
 def dag_of_code_block(parent_node, name, loop=None):
@@ -111,39 +80,18 @@ def dag_of_code_block(parent_node, name, loop=None):
         print "Code {0} contains no assignment statements - skipping".\
             format(name)
         return None
-
-    for assign in assignments:
-        lhs = Variable()
-        lhs.load(assign.items[0], mapping)
-        var_name = str(lhs)
-
-        # If this variable has been assigned to previously
-        # then this is effectively a new variable for the
-        # purposes of the graph.
-        if var_name in mapping:
-            node_name = mapping[var_name] + "'"
-            lhs.name = node_name
-        else:
-            node_name = var_name
-        dag = digraph.get_node(parent=None,
-                               mapping=mapping,
-                               variable=lhs)
-        # First two items of an Assignment_Stmt are the name of
-        # the var being assigned to and '='.
-        digraph.make_dag(dag, assign.items[2:], mapping)
-
-        # Only update the map once we've created a DAG of the
-        # assignment statement. This is because any references
-        # to this variable in that assignment are to the previous
-        # version of it, not the one being assigned to.
-        if var_name in mapping:
-            mapping[var_name] += "'"
-        else:
-            mapping[var_name] = var_name
-
-    # If this code block is the body of a loop then unroll it...
+ 
     if loop:
-        unroll_loop(digraph, loop, mapping)
+        # Put the loop variable in our mapping
+        mapping[loop.var_name] = loop.var_name
+
+    dag_of_assignments(digraph, assignments, mapping)
+
+    if loop:
+        
+        # Increment the loop counter and then add to the DAG again
+        mapping[loop.var_name] += "+1"
+        dag_of_assignments(digraph, assignments, mapping)
 
     # Work out the critical path through this graph
     path = digraph.calc_critical_path()

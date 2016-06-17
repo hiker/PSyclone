@@ -274,14 +274,14 @@ class DirectedAcyclicGraph(object):
         for child in children:
             if isinstance(child, Name):
                 var = Variable()
-                var.load(child)
+                var.load(child, mapping)
                 tmpnode = self.get_node(parent, mapping,
                                         variable=var)
                 parent.add_child(tmpnode)
             elif isinstance(child, Real_Literal_Constant):
                 # This is a constant and thus a leaf in the tree
                 const_var = Variable()
-                const_var.load(child)
+                const_var.load(child, mapping)
                 tmpnode = self.get_node(parent, mapping,
                                         variable=const_var,
                                         unique=True,

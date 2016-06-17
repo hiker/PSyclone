@@ -94,7 +94,6 @@ class Variable(object):
             self._is_array_ref = False
         elif isinstance(node, Part_Ref):
             self._name = str(node.items[0])
-            self._index_expr = str(node.items[1])
             self._is_array_ref = True
             # This recurses down and finds the names of all of the variables
             # in the array-index expression
@@ -104,6 +103,9 @@ class Variable(object):
                 if mapping and name in mapping:
                     index.string = mapping[name]
                 self._indices.append(index.string)
+            # Save the string containing the array-index expression *after*
+            # we've handled the name mapping of each component
+            self._index_expr = str(node.items[1])
         elif isinstance(node, Real_Literal_Constant):
             self._name = str(node)
             self._is_array_ref = False
