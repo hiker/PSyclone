@@ -156,7 +156,8 @@ class DirectedAcyclicGraph(object):
                     print "No existing node with name: ", node_name
                 # Create a new node and store it in our list so we
                 # can refer back to it in future if needed
-                node = DAGNode(parent=parent, name=node_name)
+                node = DAGNode(parent=parent, name=node_name,
+                               variable=variable)
                 self._nodes[node_name] = node
         if node_type:
             node.node_type = node_type
@@ -466,18 +467,20 @@ class DAGNode(object):
     def name(self):
         ''' Returns the name (label) of this node '''
         if self._variable:
-            return self._variable.name
+            return str(self._variable)
         else:
             return self._name
 
     @name.setter
     def name(self, new_name):
-        ''' Set (or change) the name/label of this node '''
+        ''' Set (or change) the name/label of this node. Note that if there
+        is a Variable associated with this node then the name of that
+        object overrides this. '''
         self._name = new_name
 
     def display(self, indent=0):
         ''' Prints a textual representation of this node to stdout '''
-        print indent*INDENT_STR, self._name
+        print indent*INDENT_STR, self.name
         for child in self._children:
             child.display(indent=indent+1)
 
@@ -604,7 +607,7 @@ class DAGNode(object):
             child.to_dot(fileobj)
 
         nodestr = "{0} [label=\"{1} w={2}\"".format(self.node_id,
-                                                    self._name,
+                                                    self.name,
                                                     str(self._incl_weight))
         if self._node_type:
             node_size = None
@@ -631,7 +634,8 @@ class DAGNode(object):
         nodestr += "]\n"
 
         fileobj.write(nodestr)
-        fileobj.write(self.node_id+" -> {\n")
-        for child in self._children:
-            fileobj.write(" "+child.node_id)
-        fileobj.write("}\n")
+        if self._children:
+            fileobj.write(self.node_id+" -> {\n")
+            for child in self._children:
+                fileobj.write(" "+child.node_id)
+            fileobj.write("}\n")

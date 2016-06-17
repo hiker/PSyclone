@@ -99,8 +99,8 @@ def runner(parser, options, args):
         try:
             program = Fortran2003.Program(reader)
             # Find all the subroutines contained in the file
-            subroutines = walk(program.content, Subroutine_Subprogram,
-                               debug=True)
+            subroutines = walk(program.content, Subroutine_Subprogram)
+
             # Create a DAG for each subroutine
             for subroutine in subroutines:
                 substmt = walk(subroutine.content, Subroutine_Stmt)
@@ -120,23 +120,47 @@ def runner(parser, options, args):
                     if digraph:
                         digraphs.append(digraph)
                 else:
-                    # Create a DAG for each loop body
-                    print "Found {0} loops in subroutine {1}".\
-                        format(len(loops), sub_name)
-                    for idx, loop in enumerate(loops):
+                    # Create a DAG for the body of each innermost loop
+                    loop_count = 0
+                    for loop in loops:
+
+                        # Check that we are an innermost loop
+                        inner_loops = walk(loop.content,
+                                           Block_Nonlabel_Do_Construct)
+                        if inner_loops:
+                            # We're not so skip
+                            continue
+
+                        loop_count += 1
+
+                        # Create a Loop object for this loop
                         myloop = Loop()
                         myloop.load(loop)
-                        print "Loop variable = {0}".format(myloop.var_name)
-                        digraph = dag_of_code_block(loop,
-                                                    sub_name+"_loop"+str(idx))
+                        print "Loop variable = '{0}'".format(myloop.var_name)
+                        digraph = dag_of_code_block(
+                            loop, sub_name+"_loop"+str(loop_count))
                         if digraph:
                             digraphs.append(digraph)
-                        for unroll_count in range(1, UNROLL_FACTOR):
-                            # Increment loop variable
-                            pass
-                            # Duplicate body of digraph with this new
-                            # 'value' of the loop variable
-                            pass
+
+                            # Rename the loop variable
+                            digraph.rename_nodes(myloop.var_name, "andy")
+
+                            for unroll_count in range(1, UNROLL_FACTOR):
+                                # Increment loop variable
+                                new_node = digraph.get_node(parent=None,
+                                                            mapping=mapping,
+                                                            name=myloop.var_name)
+                                plus = new_node.digraph.get_node(name="+",
+                                                                 unique=True,
+                                                                 node_type="+")
+                                one = new_node.digraph.get_node(name="1",
+                                                                unique=True,
+                                                                node_type="constant")
+
+                                pass
+                                # Duplicate body of digraph with this new
+                                # 'value' of the loop variable
+                                pass
 
                 for digraph in digraphs:
                     # Write the digraph to file

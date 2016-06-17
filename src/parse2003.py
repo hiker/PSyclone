@@ -95,11 +95,10 @@ class Variable(object):
         elif isinstance(node, Part_Ref):
             self._name = str(node.items[0])
             self._index_expr = str(node.items[1])
-            print "Index part of array ref = {0}".format(self._index_expr)
             self._is_array_ref = True
             # This recurses down and finds the names of all of the variables
             # in the array-index expression
-            array_indices = walk(node.items[1].items, Name, debug=True)
+            array_indices = walk(node.items[1].items, Name)
             for index in array_indices:
                 name = index.string
                 if mapping and name in mapping:
@@ -128,5 +127,9 @@ class Variable(object):
         if self._name == old_name:
             self._name = new_name
         for idx, index  in enumerate(self._indices):
-            if index == old_name:
+            if str(index) == old_name:
+                # Need to replace reference in array-index expression as
+                # well as re-naming this variable
+                self._index_expr = self._index_expr.replace(old_name,
+                                                            new_name)
                 self._indices[idx] = new_name
