@@ -103,7 +103,7 @@ class Variable(object):
                 name = index.string
                 if mapping and name in mapping:
                     index.string = mapping[name]
-                self._indices.append(index)
+                self._indices.append(index.string)
         elif isinstance(node, Real_Literal_Constant):
             self._name = str(node)
             self._is_array_ref = False

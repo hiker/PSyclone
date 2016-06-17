@@ -18,6 +18,7 @@ UNROLL_FACTOR = 2
 
 def unroll_loop(digraph, loop, mapping=None):
     ''' Unroll the body of the loop represented by the DAG in digraph '''
+    import copy
 
     if UNROLL_FACTOR == 1:
         return
@@ -27,16 +28,42 @@ def unroll_loop(digraph, loop, mapping=None):
                                     mapping=mapping,
                                     name=loop.var_name)
 
-    # Create a temporary variable in place of the loop index
-    counter_node = digraph.get_node(parent=loopidx_node,
+    # Create a temporary variable in place of the loop index and assign
+    # the value of the loop index to it - this just gives us a 
+    # dependency.
+    counter_name = "uridx"
+    counter_node = digraph.get_node(loopidx_node,
                                     mapping=mapping,
-                                    name="uridx")
+                                    name=counter_name)
     loopidx_node.add_child(counter_node)
 
-    # Rename the loop variable
+    # Rename the loop variable in the original loop body
     digraph.rename_nodes(loop.var_name, "uridx")
 
+    # Increment the loop counter and thus create a 'new' object
+    counter_name += "'"
+
+    plus = digraph.get_node(counter_node,
+                            mapping,
+                            name="+",
+                            unique=True,
+                            node_type="+")
+    one = digraph.get_node(counter_node,
+                           mapping,
+                           name="1",
+                           unique=True,
+                           node_type="constant")
+    counter_node = digraph.get_node(counter_node,
+                                    mapping=mapping,
+                                    name=counter_name)
+
+    # Take a copy of the loop body
+    digraph2 = copy.deepcopy(digraph)
+    digraph2.rename_nodes("uridx", "uridx'")
+    digraph.extend(digraph2)
+
     return
+
     for unroll_count in range(1, UNROLL_FACTOR):
         # Increment loop variable
         new_node = digraph.get_node(parent=None,
@@ -133,7 +160,7 @@ def runner(parser, options, args):
         Subroutine_Stmt, Name, Block_Nonlabel_Do_Construct, Execution_Part
     from parse2003 import Loop
 
-    apply_fma_transformation = True
+    apply_fma_transformation = False
 
     for filename in args:
         reader = FortranFileReader(filename)

@@ -181,9 +181,6 @@ class DirectedAcyclicGraph(object):
 
     def ancestor_nodes(self):
         ''' Returns a list of all nodes that do not have a parent '''
-        if self._ancestors:
-            return self._ancestors
-
         node_list = []
         for node in self._nodes.itervalues():
             if node.parent is None:
@@ -357,6 +354,7 @@ class DirectedAcyclicGraph(object):
     def rename_nodes(self, old_name, new_name):
         ''' Go through all nodes of the graph and re-name any variables
         that match "old_name" '''
+        # TODO should I change the key values in the dictionary too?
         for node in self._nodes.itervalues():
             if node.variable:
                 node.variable.rename(old_name, new_name)
@@ -433,6 +431,15 @@ class DirectedAcyclicGraph(object):
                "{:.4f}*CLOCK_SPEED".format(flops_per_hz))
         print ("  (e.g. at 3.8 GHz, this gives {:.2f} GFLOPS)".
                format(flops_per_hz*3.0))
+
+    def extend(self, extra_dag):
+        ''' Extend the current dag with that in the supplied object) '''
+        # Loop over the list of nodes in the supplied dag and add them
+        # to our own list of nodes. We do not simply call 'update' because
+        # we need to change the key values to reflect that variables
+        # may have been renamed.
+        for key, value in extra_dag._nodes.iteritems():
+            self._nodes[str(value)] = value
 
 
 class DAGNode(object):
