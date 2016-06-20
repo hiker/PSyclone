@@ -1,6 +1,33 @@
 ''' Module containing classes related to parsing Fortran code using
     the f2003 parser '''
+import ast
+import operator as op
 
+# supported operators
+operators = {ast.Add: op.add, ast.Sub: op.sub, ast.Mult: op.mul,
+             ast.Div: op.truediv, ast.Pow: op.pow, ast.BitXor: op.xor,
+             ast.USub: op.neg}
+
+def eval_expr(expr):
+    """
+    >>> eval_expr('2^6')
+    4
+    >>> eval_expr('2**6')
+    64
+    >>> eval_expr('1 + 2*3**(4^5) / (6 + -7)')
+    -5.0
+    """
+    return eval_(ast.parse(expr, mode='eval').body)
+
+def eval_(node):
+    if isinstance(node, ast.Num): # <number>
+        return node.n
+    elif isinstance(node, ast.BinOp): # <left> <operator> <right>
+        return operators[type(node.op)](eval_(node.left), eval_(node.right))
+    elif isinstance(node, ast.UnaryOp): # <operator> <operand> e.g., -1
+        return operators[type(node.op)](eval_(node.operand))
+    else:
+        raise TypeError(node)
 
 def walk(children, my_type, indent=0, debug=False):
     '''' Walk down the tree produced by the f2003 parser where children
@@ -60,7 +87,11 @@ class Variable(object):
     array reference '''
 
     def __init__(self):
+        # Name of this quantity in the DAG (may not be the same as
+        # _orig_name because of assignment)
         self._name = None
+        # Name of the variable as used in the raw Fortran code
+        self._orig_name = None
         self._is_array_ref = False
         # List of the variables used to index into the array
         self._indices = []
@@ -72,28 +103,56 @@ class Variable(object):
         name = self._name
         if self._is_array_ref:
             name += "("
-            #for idx, index in enumerate(self._indices):
-            #    if idx > 0:
-            #        name += ", "
-            #    name += str(index)
-            name += self._index_expr
+            name += self.index_expr
             name += ")"
         return name
 
-    def load(self, node, mapping=None):
+    @property
+    def index_expr(self):
+        ''' Return the full index expression of this variable if it is an
+        array reference. '''
+        if not self._is_array_ref:
+            return ""
+
+        import re
+        tokens = re.split(',', self._index_expr)
+        assert len(tokens) == len(self._indices)
+        simplified_expr = ""
+        for idx, tok in enumerate(tokens):
+            if idx > 0:
+                simplified_expr += ","
+            num_plus = tok.count("+1")
+            num_minus = tok.count("-1")
+            if num_plus == num_minus:
+                tok = self._indices[idx]
+            simplified_expr += tok
+        self._index_expr = simplified_expr
+
+        return self._index_expr
+
+    def load(self, node, mapping=None, lhs=False):
         ''' Populate the state of this Variable object using the supplied
-        output of the f2003 parser '''
+        output of the f2003 parser. If lhs is True then this variable
+        appears on the LHS of an assignment and thus represents a new 
+        entity in a DAG. '''
         from fparser.Fortran2003 import Name, Part_Ref, Real_Literal_Constant
         from parse import ParseError
         if isinstance(node, Name):
             name = str(node)
+            self._orig_name = name[:]
             if mapping and name in mapping:
                 self._name = mapping[name]
+                if lhs:
+                    # If this variable appears on the LHS of an assignment
+                    # then it is effectively a new variable for the
+                    # purposes of the graph.
+                    self._name += "'"
             else:
                 self._name = name
             self._is_array_ref = False
         elif isinstance(node, Part_Ref):
             self._name = str(node.items[0])
+            self._orig_name = self._name
             self._is_array_ref = True
             # This recurses down and finds the names of all of the variables
             # in the array-index expression
@@ -101,17 +160,26 @@ class Variable(object):
             for index in array_indices:
                 name = index.string
                 if mapping and name in mapping:
-                    index.string = mapping[name]
-                self._indices.append(index.string)
+                    self._indices.append(mapping[name])
+                else:
+                    self._indices.append(index.string)
             # Save the string containing the array-index expression *after*
-            # we've handled the name mapping of each component
-            self._index_expr = str(node.items[1])
+            # we've handled the name mapping of each component. Also take
+            # the opportunity to strip-out white space
+            self._index_expr = str(node.items[1]).replace(" ","")
         elif isinstance(node, Real_Literal_Constant):
             self._name = str(node)
+            self._orig_name = self._name
             self._is_array_ref = False
         else:
             raise ParseError("Unrecognised type for variable: {0}".
                              format(type(node)))
+
+    @property
+    def orig_name(self):
+        ''' Return the name of this variable as it appeared in the
+        the parsed Fortran code '''
+        return self._orig_name
 
     @property
     def name(self):
