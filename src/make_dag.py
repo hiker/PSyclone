@@ -13,7 +13,7 @@ except ImportError:
 from fparser.script_options import set_f2003_options
 
 # How many times to attempt to unroll each loop
-UNROLL_FACTOR = 2
+UNROLL_FACTOR = 3
 
 
 def dag_of_assignments(digraph, assignments, mapping):
@@ -21,21 +21,12 @@ def dag_of_assignments(digraph, assignments, mapping):
     from parse2003 import Variable
 
     for assign in assignments:
-        lhs = Variable()
-        lhs.load(assign.items[0], mapping)
-        var_name = str(lhs)
+        lhs_var = Variable()
+        lhs_var.load(assign.items[0], mapping=mapping, lhs=True)
+        var_name = str(lhs_var)
 
-        # If this variable has been assigned to previously
-        # then this is effectively a new variable for the
-        # purposes of the graph.
-        if var_name in mapping:
-            node_name = mapping[var_name] + "'"
-            lhs.name = node_name
-        else:
-            node_name = var_name
         dag = digraph.get_node(parent=None,
-                               mapping=mapping,
-                               variable=lhs)
+                               variable=lhs_var)
         # First two items of an Assignment_Stmt are the name of
         # the var being assigned to and '='.
         digraph.make_dag(dag, assign.items[2:], mapping)
@@ -44,10 +35,10 @@ def dag_of_assignments(digraph, assignments, mapping):
         # assignment statement. This is because any references
         # to this variable in that assignment are to the previous
         # version of it, not the one being assigned to.
-        if var_name in mapping:
-            mapping[var_name] += "'"
+        if lhs_var.orig_name in mapping:
+            mapping[lhs_var.orig_name] += "'"
         else:
-            mapping[var_name] = var_name
+            mapping[lhs_var.orig_name] = lhs_var.orig_name
 
 
 def dag_of_code_block(parent_node, name, loop=None):
@@ -86,12 +77,15 @@ def dag_of_code_block(parent_node, name, loop=None):
         mapping[loop.var_name] = loop.var_name
 
     dag_of_assignments(digraph, assignments, mapping)
+    print mapping
 
     if loop:
-        
-        # Increment the loop counter and then add to the DAG again
-        mapping[loop.var_name] += "+1"
-        dag_of_assignments(digraph, assignments, mapping)
+        for repeat in range(1, UNROLL_FACTOR):
+            # Increment the loop counter and then add to the DAG again
+            mapping[loop.var_name] += "+1"
+            print "New loop variable is '{0}'".format(mapping[loop.var_name])
+            dag_of_assignments(digraph, assignments, mapping)
+            print mapping
 
     # Work out the critical path through this graph
     path = digraph.calc_critical_path()
