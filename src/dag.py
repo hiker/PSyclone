@@ -112,11 +112,12 @@ class DirectedAcyclicGraph(object):
     def name(self, new_name):
         self._name = new_name
 
-    def get_node(self, parent, mapping, name=None, unique=False,
+    def get_node(self, parent, mapping=None, name=None, unique=False,
                  node_type=None, variable=None):
         ''' Looks-up or creates a node in the graph. If unique is False and
         we do not already have a node with the supplied name then we create a
-        new one. If unique is True then we always create a new node. '''
+        new one. If unique is True then we always create a new node. If a
+        mapping is supplied then it is used to name the node. '''
 
         if not name and not variable:
             raise Exception("get_node: one of 'name' or 'variable' must "
@@ -135,7 +136,7 @@ class DirectedAcyclicGraph(object):
             # ensures we have a list of all nodes in the graph.
             self._nodes[node.node_id] = node
         else:
-            if name in mapping:
+            if mapping and name in mapping:
                 node_name = mapping[name]
             else:
                 node_name = name
