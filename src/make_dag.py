@@ -13,7 +13,7 @@ except ImportError:
 from fparser.script_options import set_f2003_options
 
 # How many times to attempt to unroll each loop
-UNROLL_FACTOR = 3
+UNROLL_FACTOR = 4
 
 
 def dag_of_assignments(digraph, assignments, mapping):
@@ -77,15 +77,21 @@ def dag_of_code_block(parent_node, name, loop=None):
         mapping[loop.var_name] = loop.var_name
 
     dag_of_assignments(digraph, assignments, mapping)
-    print mapping
 
     if loop:
         for repeat in range(1, UNROLL_FACTOR):
             # Increment the loop counter and then add to the DAG again
             mapping[loop.var_name] += "+1"
-            print "New loop variable is '{0}'".format(mapping[loop.var_name])
             dag_of_assignments(digraph, assignments, mapping)
-            print mapping
+
+    # Correctness check - if we've ended up with e.g. my_var' as a key
+    # in our name-mapping dictionary then something has gone wrong.
+    for name in mapping:
+        if "'" in name:
+            raise ParseError(
+                "Found {0} in name map but names with ' characters "
+                "appended should only appear in the value part of "
+                "the dictionary")
 
     # Work out the critical path through this graph
     path = digraph.calc_critical_path()
