@@ -96,8 +96,8 @@ class Variable(object):
         self._orig_indices = []
         # List of the variables used to index into the array
         self._indices = []
-        # String representation of the array-index expression
-        # e.g. "ji, jj+1"
+        # Comma-delimited, string representation of the array-index
+        # expression e.g. "ji, jj+1"
         self._index_expr = ""
         self._orig_index_expr = ""
 
@@ -123,12 +123,25 @@ class Variable(object):
         for idx, tok in enumerate(tokens):
             if idx > 0:
                 simplified_expr += ","
+
+            # This is a very simplistic piece of code intended to
+            # process array index expressions of the form 
+            # ji+1-1+1. It ignores anything other than '+1' and '-1'.
             num_plus = tok.count("+1")
             num_minus = tok.count("-1")
-            if num_plus == num_minus:
-                print "#+ == #-, tok = {0}".format(self._indices[idx])
-                tok = self._orig_indices[idx]
-            simplified_expr += tok
+            if num_plus > 0 or num_minus > 0:
+                basic_expr = tok.replace("+1","")
+                basic_expr = basic_expr.replace("-1","")
+                simplified_expr += basic_expr # self._orig_indices[idx]
+                net_incr = num_plus - num_minus
+                if net_incr < 0:
+                    simplified_expr += str(net_incr)
+                elif net_incr > 0:
+                    simplified_expr += "+" + str(net_incr)
+                else:
+                    pass
+            else:
+                simplified_expr += tok
         self._index_expr = simplified_expr
         print "Modified index expression = ",self._index_expr
 
