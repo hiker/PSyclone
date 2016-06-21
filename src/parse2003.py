@@ -93,13 +93,11 @@ class Variable(object):
         # Name of the variable as used in the raw Fortran code
         self._orig_name = None
         self._is_array_ref = False
-        self._orig_indices = []
         # List of the variables used to index into the array
         self._indices = []
         # Comma-delimited, string representation of the array-index
         # expression e.g. "ji, jj+1"
         self._index_expr = ""
-        self._orig_index_expr = ""
 
     def __str__(self):
         name = self._name
@@ -115,7 +113,7 @@ class Variable(object):
         array reference. '''
         if not self._is_array_ref:
             return ""
-        print "Index expression = ",self._index_expr
+
         import re
         tokens = re.split(',', self._index_expr)
         assert len(tokens) == len(self._indices)
@@ -132,18 +130,20 @@ class Variable(object):
             if num_plus > 0 or num_minus > 0:
                 basic_expr = tok.replace("+1","")
                 basic_expr = basic_expr.replace("-1","")
-                simplified_expr += basic_expr # self._orig_indices[idx]
+                simplified_expr += basic_expr
                 net_incr = num_plus - num_minus
                 if net_incr < 0:
                     simplified_expr += str(net_incr)
                 elif net_incr > 0:
                     simplified_expr += "+" + str(net_incr)
                 else:
+                    # The +1's and -1's have cancelled each other out
                     pass
             else:
+                # This part of the index expression contains no "+1"s and
+                # no "-1"s so we leave it unchanged
                 simplified_expr += tok
         self._index_expr = simplified_expr
-        print "Modified index expression = ",self._index_expr
 
         return self._index_expr
 
@@ -177,16 +177,15 @@ class Variable(object):
             # we start re-naming any of the variables involved). This gives
             # us the information on any expressions in the array indexing, e.g.
             # (ji+1,jj-1)
-            self._orig_index_expr = str(node.items[1]).replace(" ","")
-            print "Load: Original index expression = {0}".format(self._orig_index_expr)
+            self._index_expr = str(node.items[1]).replace(" ","")
+
             # This recurses down and finds the names of all of the variables
             # in the array-index expression (i.e. ignoring whether they
             # are "+1" etc.)
             array_indices = walk(node.items[1].items, Name)
-            self._index_expr = self._orig_index_expr
+
             for idx, index in enumerate(array_indices):
                 name = index.string
-                self._orig_indices.append(name)
                 if mapping and name in mapping:
                     self._indices.append(mapping[name])
                     # Replace the reference to this variable in the index
