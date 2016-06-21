@@ -63,9 +63,9 @@ class Loop(object):
         ''' Takes the supplied loop object produced by the f2003 parser
         and extracts relevant information from it to populate this object '''
         from fparser.Fortran2003 import Nonlabel_Do_Stmt, Loop_Control, Name
-        print type(parsed_loop)
+        #print type(parsed_loop)
         for node in parsed_loop.content:
-            print "  "+str(type(node))
+            #print "  "+str(type(node))
             if isinstance(node, Nonlabel_Do_Stmt):
                 var_name = walk(node.items, Name)
                 self._var_name = str(var_name[0])
@@ -93,11 +93,13 @@ class Variable(object):
         # Name of the variable as used in the raw Fortran code
         self._orig_name = None
         self._is_array_ref = False
+        self._orig_indices = []
         # List of the variables used to index into the array
         self._indices = []
         # String representation of the array-index expression
         # e.g. "ji, jj+1"
         self._index_expr = ""
+        self._orig_index_expr = ""
 
     def __str__(self):
         name = self._name
@@ -113,7 +115,7 @@ class Variable(object):
         array reference. '''
         if not self._is_array_ref:
             return ""
-
+        print "Index expression = ",self._index_expr
         import re
         tokens = re.split(',', self._index_expr)
         assert len(tokens) == len(self._indices)
@@ -124,9 +126,11 @@ class Variable(object):
             num_plus = tok.count("+1")
             num_minus = tok.count("-1")
             if num_plus == num_minus:
-                tok = self._indices[idx]
+                print "#+ == #-, tok = {0}".format(self._indices[idx])
+                tok = self._orig_indices[idx]
             simplified_expr += tok
         self._index_expr = simplified_expr
+        print "Modified index expression = ",self._index_expr
 
         return self._index_expr
 
@@ -137,6 +141,7 @@ class Variable(object):
         entity in a DAG. '''
         from fparser.Fortran2003 import Name, Part_Ref, Real_Literal_Constant
         from parse import ParseError
+
         if isinstance(node, Name):
             name = str(node)
             self._orig_name = name[:]
@@ -150,23 +155,35 @@ class Variable(object):
             else:
                 self._name = name
             self._is_array_ref = False
+
         elif isinstance(node, Part_Ref):
             self._name = str(node.items[0])
             self._orig_name = self._name
             self._is_array_ref = True
+            # Get and store the original array-index expression (i.e. before
+            # we start re-naming any of the variables involved). This gives
+            # us the information on any expressions in the array indexing, e.g.
+            # (ji+1,jj-1)
+            self._orig_index_expr = str(node.items[1]).replace(" ","")
+            print "Load: Original index expression = {0}".format(self._orig_index_expr)
             # This recurses down and finds the names of all of the variables
-            # in the array-index expression
+            # in the array-index expression (i.e. ignoring whether they
+            # are "+1" etc.)
             array_indices = walk(node.items[1].items, Name)
-            for index in array_indices:
+            self._index_expr = self._orig_index_expr
+            for idx, index in enumerate(array_indices):
                 name = index.string
+                self._orig_indices.append(name)
                 if mapping and name in mapping:
                     self._indices.append(mapping[name])
+                    # Replace the reference to this variable in the index
+                    # expression with the new name
+                    self._index_expr = self._index_expr.replace(name,
+                                                                mapping[name])
                 else:
-                    self._indices.append(index.string)
-            # Save the string containing the array-index expression *after*
-            # we've handled the name mapping of each component. Also take
-            # the opportunity to strip-out white space
-            self._index_expr = str(node.items[1]).replace(" ","")
+                    self._indices.append(name)
+
+
         elif isinstance(node, Real_Literal_Constant):
             self._name = str(node)
             self._orig_name = self._name
