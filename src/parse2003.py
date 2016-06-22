@@ -95,9 +95,8 @@ class Variable(object):
         self._is_array_ref = False
         # List of the variables used to index into the array
         self._index_vars = []
-        # Comma-delimited, string representation of the array-index
-        # expression e.g. "ji, jj+1"
-        self._index_expr = ""
+        # List of the index expressions: one for each index of the
+        # array
         self._index_exprns = []
 
     def __str__(self):
@@ -115,11 +114,8 @@ class Variable(object):
         if not self._is_array_ref:
             return ""
 
-        import re
-        tokens = re.split(',', self._index_expr)
-        assert len(tokens) == len(self._index_vars)
         simplified_expr = ""
-        for idx, tok in enumerate(tokens):
+        for idx, tok in enumerate(self._index_exprns):
             if idx > 0:
                 simplified_expr += ","
 
@@ -131,22 +127,25 @@ class Variable(object):
             if num_plus > 0 or num_minus > 0:
                 basic_expr = tok.replace("+1","")
                 basic_expr = basic_expr.replace("-1","")
-                simplified_expr += basic_expr
+
                 net_incr = num_plus - num_minus
                 if net_incr < 0:
-                    simplified_expr += str(net_incr)
+                    basic_expr += str(net_incr)
                 elif net_incr > 0:
-                    simplified_expr += "+" + str(net_incr)
+                    basic_expr += "+" + str(net_incr)
                 else:
                     # The +1's and -1's have cancelled each other out
                     pass
+                # Store the simplified expression for this array index
+                self._index_exprns[idx] = basic_expr
+                # Add it to the full index expression for the array ref
+                simplified_expr += basic_expr
             else:
                 # This part of the index expression contains no "+1"s and
                 # no "-1"s so we leave it unchanged
                 simplified_expr += tok
-        self._index_expr = simplified_expr
 
-        return self._index_expr
+        return simplified_expr
 
     def load(self, node, mapping=None, lhs=False):
         ''' Populate the state of this Variable object using the supplied
@@ -174,27 +173,33 @@ class Variable(object):
             self._name = str(node.items[0])
             self._orig_name = self._name
             self._is_array_ref = True
-            # Get and store the original array-index expression (i.e. before
-            # we start re-naming any of the variables involved). This gives
-            # us the information on any expressions in the array indexing, e.g.
-            # (ji+1,jj-1)
-            self._index_expr = str(node.items[1]).replace(" ","")
 
+            # Obtain the expression for each index of the array ref
+            for item in node.items[1].items:
+                 self._index_exprns.append(str(item).replace(" ",""))
+
+            print self._index_exprns
+            
             # This recurses down and finds the names of all of the variables
             # in the array-index expression (i.e. ignoring whether they
             # are "+1" etc.)
             array_index_vars = walk(node.items[1].items, Name)
 
-            for idx, index in enumerate(array_index_vars):
-                name = index.string
+            for var in array_index_vars:
+                name = var.string
                 if mapping and name in mapping:
                     self._index_vars.append(mapping[name])
-                    # Replace the reference to this variable in the index
-                    # expression with the new name
-                    self._index_expr = self._index_expr.replace(name,
+                    # Replace any references to this variable in the index
+                    # expressions with the new name
+                    for idx, exprn in enumerate(self._index_exprns):
+                        self._index_exprns[idx] = exprn.replace(name,
                                                                 mapping[name])
                 else:
+                    # This variable name is not in our name map so we
+                    # use it as it is
                     self._index_vars.append(name)
+
+            print self._index_exprns
 
 
         elif isinstance(node, Real_Literal_Constant):
