@@ -108,7 +108,7 @@ def runner(parser, options, args):
         Subroutine_Stmt, Name, Block_Nonlabel_Do_Construct, Execution_Part
     from parse2003 import Loop
 
-    apply_fma_transformation = False
+    apply_fma_transformation = True
 
     for filename in args:
         reader = FortranFileReader(filename)
