@@ -65,7 +65,9 @@ class Path(object):
         return cost
 
     def flops(self):
-        ''' The number of floating point operations in the path '''
+        ''' The number of floating point operations in the path. This is
+        NOT the same as the number of cycles required to execute the
+        path. '''
         flop_count = 0
         for node in self._nodes:
             if node.node_type in OPERATORS:
@@ -205,12 +207,19 @@ class DirectedAcyclicGraph(object):
         is the number of distinct memory references. We assume that
         any array reference of the form u(i+1,j) will have been fetched
         when u(i,j) was accessed. '''
+        # List of distinct array references
         array_refs = []
         # Loop over all nodes in the tree, looking for array references
         ancestors = self.ancestor_nodes()
         for ancestor in ancestors:
             nodes = ancestor.walk("array_ref")
             for node in nodes:
+                # We care about the name of the array and the value of
+                # anything other than the first index (assuming that any
+                # accesses that differ only in the first index are all
+                # fetched in the same cache line).
+                print node._variable.name
+                print str(node._variable)
                 # TODO replace this hack with a nice way of identifying
                 # neighbouring array references.
                 # TODO extend to i+/-n where n > 1.
@@ -351,14 +360,6 @@ class DirectedAcyclicGraph(object):
     @property
     def critical_path(self):
         return self._critical_path
-    
-    def rename_nodes(self, old_name, new_name):
-        ''' Go through all nodes of the graph and re-name any variables
-        that match "old_name" '''
-        # TODO should I change the key values in the dictionary too?
-        for node in self._nodes.itervalues():
-            if node.variable:
-                node.variable.rename(old_name, new_name)
 
     def to_dot(self):
         ''' Write the DAG to file in DOT format. If a critical path has
