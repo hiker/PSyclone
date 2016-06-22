@@ -218,16 +218,11 @@ class DirectedAcyclicGraph(object):
                 # anything other than the first index (assuming that any
                 # accesses that differ only in the first index are all
                 # fetched in the same cache line).
-                print node._variable.name
-                print str(node._variable)
-                # TODO replace this hack with a nice way of identifying
-                # neighbouring array references.
-                # TODO extend to i+/-n where n > 1.
-                # Map any reference to xxx(i+/-1, j) back on to xxx(i,j)
-                name = node.name.replace("ip1_","i_")
-                name = name.replace("im1_", "i_")
-                if name not in array_refs:
-                    array_refs.append(name)
+                key = node._variable.name
+                for index in node.variable.indices[1:]:
+                    key += "_" + index
+                if key not in array_refs:
+                    array_refs.append(key)
         return len(array_refs)
 
     def calc_costs(self):

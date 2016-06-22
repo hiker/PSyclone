@@ -102,9 +102,7 @@ class Variable(object):
     def __str__(self):
         name = self._name
         if self._is_array_ref:
-            name += "("
-            name += self.index_expr
-            name += ")"
+            name += "(" + self.index_expr + ")"
         return name
 
     @property
@@ -114,11 +112,16 @@ class Variable(object):
         if not self._is_array_ref:
             return ""
 
-        simplified_expr = ""
-        for idx, tok in enumerate(self._index_exprns):
-            if idx > 0:
-                simplified_expr += ","
+        index_str = self.indices[0]
+        for tok in self.indices[1:]:
+            index_str += "," + tok
+        return index_str
 
+    @property
+    def indices(self):
+        ''' Returns a list of strings containing the expression for each
+        array index in this array reference '''
+        for idx, tok in enumerate(self._index_exprns):
             # This is a very simplistic piece of code intended to
             # process array index expressions of the form 
             # ji+1-1+1. It ignores anything other than '+1' and '-1'.
@@ -138,14 +141,11 @@ class Variable(object):
                     pass
                 # Store the simplified expression for this array index
                 self._index_exprns[idx] = basic_expr
-                # Add it to the full index expression for the array ref
-                simplified_expr += basic_expr
             else:
                 # This part of the index expression contains no "+1"s and
                 # no "-1"s so we leave it unchanged
-                simplified_expr += tok
-
-        return simplified_expr
+                pass
+        return self._index_exprns
 
     def load(self, node, mapping=None, lhs=False):
         ''' Populate the state of this Variable object using the supplied
@@ -177,10 +177,8 @@ class Variable(object):
             # Obtain the expression for each index of the array ref
             for item in node.items[1].items:
                  self._index_exprns.append(str(item).replace(" ",""))
-
-            print self._index_exprns
             
-            # This recurses down and finds the names of all of the variables
+            # This recurses down and finds the names of all of the *variables*
             # in the array-index expression (i.e. ignoring whether they
             # are "+1" etc.)
             array_index_vars = walk(node.items[1].items, Name)
@@ -198,9 +196,6 @@ class Variable(object):
                     # This variable name is not in our name map so we
                     # use it as it is
                     self._index_vars.append(name)
-
-            print self._index_exprns
-
 
         elif isinstance(node, Real_Literal_Constant):
             self._name = str(node)
