@@ -94,10 +94,11 @@ class Variable(object):
         self._orig_name = None
         self._is_array_ref = False
         # List of the variables used to index into the array
-        self._indices = []
+        self._index_vars = []
         # Comma-delimited, string representation of the array-index
         # expression e.g. "ji, jj+1"
         self._index_expr = ""
+        self._index_exprns = []
 
     def __str__(self):
         name = self._name
@@ -116,7 +117,7 @@ class Variable(object):
 
         import re
         tokens = re.split(',', self._index_expr)
-        assert len(tokens) == len(self._indices)
+        assert len(tokens) == len(self._index_vars)
         simplified_expr = ""
         for idx, tok in enumerate(tokens):
             if idx > 0:
@@ -182,18 +183,18 @@ class Variable(object):
             # This recurses down and finds the names of all of the variables
             # in the array-index expression (i.e. ignoring whether they
             # are "+1" etc.)
-            array_indices = walk(node.items[1].items, Name)
+            array_index_vars = walk(node.items[1].items, Name)
 
-            for idx, index in enumerate(array_indices):
+            for idx, index in enumerate(array_index_vars):
                 name = index.string
                 if mapping and name in mapping:
-                    self._indices.append(mapping[name])
+                    self._index_vars.append(mapping[name])
                     # Replace the reference to this variable in the index
                     # expression with the new name
                     self._index_expr = self._index_expr.replace(name,
                                                                 mapping[name])
                 else:
-                    self._indices.append(name)
+                    self._index_vars.append(name)
 
 
         elif isinstance(node, Real_Literal_Constant):
@@ -219,16 +220,3 @@ class Variable(object):
     def name(self, new_name):
         ''' Set or change the name of this variable '''
         self._name = new_name
-
-    def rename(self, old_name, new_name):
-        ''' Re-name the root name of this variable and/or its array
-        index variables (if any) '''
-        if self._name == old_name:
-            self._name = new_name
-        for idx, index  in enumerate(self._indices):
-            if str(index) == old_name:
-                # Need to replace reference in array-index expression as
-                # well as re-naming this variable
-                self._index_expr = self._index_expr.replace(old_name,
-                                                            new_name)
-                self._indices[idx] = new_name
