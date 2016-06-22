@@ -84,6 +84,9 @@ def dag_of_code_block(parent_node, name, loop=None):
             mapping[loop.var_name] += "+1"
             dag_of_assignments(digraph, assignments, mapping)
 
+    # Remove duplicate sub-graphs from the graph
+    digraph.prune_duplicate_nodes()
+    
     # Correctness check - if we've ended up with e.g. my_var' as a key
     # in our name-mapping dictionary then something has gone wrong.
     for name in mapping:
