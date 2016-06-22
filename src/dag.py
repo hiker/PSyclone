@@ -42,6 +42,27 @@ def is_intrinsic_fn(obj):
     return False
 
 
+def subgraph_matches(node1, node2):
+        ''' Returns True if the two nodes (and any children they may
+        have) represent the same quantity. '''
+        if node1._name != node2._name:
+            return False
+        if len(node1._children) != len(node2._children):
+            return False
+        for child1 in node1._children:
+            found = False
+            # We can't assume that the two lists of children have the same
+            # ordering...
+            for child2 in node2._children:
+                # Recurse down
+                if child1 == child2:
+                    found = True
+                    break
+            if not found:
+                return False
+        return True
+
+
 # TODO: would it be better to inherit from the built-in list object?
 class Path(object):
     ''' Class to encapsulate functionality related to a specifc path
@@ -352,6 +373,25 @@ class DirectedAcyclicGraph(object):
 
         self._critical_path = crit_path
 
+    def prune_duplicate_nodes(self):
+        ''' Walk through the graph and remove all but-one of any
+        duplicated sub-graphs that represent FLOPs'''
+        # Use a dictionary of lists to store the nodes that are instances
+        # of each of our types of FLOP
+        op_list = {}
+        for opname in OPERATORS:
+            op_list[opname] = []
+        # _nodes is a dictionary - we want the values, not the keys
+        for node in self._nodes.itervalues():
+            if node.node_type in OPERATORS:
+                op_list[node.node_type].append(node)
+
+        for opname in OPERATORS:
+            for idx, node1 in enumerate(op_list[opname][:-1]):
+                for node2 in op_list[opname][idx+1:]:
+                    if subgraph_matches(node1, node2):
+                        print "{0} matches {1}".format(str(node1), str(node2))
+                    
     @property
     def critical_path(self):
         return self._critical_path
@@ -428,15 +468,6 @@ class DirectedAcyclicGraph(object):
                "{:.4f}*CLOCK_SPEED".format(flops_per_hz))
         print ("  (e.g. at 3.8 GHz, this gives {:.2f} GFLOPS)".
                format(flops_per_hz*3.0))
-
-    def extend(self, extra_dag):
-        ''' Extend the current dag with that in the supplied object) '''
-        # Loop over the list of nodes in the supplied dag and add them
-        # to our own list of nodes. We do not simply call 'update' because
-        # we need to change the key values to reflect that variables
-        # may have been renamed.
-        for key, value in extra_dag._nodes.iteritems():
-            self._nodes[str(value)] = value
 
 
 class DAGNode(object):
