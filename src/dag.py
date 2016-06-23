@@ -63,6 +63,16 @@ def subgraph_matches(node1, node2):
         return True
 
 
+class DAGError(Exception):
+    ''' Class for exceptions related to DAG manipulations '''
+    
+    def __init__(self, value):
+        self.value = "DAG Error: " + value
+
+    def __str__(self):
+        return repr(self.value)
+
+
 # TODO: would it be better to inherit from the built-in list object?
 class Path(object):
     ''' Class to encapsulate functionality related to a specifc path
@@ -201,6 +211,10 @@ class DirectedAcyclicGraph(object):
         else:
             raise Exception("Object {0} not in list of nodes in graph!".
                             format(str(node)))
+        # Remove this node from any node that has it as a child (dependency)
+        for pnode in node._has_as_child[:]:
+            pnode.children.remove(node)
+        # Finally, delete it altogether
         del node
 
     def delete_sub_graph(self, node):
@@ -401,7 +415,19 @@ class DirectedAcyclicGraph(object):
                 for node2 in op_list[opname][idx+1:]:
                     if subgraph_matches(node1, node2):
                         print "{0} matches {1}".format(str(node1), str(node2))
-                        node2.parent.add_child(node1)
+                        # Create a new node to store the result of this
+                        # duplicated operation
+                        new_node = self.get_node(node1.parent, name="andy",
+                                                 unique=True)
+                        # Make this new node depend on node1
+                        new_node.add_child(node1)
+                        # Add the new node as a dependency for those nodes
+                        # that previously had either node1 or node2 as
+                        # children
+                        node1.parent.add_child(new_node)
+                        node2.parent.add_child(new_node)
+                        node1.parent.rm_child(node1)
+                        node2.parent.rm_child(node2)
                         self.delete_sub_graph(node2)
                     
     @property
@@ -509,10 +535,6 @@ class DAGNode(object):
     def __str__(self):
         return self.name
 
-    def __del__(self):
-        for node in self._has_as_child:
-            node._has_as_child.remove(node)
-
     @property
     def node_id(self):
         ''' Returns a unique string identifying this node in the graph '''
@@ -543,6 +565,17 @@ class DAGNode(object):
         ''' Add a child to this node '''
         self._children.append(child)
         child.depended_on_by(self)
+
+    def rm_child(self, child):
+        ''' Remove a child from this node '''
+        if child not in self._children:
+            raise DAGError("Node {0} is not a child of this node ({1}".
+                           format(str(child), str(self)))
+        # Remove it from the list of children
+        self._children.remove(child)
+        # Modify the object itself now that this one no longer has it
+        # as a child (dependency)
+        child._has_as_child.remove(self)
 
     def depended_on_by(self, node):
         ''' Add the supplied node to the list of nodes that have this one as
