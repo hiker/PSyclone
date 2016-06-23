@@ -150,7 +150,7 @@ class DirectedAcyclicGraph(object):
         ''' Set the name of this DAG '''
         self._name = new_name
 
-    def get_node(self, parent, mapping=None, name=None, unique=False,
+    def get_node(self, parent=None, mapping=None, name=None, unique=False,
                  node_type=None, variable=None):
         ''' Looks-up or creates a node in the graph. If unique is False and
         we do not already have a node with the supplied name then we create a
@@ -184,11 +184,10 @@ class DirectedAcyclicGraph(object):
                 if DEBUG:
                     print "Matched node with name: ", node_name
                 node = self._nodes[node_name]
-                # If this node does not already have a parent then
-                # set it now (it may not have had a parent when
-                # first created)
-                if not node.parent:
-                    node.parent = parent
+                # Record the fact that the parent now has a dependence
+                # on this node
+                if parent:
+                    parent.add_child(node)
                 return node
             else:
                 if DEBUG:
@@ -219,24 +218,33 @@ class DirectedAcyclicGraph(object):
         # Remove this node from any node that has it as a child (dependency)
         for pnode in node._has_as_child[:]:
             pnode.children.remove(node)
+        print "Deleting node {0}".format(str(node))
         # Finally, delete it altogether
         del node
 
     def delete_sub_graph(self, node):
         ''' Recursively deletes the supplied node *and all of its
         dependencies/children" '''
-        node_list = node.walk()
-        for child in node_list:
-            if not child.is_dependent:
-                self.delete_node(child)
+        node_list = node.walk(top_down=True)
         if not node.is_dependent:
             self.delete_node(node)
+        for child in node_list:
+            # We only delete the node if no other node has it as a
+            # dependency (child)
+            if not child.is_dependent:
+                self.delete_node(child)
+            else:
+                print "Not deleting child {0}. Has dependents:".format(str(child))
+                for dep in child._has_as_child:
+                    print str(dep)
 
     def ancestor_nodes(self):
-        ''' Returns a list of all nodes that do not have a parent '''
+        ''' Returns a list of all nodes that do not have a parent (a node
+        that is dependent upon them). These are inputs to the DAG. '''
+        # TODO rename this to input_nodes()
         node_list = []
         for node in self._nodes.itervalues():
-            if node.parent is None:
+            if not node.is_dependent:
                 node_list.append(node)
         return node_list
 
@@ -445,25 +453,31 @@ class DirectedAcyclicGraph(object):
                         # Create a new node to store the result of this
                         # duplicated operation
                         new_node = self.get_node(
-                            node1.parent,
                             name="sub_exp"+str(self._sub_exp_count),
                             unique=True)
                         # Increment the count of duplicate sub-expressions
                         self._sub_exp_count += 1
+
                         # Make this new node depend on node1
                         new_node.add_child(node1)
                         # Each node that had node1 as a dependency must now
                         # have that replaced by new_node...
-                        for pnode in node1._has_as_child:
+                        print "node1 is a dependent of {0} nodes".format(len(node1._has_as_child))
+                        for pnode in node1._has_as_child[:]:
                             pnode.add_child(new_node)
                             pnode.rm_child(node1)
 
                         for node2 in matching_nodes:
                             # Add the new node as a dependency for those nodes
                             # that previously had node2 as a child
-                            node2.parent.add_child(new_node)
-                            node2.parent.rm_child(node2)
-                            # Delete node2 and all of its dependencies (children)
+                            print "node2 is a dependent of {0} nodes".format(len(node2._has_as_child))
+                            for pnode in node2._has_as_child[:]:
+                                pnode.add_child(new_node)
+                                pnode.rm_child(node2)
+                            is_dep = node2.is_dependent
+                            print "node2 is now a dependent of {0} nodes and is_dependent returns {1}".format(len(node2._has_as_child), str(is_dep))
+                            # Delete node2 and all of its dependencies
+                            # (children)
                             self.delete_sub_graph(node2)
 
                         # Need to re-generate list of nodes for this operator
@@ -556,7 +570,6 @@ class DAGNode(object):
     ''' Base class for a node in a Directed Acyclic Graph '''
 
     def __init__(self, parent=None, name=None, digraph=None, variable=None):
-        self._parent = parent
         # Keep a reference back to the digraph object containing
         # this node
         self._digraph = digraph
@@ -565,6 +578,8 @@ class DAGNode(object):
         # The list of nodes that have a dependence upon this node
         # TODO what is the correct name for such nodes?
         self._has_as_child = []
+        if parent:
+            self._has_as_child.append(parent)
         # The name of this node - used to label the node in DOT
         self._name = name
         # The type of this node
@@ -607,8 +622,9 @@ class DAGNode(object):
 
     def add_child(self, child):
         ''' Add a child to this node '''
-        self._children.append(child)
-        child.depended_on_by(self)
+        if child not in self._children:
+            self._children.append(child)
+            child.depended_on_by(self)
 
     def rm_child(self, child):
         ''' Remove a child (dependency) from this node '''
@@ -627,6 +643,7 @@ class DAGNode(object):
         if node not in self._has_as_child:
             self._has_as_child.append(node)
 
+    @property
     def is_dependent(self):
         ''' Returns true if one or more nodes have this node as a
         dependency '''
@@ -638,17 +655,6 @@ class DAGNode(object):
     def children(self):
         ''' Returns the list of children belonging to this node '''
         return self._children
-
-    @property
-    def parent(self):
-        ''' Returns the parent of this node (or None if it doesn't
-        have one) '''
-        return self._parent
-
-    @parent.setter
-    def parent(self, node):
-        ''' Set the parent of this node '''
-        self._parent = node
 
     @property
     def node_type(self):
@@ -669,15 +675,23 @@ class DAGNode(object):
         if there isn't one '''
         return self._variable
 
-    def walk(self, node_type=None):
+    def walk(self, node_type=None, top_down=False):
         ''' Walk down the tree from this node and generate a list of all
         nodes of type node_type. If no node type is supplied then return
         all descendents '''
         local_list = []
-        for child in self._children:
-            local_list += child.walk(node_type)
-            if not node_type or child.node_type == node_type:
-                local_list.append(child)
+        if top_down:
+            # Add the children of this node before recursing down
+            for child in self._children:
+                if not node_type or child.node_type == node_type:
+                    local_list.append(child)
+            for child in self._children:
+                local_list += child.walk(node_type, top_down)
+        else:
+            for child in self._children:
+                local_list += child.walk(node_type, top_down)
+                if not node_type or child.node_type == node_type:
+                    local_list.append(child)
         return local_list
 
     @property
@@ -719,7 +733,6 @@ class DAGNode(object):
                     # multiplication operation
                     for grandchild in child.children:
                         self.add_child(grandchild)
-                        grandchild.parent = self
                     # Delete the multiplication/addition node
                     self._children.remove(child)
                     self._digraph.delete_node(child)
