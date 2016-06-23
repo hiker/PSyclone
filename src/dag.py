@@ -43,29 +43,29 @@ def is_intrinsic_fn(obj):
 
 
 def subgraph_matches(node1, node2):
-        ''' Returns True if the two nodes (and any children they may
-        have) represent the same quantity. '''
-        if node1._name != node2._name:
+    ''' Returns True if the two nodes (and any children they may
+    have) represent the same quantity. '''
+    if node1._name != node2._name:
+        return False
+    if len(node1._children) != len(node2._children):
+        return False
+    for child1 in node1._children:
+        found = False
+        # We can't assume that the two lists of children have the same
+        # ordering...
+        for child2 in node2._children:
+            # Recurse down
+            if child1 == child2:
+                found = True
+                break
+        if not found:
             return False
-        if len(node1._children) != len(node2._children):
-            return False
-        for child1 in node1._children:
-            found = False
-            # We can't assume that the two lists of children have the same
-            # ordering...
-            for child2 in node2._children:
-                # Recurse down
-                if child1 == child2:
-                    found = True
-                    break
-            if not found:
-                return False
-        return True
+    return True
 
 
 class DAGError(Exception):
     ''' Class for exceptions related to DAG manipulations '''
-    
+
     def __init__(self, value):
         self.value = "DAG Error: " + value
 
@@ -86,6 +86,7 @@ class Path(object):
         self._nodes = obj_list
 
     def add_node(self, obj):
+        ''' Add a node to this path '''
         self._nodes.append(obj)
 
     def cycles(self):
@@ -133,6 +134,9 @@ class DirectedAcyclicGraph(object):
         self._ancestors = None
         # The critical path through the graph
         self._critical_path = Path()
+        # Counter for duplicate sub-expressions (for naming the node
+        # used to store the result)
+        self._sub_exp_count = 0
 
     @property
     def name(self):
@@ -143,6 +147,7 @@ class DirectedAcyclicGraph(object):
 
     @name.setter
     def name(self, new_name):
+        ''' Set the name of this DAG '''
         self._name = new_name
 
     def get_node(self, parent, mapping=None, name=None, unique=False,
@@ -353,7 +358,6 @@ class DirectedAcyclicGraph(object):
                     self.make_dag(tmpnode, child.items[1:], mapping)
                 else:
                     # Assume it's an array reference
-                    from parse2003 import Variable
                     arrayvar = Variable()
                     arrayvar.load(child, mapping)
                     tmpnode = self.get_node(parent, mapping,
@@ -397,39 +401,79 @@ class DirectedAcyclicGraph(object):
 
         self._critical_path = crit_path
 
+    def nodelist_by_type(self, ntype):
+        ''' Returns a list of all nodes in this DAG that have the
+        specified type '''
+        if ntype not in VALID_NODE_TYPES:
+            raise DAGError("Got a node type of {0} but expected one of {1}".
+                           format(ntype, VALID_NODE_TYPES))
+        op_list = []
+        # _nodes is a dictionary - we want the values, not the keys
+        for node in self._nodes.itervalues():
+            if node.node_type == ntype:
+                op_list.append(node)
+        return op_list
+
     def prune_duplicate_nodes(self):
         ''' Walk through the graph and remove all but-one of any
         duplicated sub-graphs that represent FLOPs'''
-        # Use a dictionary of lists to store the nodes that are instances
-        # of each of our types of FLOP
-        op_list = {}
-        for opname in OPERATORS:
-            op_list[opname] = []
-        # _nodes is a dictionary - we want the values, not the keys
-        for node in self._nodes.itervalues():
-            if node.node_type in OPERATORS:
-                op_list[node.node_type].append(node)
 
         for opname in OPERATORS:
-            for idx, node1 in enumerate(op_list[opname][:-1]):
-                for node2 in op_list[opname][idx+1:]:
-                    if subgraph_matches(node1, node2):
-                        print "{0} matches {1}".format(str(node1), str(node2))
+
+            op_list = self.nodelist_by_type(opname)
+            if not op_list or len(op_list) == 1:
+                continue
+            found_duplicate = True
+
+            # Keep looping until we no longer find duplicate sub-expressions
+            # involving the current operator
+            while found_duplicate:
+
+                print "List of nodes of {0} now has {1} items".format(opname, len(op_list))                
+                for idx, node1 in enumerate(op_list[:-1]):
+                    # Construct a list of nodes (sub-graphs really) that
+                    # match node1
+                    matching_nodes = []
+                    for node2 in op_list[idx+1:]:
+                        if subgraph_matches(node1, node2):
+                            matching_nodes.append(node2)
+
+                    if matching_nodes:
+                        found_duplicate = True
+                        print "Found {0} matching nodes for {1} (id={2})".format(
+                            len(matching_nodes), str(node1), node1.node_id)
                         # Create a new node to store the result of this
                         # duplicated operation
-                        new_node = self.get_node(node1.parent, name="andy",
-                                                 unique=True)
+                        new_node = self.get_node(
+                            node1.parent,
+                            name="sub_exp"+str(self._sub_exp_count),
+                            unique=True)
+                        # Increment the count of duplicate sub-expressions
+                        self._sub_exp_count += 1
                         # Make this new node depend on node1
                         new_node.add_child(node1)
-                        # Add the new node as a dependency for those nodes
-                        # that previously had either node1 or node2 as
-                        # children
-                        node1.parent.add_child(new_node)
-                        node2.parent.add_child(new_node)
-                        node1.parent.rm_child(node1)
-                        node2.parent.rm_child(node2)
-                        self.delete_sub_graph(node2)
-                    
+                        # Each node that had node1 as a dependency must now
+                        # have that replaced by new_node...
+                        for pnode in node1._has_as_child:
+                            pnode.add_child(new_node)
+                            pnode.rm_child(node1)
+
+                        for node2 in matching_nodes:
+                            # Add the new node as a dependency for those nodes
+                            # that previously had node2 as a child
+                            node2.parent.add_child(new_node)
+                            node2.parent.rm_child(node2)
+                            # Delete node2 and all of its dependencies (children)
+                            self.delete_sub_graph(node2)
+
+                        # Need to re-generate list of nodes for this operator
+                        op_list = self.nodelist_by_type(opname)
+
+                        # Break out to re-start search for duplicates
+                        break
+                    else:
+                        found_duplicate = False
+
     @property
     def critical_path(self):
         return self._critical_path
@@ -439,19 +483,19 @@ class DirectedAcyclicGraph(object):
         been computed then it is also written to the file. '''
 
         # Create a file for the graph of this subroutine
-        fo = open(self._name+".gv", "w")
-        fo.write("strict digraph {\n")
+        outfile = open(self._name+".gv", "w")
+        outfile.write("strict digraph {\n")
 
         for node in self.ancestor_nodes():
-            node.to_dot(fo)
+            node.to_dot(outfile)
 
         # Write the critical path
         if len(self._critical_path):
-            self._critical_path.to_dot(fo)
+            self._critical_path.to_dot(outfile)
 
-        fo.write("}\n")
-        print "Wrote DAG to {0}".format(fo.name)
-        fo.close()
+        outfile.write("}\n")
+        print "Wrote DAG to {0}".format(outfile.name)
+        outfile.close()
 
     def report(self):
         ''' Report the properties of this DAG to stdout '''
@@ -567,9 +611,9 @@ class DAGNode(object):
         child.depended_on_by(self)
 
     def rm_child(self, child):
-        ''' Remove a child from this node '''
+        ''' Remove a child (dependency) from this node '''
         if child not in self._children:
-            raise DAGError("Node {0} is not a child of this node ({1}".
+            raise DAGError("Node {0} is not a child of this node ({1})".
                            format(str(child), str(self)))
         # Remove it from the list of children
         self._children.remove(child)
