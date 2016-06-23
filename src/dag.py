@@ -203,6 +203,16 @@ class DirectedAcyclicGraph(object):
                             format(str(node)))
         del node
 
+    def delete_sub_graph(self, node):
+        ''' Recursively deletes the supplied node *and all of its
+        dependencies/children" '''
+        node_list = node.walk()
+        for child in node_list:
+            if not child.is_dependent:
+                self.delete_node(child)
+        if not node.is_dependent:
+            self.delete_node(node)
+
     def ancestor_nodes(self):
         ''' Returns a list of all nodes that do not have a parent '''
         node_list = []
@@ -391,6 +401,8 @@ class DirectedAcyclicGraph(object):
                 for node2 in op_list[opname][idx+1:]:
                     if subgraph_matches(node1, node2):
                         print "{0} matches {1}".format(str(node1), str(node2))
+                        node2.parent.add_child(node1)
+                        self.delete_sub_graph(node2)
                     
     @property
     def critical_path(self):
@@ -478,7 +490,11 @@ class DAGNode(object):
         # Keep a reference back to the digraph object containing
         # this node
         self._digraph = digraph
+        # The list of nodes upon which this node has a dependence
         self._children = []
+        # The list of nodes that have a dependence upon this node
+        # TODO what is the correct name for such nodes?
+        self._has_as_child = []
         # The name of this node - used to label the node in DOT
         self._name = name
         # The type of this node
@@ -492,6 +508,10 @@ class DAGNode(object):
 
     def __str__(self):
         return self.name
+
+    def __del__(self):
+        for node in self._has_as_child:
+            node._has_as_child.remove(node)
 
     @property
     def node_id(self):
@@ -522,6 +542,20 @@ class DAGNode(object):
     def add_child(self, child):
         ''' Add a child to this node '''
         self._children.append(child)
+        child.depended_on_by(self)
+
+    def depended_on_by(self, node):
+        ''' Add the supplied node to the list of nodes that have this one as
+        a dependency (child) '''
+        if node not in self._has_as_child:
+            self._has_as_child.append(node)
+
+    def is_dependent(self):
+        ''' Returns true if one or more nodes have this node as a
+        dependency '''
+        if self._has_as_child:
+            return True
+        return False
 
     @property
     def children(self):
@@ -558,14 +592,15 @@ class DAGNode(object):
         if there isn't one '''
         return self._variable
 
-    def walk(self, node_type):
+    def walk(self, node_type=None):
         ''' Walk down the tree from this node and generate a list of all
-        nodes of type node_type '''
+        nodes of type node_type. If no node type is supplied then return
+        all descendents '''
         local_list = []
         for child in self._children:
-            if child.node_type == node_type:
-                local_list.append(child)
             local_list += child.walk(node_type)
+            if not node_type or child.node_type == node_type:
+                local_list.append(child)
         return local_list
 
     @property
