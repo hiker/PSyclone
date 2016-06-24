@@ -10,9 +10,11 @@ DEBUG = False
 INDENT_STR = "     "
 
 # Types of floating-point operation with their cost in cycles
-# (from http://www.agner.org/optimize/instruction_tables.pdf)
+# (from http://www.agner.org/optimize/instruction_tables.pdf).
+# Operations are in order of decreasing cost (for use when
+# searching for duplicated sub-graphs).
 # TODO these costs are microarchitecture specific.
-OPERATORS = {"+":1, "-":1, "/":14, "*":1, "FMA":1}
+OPERATORS = {"/":14, "+":1, "-":1, "*":1, "FMA":1}
 
 # Valid types for a node in the DAG
 VALID_NODE_TYPES = OPERATORS.keys() + ["intrinsic", "constant", "array_ref"]
@@ -735,13 +737,16 @@ class DAGNode(object):
 
     def fuse_multiply_adds(self):
         ''' Recursively take any opportunities to fuse multiplication and
-        addition operations '''
+        addition operations. Returns the no. of FMAs created. '''
+        fma_count = 0
+
         for child in self._producers:
-            child.fuse_multiply_adds()
+            fma_count += child.fuse_multiply_adds()
+
         fusable_operations = ["+", "*"]
         # If this node is an addition or a multiplication
         if self._node_type in fusable_operations:
-            # Loop over a copy of the list of children as this loop
+            # Loop over a copy of the list of producers as this loop
             # modifies the original
             for child in self._producers[:]:
                 if child._node_type != self._node_type and \
@@ -759,10 +764,12 @@ class DAGNode(object):
                     self._name = "FMA"
                     self._node_type = "FMA"
                     if len(self._producers) != 3:
-                        raise Exception("An FMA node must have 3 producers "
-                                        "but found {0}".
+                        raise Exception("An FMA node must have three nodes "
+                                        "as input but found {0}".
                                         format(len(self._producers)))
+                    fma_count += 1
                     break
+        return fma_count
 
     def critical_path(self, path):
         ''' Compute the critical (most expensive) path from this node '''
