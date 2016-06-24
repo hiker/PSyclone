@@ -84,9 +84,6 @@ def dag_of_code_block(parent_node, name, loop=None):
             mapping[loop.var_name] += "+1"
             dag_of_assignments(digraph, assignments, mapping)
 
-    # Remove duplicate sub-graphs from the graph
-    digraph.prune_duplicate_nodes()
-    
     # Correctness check - if we've ended up with e.g. my_var' as a key
     # in our name-mapping dictionary then something has gone wrong.
     for name in mapping:
@@ -95,9 +92,6 @@ def dag_of_code_block(parent_node, name, loop=None):
                 "Found {0} in name map but names with ' characters "
                 "appended should only appear in the value part of "
                 "the dictionary")
-
-    # Work out the critical path through this graph
-    path = digraph.calc_critical_path()
 
     return digraph
 
@@ -111,7 +105,8 @@ def runner(parser, options, args):
         Subroutine_Stmt, Name, Block_Nonlabel_Do_Construct, Execution_Part
     from parse2003 import Loop
 
-    apply_fma_transformation = True
+    apply_fma_transformation = not options.no_fma
+    prune_duplicate_nodes = not options.no_prune
 
     for filename in args:
         reader = FortranFileReader(filename)
@@ -165,18 +160,28 @@ def runner(parser, options, args):
                             digraphs.append(digraph)
 
                 for digraph in digraphs:
+
+                    if prune_duplicate_nodes:
+                        digraph.prune_duplicate_nodes()
+
+                    # Work out the critical path through this graph
+                    digraph.calc_critical_path()
+
                     # Write the digraph to file
                     digraph.to_dot()
                     digraph.report()
 
                     # Fuse multiply-adds where possible
                     if apply_fma_transformation:
-                        digraph.fuse_multiply_adds()
-                        digraph.name = digraph.name + "_fused"
-                        # Re-compute the critical path through this graph
-                        path = digraph.calc_critical_path()
-                        digraph.to_dot()
-                        digraph.report()
+                        num_fused = digraph.fuse_multiply_adds()
+                        if num_fused:
+                            digraph.name = digraph.name + "_fused"
+                            # Re-compute the critical path through this graph
+                            digraph.calc_critical_path()
+                            digraph.to_dot()
+                            digraph.report()
+                        else:
+                            print "No opportunities to fuse multiply-adds"
 
         except Fortran2003.NoMatchError:
             print 'parsing %r failed at %s' % (filename, reader.fifo_item[-1])
@@ -188,9 +193,22 @@ def runner(parser, options, args):
 def main():
     parser = OptionParser()
     set_f2003_options(parser)
+    parser.add_option("--no-prune",
+                      help="Do not attempt to prune duplicate operations "
+                      "from the graph",
+                      action="store_true",
+                      dest="no_prune",
+                      default=False)
+    parser.add_option("--no-fma",
+                      help="Do not attempt to generate fused multiply-add "
+                      "operations",
+                      action="store_true",
+                      dest="no_fma",
+                      default=False)
     if hasattr(parser, 'runner'):
         parser.runner = runner
     options, args = parser.parse_args()
+
     runner(parser, options, args)
     return
 
