@@ -47,15 +47,15 @@ def subgraph_matches(node1, node2):
     have) represent the same quantity. '''
     if node1._name != node2._name:
         return False
-    if len(node1._children) != len(node2._children):
+    if len(node1.producers) != len(node2.producers):
         return False
-    for child1 in node1._children:
+    for child1 in node1.producers:
         found = False
         # We can't assume that the two lists of children have the same
         # ordering...
-        for child2 in node2._children:
+        for child2 in node2.producers:
             # Recurse down
-            if child1 == child2:
+            if subgraph_matches(child1, child2):
                 found = True
                 break
         if not found:
@@ -187,7 +187,7 @@ class DirectedAcyclicGraph(object):
                 # Record the fact that the parent now has a dependence
                 # on this node
                 if parent:
-                    parent.add_child(node)
+                    parent.add_producer(node)
                 return node
             else:
                 if DEBUG:
@@ -216,42 +216,44 @@ class DirectedAcyclicGraph(object):
             raise Exception("Object {0} not in list of nodes in graph!".
                             format(str(node)))
         # Remove this node from any node that has it as a child (dependency)
-        for pnode in node._has_as_child[:]:
-            pnode.children.remove(node)
+        for pnode in node.consumers[:]:
+            pnode.rm_consumer(node)
         print "Deleting node {0}".format(str(node))
         # Finally, delete it altogether
         del node
 
+
     def delete_sub_graph(self, node):
         ''' Recursively deletes the supplied node *and all of its
-        dependencies/children" '''
+        dependencies/children* '''
         node_list = node.walk(top_down=True)
-        if not node.is_dependent:
+        if not node.has_consumer:
             self.delete_node(node)
         for child in node_list:
             # We only delete the node if no other node has it as a
             # dependency (child)
-            if not child.is_dependent:
+            if not child.has_consumer:
                 self.delete_node(child)
             else:
-                print "Not deleting child {0}. Has dependents:".format(str(child))
-                for dep in child._has_as_child:
+                print "Not deleting child {0}. Has consumers:".format(str(child))
+                for dep in child._consumers:
                     print str(dep)
 
-    def ancestor_nodes(self):
-        ''' Returns a list of all nodes that do not have a parent (a node
-        that is dependent upon them). These are inputs to the DAG. '''
+    def output_nodes(self):
+        ''' Returns a list of all nodes that do not have a a node
+        that is dependent upon them - i.e. a consumer. 
+        These are outputs of the DAG. '''
         # TODO rename this to input_nodes()
         node_list = []
         for node in self._nodes.itervalues():
-            if not node.is_dependent:
+            if not node.has_consumer:
                 node_list.append(node)
         return node_list
 
     def count_nodes(self, node_type):
         ''' Count the number of nodes in the graph that are of the
         specified type '''
-        ancestors = self.ancestor_nodes()
+        ancestors = self.output_nodes()
         node_list = []
         for node in ancestors:
             nodes = node.walk(node_type)
@@ -268,7 +270,7 @@ class DirectedAcyclicGraph(object):
         # List of distinct array references
         array_refs = []
         # Loop over all nodes in the tree, looking for array references
-        ancestors = self.ancestor_nodes()
+        ancestors = self.output_nodes()
         for ancestor in ancestors:
             nodes = ancestor.walk("array_ref")
             for node in nodes:
@@ -285,7 +287,7 @@ class DirectedAcyclicGraph(object):
 
     def calc_costs(self):
         ''' Analyse the DAG and calculate a weight for each node. '''
-        ancestors = self.ancestor_nodes()
+        ancestors = self.output_nodes()
         for node in ancestors:
             node.calc_weight()
 
@@ -300,7 +302,7 @@ class DirectedAcyclicGraph(object):
     def fuse_multiply_adds(self):
         ''' Processes the existing graph and creates FusedMultiplyAdds
         where possible '''
-        ancestors = self.ancestor_nodes()
+        ancestors = self.output_nodes()
         for node in ancestors:
             node.fuse_multiply_adds()
 
@@ -327,7 +329,8 @@ class DirectedAcyclicGraph(object):
                     # are unique nodes in the DAG.
                     opnode = self.get_node(parent, mapping, name=child,
                                            unique=True, node_type=child)
-                    parent.add_child(opnode)
+                    # TODO - I think this is done in get_node
+                    parent.add_producer(opnode)
                     parent = opnode
                     opcount += 1
         if opcount > 1:
@@ -340,7 +343,8 @@ class DirectedAcyclicGraph(object):
                 var.load(child, mapping)
                 tmpnode = self.get_node(parent, mapping,
                                         variable=var)
-                parent.add_child(tmpnode)
+                # TODO - I think this is done in get_node()
+                parent.add_producer(tmpnode)
             elif isinstance(child, Real_Literal_Constant):
                 # This is a constant and thus a leaf in the tree
                 const_var = Variable()
@@ -349,7 +353,8 @@ class DirectedAcyclicGraph(object):
                                         variable=const_var,
                                         unique=True,
                                         node_type="constant")
-                parent.add_child(tmpnode)
+                # TODO I think this is done in get_node()
+                parent.add_producer(tmpnode)
             elif isinstance(child, Part_Ref):
                 # This may be either a function call or an array reference
                 if is_intrinsic_fn(child):
@@ -361,7 +366,8 @@ class DirectedAcyclicGraph(object):
                                             name=str(child.items[0]),
                                             unique=True,
                                             node_type="intrinsic")
-                    parent.add_child(tmpnode)
+                    # TODO I think this is done in get_node()
+                    parent.add_producer(tmpnode)
                     # Add its dependencies
                     self.make_dag(tmpnode, child.items[1:], mapping)
                 else:
@@ -371,7 +377,8 @@ class DirectedAcyclicGraph(object):
                     tmpnode = self.get_node(parent, mapping,
                                             variable=arrayvar,
                                             node_type="array_ref")
-                    parent.add_child(tmpnode)
+                    # TODO I think this is done in get_node()
+                    parent.add_producer(tmpnode)
                     # Include the array index expression in the DAG
                     #self.make_dag(tmpnode, child.items, mapping)
             elif is_subexpression(child):
@@ -392,7 +399,7 @@ class DirectedAcyclicGraph(object):
         # Each of the ancestor (output) nodes represents a starting
         # point for a critical path. The longest of the resulting set
         # of paths is then the critical path of the DAG as a whole.
-        for node in self.ancestor_nodes():
+        for node in self.output_nodes():
             path = Path()
             node_list = []
             node.critical_path(node_list)
@@ -459,23 +466,24 @@ class DirectedAcyclicGraph(object):
                         self._sub_exp_count += 1
 
                         # Make this new node depend on node1
-                        new_node.add_child(node1)
+                        new_node.add_producer(node1)
                         # Each node that had node1 as a dependency must now
                         # have that replaced by new_node...
-                        print "node1 is a dependent of {0} nodes".format(len(node1._has_as_child))
-                        for pnode in node1._has_as_child[:]:
-                            pnode.add_child(new_node)
-                            pnode.rm_child(node1)
+                        print "node1 is a dependent of {0} nodes".format(len(node1.consumers))
+                        for pnode in node1.consumers[:]:
+                            pnode.add_producer(new_node)
+                            pnode.rm_producer(node1)
+                            node1.rm_consumer(pnode)
 
                         for node2 in matching_nodes:
                             # Add the new node as a dependency for those nodes
                             # that previously had node2 as a child
-                            print "node2 is a dependent of {0} nodes".format(len(node2._has_as_child))
-                            for pnode in node2._has_as_child[:]:
-                                pnode.add_child(new_node)
-                                pnode.rm_child(node2)
-                            is_dep = node2.is_dependent
-                            print "node2 is now a dependent of {0} nodes and is_dependent returns {1}".format(len(node2._has_as_child), str(is_dep))
+                            print "node2 is a dependent of {0} nodes".format(len(node2.consumers))
+                            for pnode in node2.consumers[:]:
+                                pnode.add_producer(new_node)
+                                pnode.rm_producer(node2)
+                                node2.rm_consumer(pnode)
+
                             # Delete node2 and all of its dependencies
                             # (children)
                             self.delete_sub_graph(node2)
@@ -500,7 +508,7 @@ class DirectedAcyclicGraph(object):
         outfile = open(self._name+".gv", "w")
         outfile.write("strict digraph {\n")
 
-        for node in self.ancestor_nodes():
+        for node in self.output_nodes():
             node.to_dot(outfile)
 
         # Write the critical path
@@ -574,12 +582,11 @@ class DAGNode(object):
         # this node
         self._digraph = digraph
         # The list of nodes upon which this node has a dependence
-        self._children = []
+        self._producers = []
         # The list of nodes that have a dependence upon this node
-        # TODO what is the correct name for such nodes?
-        self._has_as_child = []
+        self._consumers = []
         if parent:
-            self._has_as_child.append(parent)
+            self._consumers.append(parent)
         # The name of this node - used to label the node in DOT
         self._name = name
         # The type of this node
@@ -617,44 +624,55 @@ class DAGNode(object):
     def display(self, indent=0):
         ''' Prints a textual representation of this node to stdout '''
         print indent*INDENT_STR, self.name
-        for child in self._children:
+        for child in self._producers:
             child.display(indent=indent+1)
 
-    def add_child(self, child):
-        ''' Add a child to this node '''
-        if child not in self._children:
-            self._children.append(child)
-            child.depended_on_by(self)
+    def add_producer(self, child):
+        ''' Add a producer (dependency) to this node '''
+        if child not in self._producers:
+            self._producers.append(child)
 
-    def rm_child(self, child):
-        ''' Remove a child (dependency) from this node '''
-        if child not in self._children:
-            raise DAGError("Node {0} is not a child of this node ({1})".
+    def rm_producer(self, child):
+        ''' Remove a producer/child (dependency) from this node '''
+        if child not in self._producers:
+            raise DAGError("Node {0} is not a producer (dependency) for "
+                           "this node ({1})".
                            format(str(child), str(self)))
-        # Remove it from the list of children
-        self._children.remove(child)
-        # Modify the object itself now that this one no longer has it
-        # as a child (dependency)
-        child._has_as_child.remove(self)
+        # Remove it from the list of producers/dependencies for this node
+        self._producers.remove(child)
 
-    def depended_on_by(self, node):
+    def add_consumer(self, node):
         ''' Add the supplied node to the list of nodes that have this one as
         a dependency (child) '''
         if node not in self._has_as_child:
-            self._has_as_child.append(node)
+            self._consumers.append(node)
+
+    def rm_consumer(self, node):
+        ''' Remove the supplied node from the list of nodes that consume
+        this node (have it as a dependency) '''
+        if node not in self._consumers:
+            raise DAGError("Node {0} does not have {1} as a consumer!"
+                           .format(str(self), str(node)))
+        self._consumers.remove(node)
 
     @property
-    def is_dependent(self):
+    def has_consumer(self):
         ''' Returns true if one or more nodes have this node as a
         dependency '''
-        if self._has_as_child:
+        if self._consumers:
             return True
         return False
 
     @property
-    def children(self):
-        ''' Returns the list of children belonging to this node '''
-        return self._children
+    def consumers(self):
+        ''' Returns the list of nodes that have this node as a dependency
+        (i.e. they consume it) '''
+        return self._consumers
+
+    @property
+    def producers(self):
+        ''' Returns the list of dependencies/producers for this node '''
+        return self._producers
 
     @property
     def node_type(self):
@@ -682,13 +700,13 @@ class DAGNode(object):
         local_list = []
         if top_down:
             # Add the children of this node before recursing down
-            for child in self._children:
+            for child in self._producers:
                 if not node_type or child.node_type == node_type:
                     local_list.append(child)
-            for child in self._children:
+            for child in self._producers:
                 local_list += child.walk(node_type, top_down)
         else:
-            for child in self._children:
+            for child in self._producers:
                 local_list += child.walk(node_type, top_down)
                 if not node_type or child.node_type == node_type:
                     local_list.append(child)
@@ -711,28 +729,28 @@ class DAGNode(object):
         ''' Calculate the inclusive weight of this node by recursing
         down the tree and summing the weight of all descendants '''
         self._incl_weight = self.weight
-        for child in self._children:
+        for child in self._producers:
             self._incl_weight += child.calc_weight()
         return self._incl_weight
 
     def fuse_multiply_adds(self):
         ''' Recursively take any opportunities to fuse multiplication and
         addition operations '''
-        for child in self._children:
+        for child in self._producers:
             child.fuse_multiply_adds()
         fusable_operations = ["+", "*"]
         # If this node is an addition or a multiplication
         if self._node_type in fusable_operations:
             # Loop over a copy of the list of children as this loop
             # modifies the original
-            for child in self._children[:]:
+            for child in self._producers[:]:
                 if child._node_type != self._node_type and \
                    child._node_type in fusable_operations:
                     # We can create an FMA. This replaces the addition
                     # operation and inherits the children of the 
                     # multiplication operation
-                    for grandchild in child.children:
-                        self.add_child(grandchild)
+                    for grandchild in child.producers:
+                        self.add_producer(grandchild)
                     # Delete the multiplication/addition node
                     self._children.remove(child)
                     self._digraph.delete_node(child)
@@ -740,10 +758,10 @@ class DAGNode(object):
                     # Change the type of this node
                     self._name = "FMA"
                     self._node_type = "FMA"
-                    if len(self._children) != 3:
-                        raise Exception("An FMA node must have 3 children "
+                    if len(self._producers) != 3:
+                        raise Exception("An FMA node must have 3 producers "
                                         "but found {0}".
-                                        format(len(self._children)))
+                                        format(len(self._producers)))
                     break
 
     def critical_path(self, path):
@@ -753,7 +771,7 @@ class DAGNode(object):
         # Find the child with the greatest inclusive weight
         max_weight = 0.0
         node = None
-        for child in self._children:
+        for child in self._producers:
             if child._incl_weight > max_weight:
                 max_weight = child._incl_weight
                 node = child
@@ -763,7 +781,7 @@ class DAGNode(object):
 
     def to_dot(self, fileobj):
         ''' Generate representation in the DOT language '''
-        for child in self._children:
+        for child in self._producers:
             child.to_dot(fileobj)
 
         nodestr = "{0} [label=\"{1} w={2}\"".format(self.node_id,
@@ -791,11 +809,12 @@ class DAGNode(object):
                                                                node_shape)
             if node_size:
                 nodestr += ", height=\"{0}\"".format(node_size)
+
         nodestr += "]\n"
 
         fileobj.write(nodestr)
-        if self._children:
+        if self._producers:
             fileobj.write(self.node_id+" -> {\n")
-            for child in self._children:
+            for child in self._producers:
                 fileobj.write(" "+child.node_id)
             fileobj.write("}\n")
