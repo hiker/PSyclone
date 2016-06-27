@@ -12,10 +12,6 @@ except ImportError:
     from optparse import OptionParser
 from fparser.script_options import set_f2003_options
 
-# How many times to attempt to unroll each loop
-UNROLL_FACTOR = 4
-
-
 def dag_of_assignments(digraph, assignments, mapping):
     ''' Add to the existing DAG using the supplied list of assignments '''
     from parse2003 import Variable
@@ -41,7 +37,7 @@ def dag_of_assignments(digraph, assignments, mapping):
             mapping[lhs_var.orig_name] = lhs_var.orig_name
 
 
-def dag_of_code_block(parent_node, name, loop=None):
+def dag_of_code_block(parent_node, name, loop=None, unroll_factor=1):
     ''' Creates and returns a DAG for the code that is a child of the
     supplied node '''
     from fparser.Fortran2003 import Assignment_Stmt, Name
@@ -79,7 +75,7 @@ def dag_of_code_block(parent_node, name, loop=None):
     dag_of_assignments(digraph, assignments, mapping)
 
     if loop:
-        for repeat in range(1, UNROLL_FACTOR):
+        for repeat in range(1, unroll_factor):
             # Increment the loop counter and then add to the DAG again
             mapping[loop.var_name] += "+1"
             dag_of_assignments(digraph, assignments, mapping)
@@ -107,6 +103,7 @@ def runner(parser, options, args):
 
     apply_fma_transformation = not options.no_fma
     prune_duplicate_nodes = not options.no_prune
+    unroll_factor = int(options.unroll_factor)
 
     for filename in args:
         reader = FortranFileReader(filename)
@@ -155,7 +152,8 @@ def runner(parser, options, args):
 
                         digraph = dag_of_code_block(
                             loop, sub_name+"_loop"+str(loop_count),
-                            loop=myloop)
+                            loop=myloop,
+                            unroll_factor=unroll_factor)
                         if digraph:
                             digraphs.append(digraph)
 
@@ -205,6 +203,14 @@ def main():
                       action="store_true",
                       dest="no_fma",
                       default=False)
+    parser.add_option("--unroll",
+                      help="No. of times to unroll a loop. (Applied to every "
+                      "loop that is encountered.)",
+                      metavar="UNROLL_FACTOR",
+                      action="store",
+                      type="int",
+                      dest="unroll_factor",
+                      default=1)
     if hasattr(parser, 'runner'):
         parser.runner = runner
     options, args = parser.parse_args()
