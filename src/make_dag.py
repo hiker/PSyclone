@@ -104,6 +104,7 @@ def runner(parser, options, args):
     apply_fma_transformation = not options.no_fma
     prune_duplicate_nodes = not options.no_prune
     unroll_factor = int(options.unroll_factor)
+    rm_scalar_temporaries = True
 
     for filename in args:
         reader = FortranFileReader(filename)
@@ -158,6 +159,9 @@ def runner(parser, options, args):
                             digraphs.append(digraph)
 
                 for digraph in digraphs:
+
+                    if rm_scalar_temporaries:
+                        digraph.rm_scalar_temporaries()
 
                     if prune_duplicate_nodes:
                         digraph.prune_duplicate_nodes()

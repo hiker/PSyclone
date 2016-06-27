@@ -187,9 +187,10 @@ class DirectedAcyclicGraph(object):
                     print "Matched node with name: ", node_name
                 node = self._nodes[node_name]
                 # Record the fact that the parent now has a dependence
-                # on this node
+                # on this node and that this node is consumed by the parent
                 if parent:
                     parent.add_producer(node)
+                    node.add_consumer(parent)
                 return node
             else:
                 if DEBUG:
@@ -237,15 +238,15 @@ class DirectedAcyclicGraph(object):
             if not child.has_consumer:
                 self.delete_node(child)
             else:
-                print "Not deleting child {0}. Has consumers:".format(str(child))
+                print "Not deleting child {0}. Has consumers:".\
+                    format(str(child))
                 for dep in child._consumers:
                     print str(dep)
 
     def output_nodes(self):
         ''' Returns a list of all nodes that do not have a a node
-        that is dependent upon them - i.e. a consumer. 
+        that is dependent upon them - i.e. a consumer.
         These are outputs of the DAG. '''
-        # TODO rename this to input_nodes()
         node_list = []
         for node in self._nodes.itervalues():
             if not node.has_consumer:
@@ -296,10 +297,10 @@ class DirectedAcyclicGraph(object):
     def total_cost(self):
         ''' Calculate the total cost of the graph by summing up the cost of
         each node '''
-        sum = 0
+        cost = 0
         for node in self._nodes.itervalues():
-            sum += node.weight
-        return sum
+            cost += node.weight
+        return cost
 
     def fuse_multiply_adds(self):
         ''' Processes the existing graph and creates FusedMultiplyAdds
@@ -333,8 +334,6 @@ class DirectedAcyclicGraph(object):
                     # are unique nodes in the DAG.
                     opnode = self.get_node(parent, mapping, name=child,
                                            unique=True, node_type=child)
-                    # TODO - I think this is done in get_node
-                    parent.add_producer(opnode)
                     parent = opnode
                     opcount += 1
         if opcount > 1:
@@ -347,8 +346,6 @@ class DirectedAcyclicGraph(object):
                 var.load(child, mapping)
                 tmpnode = self.get_node(parent, mapping,
                                         variable=var)
-                # TODO - I think this is done in get_node()
-                parent.add_producer(tmpnode)
             elif isinstance(child, Real_Literal_Constant):
                 # This is a constant and thus a leaf in the tree
                 const_var = Variable()
@@ -357,8 +354,6 @@ class DirectedAcyclicGraph(object):
                                         variable=const_var,
                                         unique=True,
                                         node_type="constant")
-                # TODO I think this is done in get_node()
-                parent.add_producer(tmpnode)
             elif isinstance(child, Part_Ref):
                 # This may be either a function call or an array reference
                 if is_intrinsic_fn(child):
@@ -370,8 +365,6 @@ class DirectedAcyclicGraph(object):
                                             name=str(child.items[0]),
                                             unique=True,
                                             node_type="intrinsic")
-                    # TODO I think this is done in get_node()
-                    parent.add_producer(tmpnode)
                     # Add its dependencies
                     self.make_dag(tmpnode, child.items[1:], mapping)
                 else:
@@ -381,8 +374,6 @@ class DirectedAcyclicGraph(object):
                     tmpnode = self.get_node(parent, mapping,
                                             variable=arrayvar,
                                             node_type="array_ref")
-                    # TODO I think this is done in get_node()
-                    parent.add_producer(tmpnode)
                     # Include the array index expression in the DAG
                     #self.make_dag(tmpnode, child.items, mapping)
             elif is_subexpression(child):
@@ -432,6 +423,36 @@ class DirectedAcyclicGraph(object):
             if node.node_type == ntype:
                 op_list.append(node)
         return op_list
+
+    def rm_scalar_temporaries(self):
+        ''' Remove any nodes that represent scalar temporaries. These are
+        identified as any node that is not an operator and has just
+        one consumer and one producer. '''
+        dead_nodes = []
+        # _nodes is a dictionary - we want the values, not the keys
+        for node in self._nodes.itervalues():
+            if node.node_type not in OPERATORS:
+                if len(node.producers) == 1 and \
+                   len(node.consumers) == 1:
+                    cnode = node.consumers[0]
+                    pnode = node.producers[0]
+                    # Remove the refs to this node in the consumer and producer
+                    cnode.rm_producer(node)
+                    pnode.rm_consumer(node)
+                    # Make the consumer depend on the producer
+                    cnode.add_producer(pnode)
+                    pnode.add_consumer(cnode)
+                    # Remove the dependencies from this node
+                    node.rm_producer(pnode)
+                    node.rm_consumer(cnode)
+                    # Add this node to our list to remove - saves
+                    # attempting to modify the contents of the dict
+                    # while iterating over it.
+                    dead_nodes.append(node)
+
+        # Finally, remove all of the nodes marked for deletion.
+        for node in dead_nodes:
+            self.delete_node(node)
 
     def prune_duplicate_nodes(self):
         ''' Walk through the graph and remove all but-one of any
@@ -590,7 +611,11 @@ class DAGNode(object):
         # The list of nodes that have a dependence upon this node
         self._consumers = []
         if parent:
-            self._consumers.append(parent)
+            # If a consumer of this node has been supplied then update
+            # both its state and that of this node to record the
+            # relationship
+            self.add_consumer(parent)
+            parent.add_producer(self)
         # The name of this node - used to label the node in DOT
         self._name = name
         # The type of this node
@@ -753,9 +778,9 @@ class DAGNode(object):
             for child in self._producers[:]:
                 if child._node_type != self._node_type and \
                    child._node_type in fusable_operations:
-                    # We can create an FMA. This replaces the addition
-                    # operation and inherits the children of the 
-                    # multiplication operation
+                    # We can create an FMA. This replaces the addition/
+                    # multiplication operation and inherits the children of the 
+                    # multiplication/addition operation
                     for grandchild in child.producers:
                         self.add_producer(grandchild)
                         grandchild.rm_consumer(child)
