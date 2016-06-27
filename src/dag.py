@@ -219,7 +219,7 @@ class DirectedAcyclicGraph(object):
                             format(str(node)))
         # Remove this node from any node that has it as a child (dependency)
         for pnode in node.consumers[:]:
-            pnode.rm_consumer(node)
+            pnode.rm_producer(node)
         print "Deleting node {0}".format(str(node))
         # Finally, delete it altogether
         del node
@@ -303,10 +303,12 @@ class DirectedAcyclicGraph(object):
 
     def fuse_multiply_adds(self):
         ''' Processes the existing graph and creates FusedMultiplyAdds
-        where possible '''
+        where possible. Returns the number of FMAs created. '''
+        num_fma = 0
         ancestors = self.output_nodes()
         for node in ancestors:
-            node.fuse_multiply_adds()
+            num_fma += node.fuse_multiply_adds()
+        return num_fma
 
     def make_dag(self, parent, children, mapping):
         ''' Makes a DAG from the RHS of a Fortran assignment statement '''
@@ -646,7 +648,7 @@ class DAGNode(object):
     def add_consumer(self, node):
         ''' Add the supplied node to the list of nodes that have this one as
         a dependency (child) '''
-        if node not in self._has_as_child:
+        if node not in self._consumers:
             self._consumers.append(node)
 
     def rm_consumer(self, node):
@@ -756,8 +758,12 @@ class DAGNode(object):
                     # multiplication operation
                     for grandchild in child.producers:
                         self.add_producer(grandchild)
+                        grandchild.rm_consumer(child)
+                        grandchild.add_consumer(self)
                     # Delete the multiplication/addition node
-                    self._children.remove(child)
+                    self.rm_producer(child)
+                    child.rm_consumer(self)
+                    # Finally, delete the node that we're replacing
                     self._digraph.delete_node(child)
 
                     # Change the type of this node
