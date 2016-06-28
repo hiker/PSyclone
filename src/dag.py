@@ -51,6 +51,16 @@ def subgraph_matches(node1, node2):
         return False
     if len(node1.producers) != len(node2.producers):
         return False
+    if node1.node_type != node2.node_type:
+        return False
+    if node1.node_type == "/":
+        if node1.operands[0] != node2.operands[0]:
+            return False
+    elif node1.node_type == "FMA":
+        # Check that the two nodes being multiplied are the same
+        if node1.operands[0] not in node2.operands or \
+           node1.operands[1] not in node2.operands:
+            return False
     for child1 in node1.producers:
         found = False
         # We can't assume that the two lists of children have the same
@@ -191,7 +201,6 @@ class DirectedAcyclicGraph(object):
                 if parent:
                     parent.add_producer(node)
                     node.add_consumer(parent)
-                return node
             else:
                 if DEBUG:
                     print "No existing node with name: ", node_name
@@ -326,6 +335,7 @@ class DirectedAcyclicGraph(object):
             print "--------------"
 
         opcount = 0
+        is_division = False
         for child in children:
             if isinstance(child, str):
                 if child in OPERATORS:
@@ -335,17 +345,20 @@ class DirectedAcyclicGraph(object):
                     opnode = self.get_node(parent, mapping, name=child,
                                            unique=True, node_type=child)
                     parent = opnode
+                    is_division = (child == "/")
                     opcount += 1
         if opcount > 1:
             raise Exception("Found more than one operator amongst list of "
                             "siblings: this is not supported!")
 
-        for child in children:
+        for idx, child in enumerate(children):
             if isinstance(child, Name):
                 var = Variable()
                 var.load(child, mapping)
                 tmpnode = self.get_node(parent, mapping,
                                         variable=var)
+                if is_division and idx == 2:
+                    parent.operands.append(tmpnode)
             elif isinstance(child, Real_Literal_Constant):
                 # This is a constant and thus a leaf in the tree
                 const_var = Variable()
@@ -354,6 +367,8 @@ class DirectedAcyclicGraph(object):
                                         variable=const_var,
                                         unique=True,
                                         node_type="constant")
+                if is_division and idx == 2:
+                    parent.operands.append(tmpnode)
             elif isinstance(child, Part_Ref):
                 # This may be either a function call or an array reference
                 if is_intrinsic_fn(child):
@@ -365,6 +380,8 @@ class DirectedAcyclicGraph(object):
                                             name=str(child.items[0]),
                                             unique=True,
                                             node_type="intrinsic")
+                    if is_division and idx == 2:
+                        parent.operands.append(tmpnode)
                     # Add its dependencies
                     self.make_dag(tmpnode, child.items[1:], mapping)
                 else:
@@ -374,6 +391,8 @@ class DirectedAcyclicGraph(object):
                     tmpnode = self.get_node(parent, mapping,
                                             variable=arrayvar,
                                             node_type="array_ref")
+                    if is_division and idx == 2:
+                        parent.operands.append(tmpnode)
                     # Include the array index expression in the DAG
                     #self.make_dag(tmpnode, child.items, mapping)
             elif is_subexpression(child):
@@ -455,7 +474,7 @@ class DirectedAcyclicGraph(object):
             self.delete_node(node)
 
     def prune_duplicate_nodes(self):
-        ''' Walk through the graph and remove all but-one of any
+        ''' Walk through the graph and remove all but one of any
         duplicated sub-graphs that represent FLOPs'''
 
         for opname in OPERATORS:
@@ -626,6 +645,11 @@ class DAGNode(object):
         # this node plus that of all of its descendants. This then
         # enables us to find the critical path through the graph.
         self._incl_weight = 0
+        # List of key operands required to uniquely identify the
+        # operation associated with this node (if it is an
+        # operator). For an FMA this is the two nodes that are
+        # multiplied. For a division it is the denominator.
+        self._operands = []
 
     def __str__(self):
         return self.name
@@ -770,25 +794,24 @@ class DAGNode(object):
         for child in self._producers:
             fma_count += child.fuse_multiply_adds()
 
-        fusable_operations = ["+", "*"]
         # If this node is an addition or a multiplication
-        if self._node_type in fusable_operations:
+        if self._node_type == "+":
             # Loop over a copy of the list of producers as this loop
             # modifies the original
             for child in self._producers[:]:
-                if child._node_type != self._node_type and \
-                   child._node_type in fusable_operations:
-                    # We can create an FMA. This replaces the addition/
-                    # multiplication operation and inherits the children of the 
-                    # multiplication/addition operation
+                if child._node_type == "*":
+                    # We can create an FMA. This replaces the addition
+                    # operation and inherits the children of the 
+                    # multiplication operation.
                     for grandchild in child.producers:
                         self.add_producer(grandchild)
                         grandchild.rm_consumer(child)
                         grandchild.add_consumer(self)
-                    # Delete the multiplication/addition node
+                        self._operands.append(grandchild)
+
+                    # Delete the multiplication node
                     self.rm_producer(child)
                     child.rm_consumer(self)
-                    # Finally, delete the node that we're replacing
                     self._digraph.delete_node(child)
 
                     # Change the type of this node
@@ -801,6 +824,13 @@ class DAGNode(object):
                     fma_count += 1
                     break
         return fma_count
+
+    @property
+    def operands(self):
+        ''' Return the list of operands for this node. For a division this
+        is the denominator. For a Fused Multiply Add this is the two nodes
+        that are multiplied. '''
+        return self._operands
 
     def critical_path(self, path):
         ''' Compute the critical (most expensive) path from this node '''
