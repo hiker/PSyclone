@@ -16,6 +16,12 @@ INDENT_STR = "     "
 # TODO these costs are microarchitecture specific.
 OPERATORS = {"/":14, "+":1, "-":1, "*":1, "FMA":1}
 
+# Size of a cache line in bytes
+CACHE_LINE_BYTES = 64
+
+# Clock speed to use when computing example performance figures
+EXAMPLE_CLOCK_GHZ = 3.8
+
 # Valid types for a node in the DAG
 VALID_NODE_TYPES = OPERATORS.keys() + ["intrinsic", "constant", "array_ref"]
 
@@ -230,7 +236,6 @@ class DirectedAcyclicGraph(object):
         # Remove this node from any node that has it as a child (dependency)
         for pnode in node.consumers[:]:
             pnode.rm_producer(node)
-        print "Deleting node {0}".format(str(node))
         # Finally, delete it altogether
         del node
 
@@ -247,10 +252,11 @@ class DirectedAcyclicGraph(object):
             if not child.has_consumer:
                 self.delete_node(child)
             else:
-                print "Not deleting child {0}. Has consumers:".\
-                    format(str(child))
-                for dep in child._consumers:
-                    print str(dep)
+                if DEBUG:
+                    print "Not deleting child {0}. Has consumers:".\
+                        format(str(child))
+                    for dep in child._consumers:
+                        print str(dep)
 
     def output_nodes(self):
         ''' Returns a list of all nodes that do not have a a node
@@ -488,7 +494,6 @@ class DirectedAcyclicGraph(object):
             # involving the current operator
             while found_duplicate:
 
-                print "List of nodes of {0} now has {1} items".format(opname, len(op_list))                
                 for idx, node1 in enumerate(op_list[:-1]):
                     # Construct a list of nodes (sub-graphs really) that
                     # match node1
@@ -499,8 +504,7 @@ class DirectedAcyclicGraph(object):
 
                     if matching_nodes:
                         found_duplicate = True
-                        print "Found {0} matching nodes for {1} (id={2})".format(
-                            len(matching_nodes), str(node1), node1.node_id)
+
                         # Create a new node to store the result of this
                         # duplicated operation
                         new_node = self.get_node(
@@ -513,7 +517,6 @@ class DirectedAcyclicGraph(object):
                         new_node.add_producer(node1)
                         # Each node that had node1 as a dependency must now
                         # have that replaced by new_node...
-                        print "node1 is a dependent of {0} nodes".format(len(node1.consumers))
                         for pnode in node1.consumers[:]:
                             pnode.add_producer(new_node)
                             pnode.rm_producer(node1)
@@ -522,7 +525,6 @@ class DirectedAcyclicGraph(object):
                         for node2 in matching_nodes:
                             # Add the new node as a dependency for those nodes
                             # that previously had node2 as a child
-                            print "node2 is a dependent of {0} nodes".format(len(node2.consumers))
                             for pnode in node2.consumers[:]:
                                 pnode.add_producer(new_node)
                                 pnode.rm_producer(node2)
@@ -575,6 +577,7 @@ class DirectedAcyclicGraph(object):
         num_cache_ref = self.cache_lines()
         total_cycles = self.total_cost()
         # An FMA may only cost 1 (?) cycle but still does 2 FLOPs
+        # TODO how do we count FLOPs for e.g. sin() and cos()?
         total_flops = num_plus + num_minus + num_mult + num_div + 2*num_fma
         print "Stats for DAG {0}:".format(self._name)
         print "  {0} addition operators.".format(num_plus)
@@ -586,11 +589,6 @@ class DirectedAcyclicGraph(object):
         print "  {0} array references.".format(num_ref)
         print "  {0} distinct cache-line references.".\
             format(num_cache_ref)
-        # Performance estimate using whole graph
-        print "  Sum of cost of all nodes = {0} (cycles)".format(total_cycles)
-        print "  {0} FLOPs in {1} cycles => {2:.4f}*CLOCK_SPEED FLOPS".\
-            format(total_flops, total_cycles,
-                   float(total_flops)/float(total_cycles))
 
         if num_cache_ref > 0:
             flop_per_byte = total_flops / (num_cache_ref*8.0)
@@ -600,9 +598,28 @@ class DirectedAcyclicGraph(object):
         else:
             print "  Did not find any array/memory references"
 
-        # Performance estimate using critical path
+        # Execution of the DAG requires that num_cache_ref cache lines
+        # be fetched from (somewhere in) the memory hierarchy...
+        mem_traffic_bytes = num_cache_ref * CACHE_LINE_BYTES
+        
+        # Performance estimate using whole graph. This is a lower bound
+        # since it ignores all Instruction-Level Parallelism apart from
+        # FMAs...
+        min_flops_per_hz = float(total_flops)/float(total_cycles)
+        print "  Lower bound:"
+        print "    Sum of cost of all nodes = {0} (cycles)".format(total_cycles)
+        print "    {0} FLOPs in {1} cycles => {2:.4f}*CLOCK_SPEED FLOPS".\
+            format(total_flops, total_cycles, min_flops_per_hz)
+        min_mem_bw = float(mem_traffic_bytes) / float(total_cycles)
+        print ("    Associated mem bandwidth = {0:.2f}*CLOCK_SPEED bytes/s".
+               format(min_mem_bw))
+
+        # Performance estimate using critical path - this is an upper
+        # bound (assumes all other parts of the graph can somehow be
+        # computed in parallel to the critical path).
+        print "  Upper bound:"
         ncycles = self._critical_path.cycles()
-        print ("  Critical path contains {0} nodes, {1} FLOPs and "
+        print ("    Critical path contains {0} nodes, {1} FLOPs and "
                "is {2} cycles long".format(len(self._critical_path),
                                            self._critical_path.flops(),
                                            ncycles))
@@ -611,11 +628,20 @@ class DirectedAcyclicGraph(object):
         # 1/CLOCK_SPEED (s) so kernel will take at least
         # path.cycles()*1/CLOCK_SPEED (s).
         # Theoretical max FLOPS = total_flops*CLOCK_SPEED/path.cycles()
-        flops_per_hz = float(total_flops)/float(ncycles)
-        print ("  Theoretical max FLOPS (ignoring memory accesses) = "
-               "{:.4f}*CLOCK_SPEED".format(flops_per_hz))
-        print ("  (e.g. at 3.8 GHz, this gives {:.2f} GFLOPS)".
-               format(flops_per_hz*3.0))
+        max_flops_per_hz = float(total_flops)/float(ncycles)
+        print ("    Theoretical max FLOPS (ignoring memory accesses) = "
+               "{:.4f}*CLOCK_SPEED".format(max_flops_per_hz))
+        # Kernel/DAG will take at least ncycles/CLOCK_SPEED (s)
+        max_mem_bw = float(mem_traffic_bytes) / float(ncycles)
+        print ("    Associated mem bandwidth = {0:.2f}*CLOCK_SPEED bytes/s".
+               format(max_mem_bw))
+        print ("  e.g. at {0} GHz, this gives {1:.2f}-{2:.2f} GFLOPS with "
+               "associated BW of {3:.2f}-{4:.2f} GB/s".
+               format(EXAMPLE_CLOCK_GHZ,
+                      min_flops_per_hz*EXAMPLE_CLOCK_GHZ,
+                      max_flops_per_hz*EXAMPLE_CLOCK_GHZ,
+                      min_mem_bw*EXAMPLE_CLOCK_GHZ,
+                      max_mem_bw*EXAMPLE_CLOCK_GHZ))        
 
 
 class DAGNode(object):
