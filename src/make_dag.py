@@ -145,18 +145,25 @@ def runner(parser, options, args):
                             # We're not so skip
                             continue
 
-                        loop_count += 1
-
                         # Create a Loop object for this loop
                         myloop = Loop()
                         myloop.load(loop)
 
+                        # Generate a suitable name for this DAG
+                        name = sub_name + "_loop" + str(loop_count)
+                        if unroll_factor > 1:
+                            name += "_unroll" + str(unroll_factor)
+
                         digraph = dag_of_code_block(
-                            loop, sub_name+"_loop"+str(loop_count),
+                            loop, name,
                             loop=myloop,
                             unroll_factor=unroll_factor)
                         if digraph:
                             digraphs.append(digraph)
+
+                        # Increment count of (inner) loops found
+                        loop_count += 1
+
 
                 for digraph in digraphs:
 
