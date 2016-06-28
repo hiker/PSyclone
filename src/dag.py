@@ -610,9 +610,10 @@ class DirectedAcyclicGraph(object):
         print "    Sum of cost of all nodes = {0} (cycles)".format(total_cycles)
         print "    {0} FLOPs in {1} cycles => {2:.4f}*CLOCK_SPEED FLOPS".\
             format(total_flops, total_cycles, min_flops_per_hz)
-        min_mem_bw = float(mem_traffic_bytes) / float(total_cycles)
-        print ("    Associated mem bandwidth = {0:.2f}*CLOCK_SPEED bytes/s".
-               format(min_mem_bw))
+        if num_cache_ref:
+            min_mem_bw = float(mem_traffic_bytes) / float(total_cycles)
+            print ("    Associated mem bandwidth = {0:.2f}*CLOCK_SPEED "
+                   "bytes/s".format(min_mem_bw))
 
         # Performance estimate using critical path - this is an upper
         # bound (assumes all other parts of the graph can somehow be
@@ -631,18 +632,24 @@ class DirectedAcyclicGraph(object):
         max_flops_per_hz = float(total_flops)/float(ncycles)
         print ("    Theoretical max FLOPS (ignoring memory accesses) = "
                "{:.4f}*CLOCK_SPEED".format(max_flops_per_hz))
-        # Kernel/DAG will take at least ncycles/CLOCK_SPEED (s)
-        max_mem_bw = float(mem_traffic_bytes) / float(ncycles)
-        print ("    Associated mem bandwidth = {0:.2f}*CLOCK_SPEED bytes/s".
-               format(max_mem_bw))
-        print ("  e.g. at {0} GHz, this gives {1:.2f}-{2:.2f} GFLOPS with "
-               "associated BW of {3:.2f}-{4:.2f} GB/s".
-               format(EXAMPLE_CLOCK_GHZ,
-                      min_flops_per_hz*EXAMPLE_CLOCK_GHZ,
-                      max_flops_per_hz*EXAMPLE_CLOCK_GHZ,
+
+        if num_cache_ref:
+            # Kernel/DAG will take at least ncycles/CLOCK_SPEED (s)
+            max_mem_bw = float(mem_traffic_bytes) / float(ncycles)
+            print ("    Associated mem bandwidth = {0:.2f}*CLOCK_SPEED "
+                   "bytes/s".format(max_mem_bw))
+
+        # Print out example performance figures using the clock speed
+        # in EXAMPLE_CLOCK_GHZ
+        eg_string = ("  e.g. at {0} GHz, this gives {1:.2f}-{2:.2f} GFLOPS".
+                     format(EXAMPLE_CLOCK_GHZ,
+                            min_flops_per_hz*EXAMPLE_CLOCK_GHZ,
+                            max_flops_per_hz*EXAMPLE_CLOCK_GHZ))
+        if num_cache_ref:
+            eg_string += (" with associated BW of {0:.2f}-{1:.2f} GB/s".format(
                       min_mem_bw*EXAMPLE_CLOCK_GHZ,
                       max_mem_bw*EXAMPLE_CLOCK_GHZ))        
-
+        print eg_string
 
 class DAGNode(object):
     ''' Base class for a node in a Directed Acyclic Graph '''
