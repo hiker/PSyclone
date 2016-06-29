@@ -6,12 +6,12 @@ from fparser.Fortran2003 import \
     Add_Operand, Level_2_Expr, Level_2_Unary_Expr, Real_Literal_Constant, \
     Name, Section_Subscript_List, Parenthesis, Part_Ref
 
-from dag_node import DAGNode
+from dag_node import DAGNode, DAGError
 from config_ivy_bridge import OPERATORS, CACHE_LINE_BYTES, EXAMPLE_CLOCK_GHZ, \
     FORTRAN_INTRINSICS
 
 DEBUG = False
-INDENT_STR = "     "
+
 
 def is_subexpression(expr):
     ''' Returns True if the supplied node is itself a sub-expression. '''
@@ -36,20 +36,23 @@ def is_intrinsic_fn(obj):
 def subgraph_matches(node1, node2):
     ''' Returns True if the two nodes (and any children they may
     have) represent the same quantity. '''
-    if node1._name != node2._name:
-        return False
+    matches = True
+    if node1.name != node2.name:
+        matches = False
     if len(node1.producers) != len(node2.producers):
-        return False
+        matches = False
     if node1.node_type != node2.node_type:
-        return False
-    if node1.node_type == "/":
-        if node1.operands[0] != node2.operands[0]:
-            return False
+        matches = False
+    # TODO correct the code that stores the denominator of any division
+    # operations
+    # if node1.node_type == "/":
+    #    if node1.operands[0] != node2.operands[0]:
+    #        matches = False
     elif node1.node_type == "FMA":
         # Check that the two nodes being multiplied are the same
         if node1.operands[0] not in node2.operands or \
            node1.operands[1] not in node2.operands:
-            return False
+            matches = False
     for child1 in node1.producers:
         found = False
         # We can't assume that the two lists of children have the same
@@ -60,18 +63,8 @@ def subgraph_matches(node1, node2):
                 found = True
                 break
         if not found:
-            return False
-    return True
-
-
-class DAGError(Exception):
-    ''' Class for exceptions related to DAG manipulations '''
-
-    def __init__(self, value):
-        self.value = "DAG Error: " + value
-
-    def __str__(self):
-        return repr(self.value)
+            matches = False
+    return matches
 
 
 # TODO: would it be better to inherit from the built-in list object?
@@ -131,8 +124,6 @@ class DirectedAcyclicGraph(object):
         self._nodes = {}
         # Name of this DAG
         self._name = name
-        # Those nodes that have no parents in the tree
-        self._ancestors = None
         # The critical path through the graph
         self._critical_path = Path()
         # Counter for duplicate sub-expressions (for naming the node
@@ -222,7 +213,6 @@ class DirectedAcyclicGraph(object):
         # Finally, delete it altogether
         del node
 
-
     def delete_sub_graph(self, node):
         ''' Recursively deletes the supplied node *and all of its
         dependencies/children* '''
@@ -238,7 +228,7 @@ class DirectedAcyclicGraph(object):
                 if DEBUG:
                     print "Not deleting child {0}. Has consumers:".\
                         format(str(child))
-                    for dep in child._consumers:
+                    for dep in child.consumers:
                         print str(dep)
 
     def output_nodes(self):
@@ -279,7 +269,7 @@ class DirectedAcyclicGraph(object):
                 # anything other than the first index (assuming that any
                 # accesses that differ only in the first index are all
                 # fetched in the same cache line).
-                key = node._variable.name
+                key = node.variable.name
                 for index in node.variable.indices[1:]:
                     key += "_" + index
                 if key not in array_refs:
@@ -383,7 +373,7 @@ class DirectedAcyclicGraph(object):
                     if is_division and idx == 2:
                         parent.operands.append(tmpnode)
                     # Include the array index expression in the DAG
-                    #self.make_dag(tmpnode, child.items, mapping)
+                    # self.make_dag(tmpnode, child.items, mapping)
             elif is_subexpression(child):
                 # We don't make nodes to represent sub-expresssions - just
                 # carry-on down to the children
@@ -585,13 +575,14 @@ class DirectedAcyclicGraph(object):
         # Execution of the DAG requires that num_cache_ref cache lines
         # be fetched from (somewhere in) the memory hierarchy...
         mem_traffic_bytes = num_cache_ref * CACHE_LINE_BYTES
-        
+
         # Performance estimate using whole graph. This is a lower bound
         # since it ignores all Instruction-Level Parallelism apart from
         # FMAs...
         min_flops_per_hz = float(total_flops)/float(total_cycles)
         print "  Lower bound:"
-        print "    Sum of cost of all nodes = {0} (cycles)".format(total_cycles)
+        print "    Sum of cost of all nodes = {0} (cycles)".\
+            format(total_cycles)
         print "    {0} FLOPs in {1} cycles => {2:.4f}*CLOCK_SPEED FLOPS".\
             format(total_flops, total_cycles, min_flops_per_hz)
         if num_cache_ref:
@@ -632,5 +623,5 @@ class DirectedAcyclicGraph(object):
         if num_cache_ref:
             eg_string += (" with associated BW of {0:.2f}-{1:.2f} GB/s".format(
                       min_mem_bw*EXAMPLE_CLOCK_GHZ,
-                      max_mem_bw*EXAMPLE_CLOCK_GHZ))        
+                      max_mem_bw*EXAMPLE_CLOCK_GHZ))
         print eg_string

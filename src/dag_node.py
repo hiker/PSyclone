@@ -2,10 +2,22 @@
 ''' Module containing class holding information on a single node in
     a Directed Acyclic Graph '''
 
-from config_ivy_bridge import OPERATORS
+from config_ivy_bridge import OPERATORS, FORTRAN_INTRINSICS
 
 # Valid types for a node in the DAG
 VALID_NODE_TYPES = OPERATORS.keys() + ["intrinsic", "constant", "array_ref"]
+
+INDENT_STR = "     "
+
+
+class DAGError(Exception):
+    ''' Class for exceptions related to DAG manipulations '''
+
+    def __init__(self, value):
+        self.value = "DAG Error: " + value
+
+    def __str__(self):
+        return repr(self.value)
 
 
 class DAGNode(object):
@@ -32,8 +44,8 @@ class DAGNode(object):
         # The variable (if any) that this node represents
         self._variable = variable
         # The inclusive weight (cost) of this node. This is the cost of
-        # this node plus that of all of its descendants. This then
-        # enables us to find the critical path through the graph.
+        # this node plus that of all of its dependencies (producers). This
+        # then enables us to find the critical path through the graph.
         self._incl_weight = 0
         # List of key operands required to uniquely identify the
         # operation associated with this node (if it is an
@@ -189,9 +201,9 @@ class DAGNode(object):
             # Loop over a copy of the list of producers as this loop
             # modifies the original
             for child in self._producers[:]:
-                if child._node_type == "*":
+                if child.node_type == "*":
                     # We can create an FMA. This replaces the addition
-                    # operation and inherits the children of the 
+                    # operation and inherits the children of the
                     # multiplication operation.
                     for grandchild in child.producers:
                         self.add_producer(grandchild)
