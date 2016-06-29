@@ -75,6 +75,11 @@ class Path(object):
     def __init__(self):
         self._nodes = []
 
+    @property
+    def nodes(self):
+        ''' Returns the list of nodes in this Path '''
+        return self._nodes
+
     def load(self, obj_list):
         ''' Populate this object using the supplied list of nodes '''
         self._nodes = obj_list
@@ -189,6 +194,7 @@ class DirectedAcyclicGraph(object):
                 node = DAGNode(parent=parent, name=node_name,
                                variable=variable)
                 self._nodes[node_name] = node
+
         if node_type:
             node.node_type = node_type
 
@@ -207,7 +213,7 @@ class DirectedAcyclicGraph(object):
         else:
             raise Exception("Object {0} not in list of nodes in graph!".
                             format(str(node)))
-        # Remove this node from any node that has it as a child (dependency)
+        # Remove this node from any node that has it as a producer (dependency)
         for pnode in node.consumers[:]:
             pnode.rm_producer(node)
         # Finally, delete it altogether
@@ -241,6 +247,15 @@ class DirectedAcyclicGraph(object):
                 node_list.append(node)
         return node_list
 
+    def input_nodes(self):
+        ''' Returns a list of all nodes that do not have any producers
+        (dependencies). These are inputs to the DAG. '''
+        node_list = []
+        for node in self._nodes.itervalues():
+            if not node.has_producer:
+                node_list.append(node)
+        return node_list
+
     def count_nodes(self, node_type):
         ''' Count the number of nodes in the graph that are of the
         specified type '''
@@ -252,7 +267,7 @@ class DirectedAcyclicGraph(object):
                 if new_node not in node_list:
                     node_list.append(new_node)
         return len(node_list)
-
+        
     def cache_lines(self):
         ''' Count the number of cache lines accessed by the graph. This
         is the number of distinct memory references. We assume that
@@ -520,12 +535,17 @@ class DirectedAcyclicGraph(object):
     def critical_path(self):
         return self._critical_path
 
-    def to_dot(self):
+    def to_dot(self, name=None):
         ''' Write the DAG to file in DOT format. If a critical path has
         been computed then it is also written to the file. '''
 
+        if name:
+            filename = name
+        else:
+            filename = self._name + ".gv"
+
         # Create a file for the graph of this subroutine
-        outfile = open(self._name+".gv", "w")
+        outfile = open(filename, "w")
         outfile.write("strict digraph {\n")
 
         for node in self.output_nodes():
@@ -625,3 +645,95 @@ class DirectedAcyclicGraph(object):
                       min_mem_bw*EXAMPLE_CLOCK_GHZ,
                       max_mem_bw*EXAMPLE_CLOCK_GHZ))
         print eg_string
+
+        # Which execution port each f.p. operation is mapped to on the CPU
+        # TODO this is microarchitecture specific
+        exec_port = {"/": 0, "*": 0, "+": 1, "-": 1}
+        num_ports = 2
+
+        output_dot_schedule = True
+
+        if output_dot_schedule:
+            self.to_dot(name=self._name+"_step0.gv")
+
+        # Flag all input nodes as being ready
+        input_nodes = self.input_nodes()
+        for node in input_nodes:
+            node._ready = True
+
+        # Construct a schedule
+        step = 0
+        # We have one slot per execution port at each step in the schedule.
+        # Each port then has its own schedule (list) with entries being the
+        # DAGNodes representing the operations to be performed or None
+        # if a slot is empty (nop).
+        slot = []
+        for port in range(num_ports):
+            slot.append([None])
+
+        # Generate a list of all operations that have their dependencies
+        # satisfied and are thus ready to go
+        available_ops = self.operations_ready()
+
+        while available_ops:
+
+            if output_dot_schedule:
+                self.to_dot(name=self._name+"_step{0}.gv".format(step+1))
+
+            # Attempt to schedule each operation
+            for operation in available_ops:
+                if not slot[exec_port[operation.node_type]][step]:
+                    # Put this operation into next slot on appropriate port
+                    slot[exec_port[operation.node_type]][step] = operation
+                    # Mark the operation as done (executed)
+                    operation._ready = True
+            for port in range(num_ports):
+                # Prepare the next slot in the schedule on this port
+                slot[port].append(None)
+
+            # Update all dependencies in the graph following the
+            # execution of one or more operations
+            # TODO could just update the consumers of those operations
+            self.update_status()
+
+            # Update our list of operations that are now ready to be
+            # executed
+            available_ops = self.operations_ready()
+            # Move on to the next step in the schedule that we are
+            # constructing
+            step += 1
+
+            if step > 500:
+                raise Exception("Unexpectedly long schedule - this is "
+                                "probably a bug.")
+
+        nsteps = step
+        print "Schedule contains {0} steps:".format(nsteps)
+        for step in range(0, nsteps):
+            sched_str = str(step)
+            for port in range(num_ports):
+                sched_str += " {0}".format(slot[port][step])
+            print sched_str
+            
+
+    def update_status(self):
+        ''' Examine all the nodes in the graph and mark as 'ready' all
+        those quantities whose producers are now 'ready'. '''
+        for node in self._nodes.itervalues():
+            if not node._ready and \
+               node.node_type not in OPERATORS:
+                # Operators only become ready by being executed (put in
+                # the schedule) and so their status is not updated here
+                node._ready = node.dependencies_satisfied
+
+    def operations_ready(self):
+        ''' Create a list of all operations in the DAG that are ready to
+        be executed (all producers are 'ready') '''
+        available_ops = []
+        for node in self._nodes.itervalues():
+            if (not node._ready and
+                node.node_type in OPERATORS and
+                node.dependencies_satisfied and
+                node not in available_ops):
+                available_ops.append(node)
+        return available_ops
