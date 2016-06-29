@@ -52,9 +52,21 @@ class DAGNode(object):
         # operator). For an FMA this is the two nodes that are
         # multiplied. For a division it is the denominator.
         self._operands = []
+        # Whether the quantity represented by this node is ready to
+        # be consumed (if an operator then that means it has been
+        # executed). Used when generating a schedule for the DAG.
+        self._ready = False
 
     def __str__(self):
         return self.name
+
+    @property
+    def dependencies_satisfied(self):
+        ''' Returns true if all dependencies of this node are satisfied '''
+        for node in self._producers:
+            if not node._ready:
+                return False
+        return True
 
     @property
     def node_id(self):
@@ -115,6 +127,14 @@ class DAGNode(object):
         ''' Returns true if one or more nodes have this node as a
         dependency '''
         if self._consumers:
+            return True
+        return False
+
+    @property
+    def has_producer(self):
+        ''' Returns true if this node has one or more
+        dependencies/producers '''
+        if self._producers:
             return True
         return False
 
@@ -257,8 +277,12 @@ class DAGNode(object):
         nodestr = "{0} [label=\"{1} w={2}\"".format(self.node_id,
                                                     self.name,
                                                     str(self._incl_weight))
+        # Default node is a black elipse
+        node_colour = "black"
+        node_shape = "ellipse"
+        node_size = None
+
         if self._node_type:
-            node_size = None
             if self._node_type in OPERATORS:
                 node_colour = "red"
                 node_shape = "box"
@@ -273,12 +297,16 @@ class DAGNode(object):
                 node_colour = "gold"
                 node_shape = "ellipse"
             else:
-                node_colour = "black"
-                node_shape = "elipse"
-            nodestr += ", color=\"{0}\", shape=\"{1}\"".format(node_colour,
-                                                               node_shape)
-            if node_size:
-                nodestr += ", height=\"{0}\"".format(node_size)
+                # Use default node style
+                pass
+
+        nodestr += ", color=\"{0}\", shape=\"{1}\"".format(node_colour,
+                                                           node_shape)
+        if node_size:
+            nodestr += ", height=\"{0}\"".format(node_size)
+
+        if self._ready:
+            nodestr += ", style=\"filled\", fillcolor=\"grey\""
 
         nodestr += "]\n"
 
