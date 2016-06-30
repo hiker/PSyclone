@@ -86,6 +86,13 @@ class Path(object):
         self._nodes = []
 
     @property
+    def input_node(self):
+        for node in self._nodes:
+            if not node.has_producer:
+                return node
+        raise DAGError("Failed to find input node for critical path")
+
+    @property
     def nodes(self):
         ''' Returns the list of nodes in this Path '''
         return self._nodes
@@ -734,16 +741,30 @@ class DirectedAcyclicGraph(object):
         if self._critical_path:
             available_ops.extend(ready_ops_from_list(self._critical_path.nodes))
 
-        # Next we check the dependencies of the next un-computed node
-        # on the critical path
-        for node in self._critical_path.nodes:
-            if not node.ready and node.dependencies_satisfied:
-                # This node is the next one on the critical path - look
-                # at its dependencies
-                nodes = node.walk()
-                available_ops.extend(ready_ops_from_list(nodes))
-                break
+            # Next we check the dependencies of the next un-computed node
+            # on the critical path
+            input_node = self._critical_path.input_node
+            node_list = self._critical_path.nodes
+            node = input_node
+            while True:
+                if not node.ready:
+                    # This node is the next one on the critical path - look
+                    # at its dependencies
+                    nodes = node.walk()
+                    available_ops.extend(ready_ops_from_list(nodes))
+                    break
+                
+                if not node.has_consumer:
+                    # Have reached the output of the critical path
+                    break
 
+                # Find the next node on the critical path
+                for consumer in node.consumers:
+                    if consumer in node_list:
+                        node = consumer
+                        break
+
+        # Finally, broaden the search out to the whole tree...
         available_ops.extend(ready_ops_from_list(self._nodes.itervalues()))
 
         # Remove duplicates from the list while preserving their order

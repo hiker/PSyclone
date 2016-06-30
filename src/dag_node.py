@@ -273,7 +273,7 @@ class DAGNode(object):
         # Add ourself to the path
         path.append(self)
         # Find the child with the greatest inclusive weight
-        max_weight = 0.0
+        max_weight = -0.01
         node = None
         for child in self._producers:
             if child._incl_weight > max_weight:
