@@ -64,9 +64,23 @@ class DAGNode(object):
     def dependencies_satisfied(self):
         ''' Returns true if all dependencies of this node are satisfied '''
         for node in self._producers:
-            if not node._ready:
+            if not node.ready:
                 return False
         return True
+
+    @property
+    def ready(self):
+        return self._ready
+
+    def mark_ready(self):
+        ''' Mark this node as ready (done). Propagate this up to any
+        consumers of this node unless they are operators (which must
+        be scheduled in order to be executed) '''
+        self._ready = True
+        for node in self._consumers:
+            if node.node_type not in OPERATORS:
+                if node.dependencies_satisfied:
+                    node.mark_ready
 
     @property
     def node_id(self):

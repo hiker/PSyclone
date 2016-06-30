@@ -72,7 +72,7 @@ def ready_ops_from_list(nodes):
     are operations which are ready to execute '''
     op_list = []
     for node in nodes:
-        if not node._ready and node.node_type in OPERATORS and \
+        if not node.ready and node.node_type in OPERATORS and \
            node.dependencies_satisfied:
             op_list.append(node)
     return op_list
@@ -652,8 +652,8 @@ class DirectedAcyclicGraph(object):
                             max_flops_per_hz*EXAMPLE_CLOCK_GHZ))
         if num_cache_ref:
             eg_string += (" with associated BW of {0:.2f}-{1:.2f} GB/s".format(
-                      min_mem_bw*EXAMPLE_CLOCK_GHZ,
-                      max_mem_bw*EXAMPLE_CLOCK_GHZ))
+                min_mem_bw*EXAMPLE_CLOCK_GHZ,
+                max_mem_bw*EXAMPLE_CLOCK_GHZ))
         print eg_string
 
         # Which execution port each f.p. operation is mapped to on the CPU
@@ -663,13 +663,14 @@ class DirectedAcyclicGraph(object):
 
         output_dot_schedule = True
 
-        if output_dot_schedule:
-            self.to_dot(name=self._name+"_step0.gv")
-
         # Flag all input nodes as being ready
         input_nodes = self.input_nodes()
         for node in input_nodes:
             node._ready = True
+
+        # Output this initial graph
+        if output_dot_schedule:
+            self.to_dot(name=self._name+"_step0.gv")
 
         # Construct a schedule
         step = 0
@@ -687,28 +688,26 @@ class DirectedAcyclicGraph(object):
 
         while available_ops:
 
-            if output_dot_schedule:
-                self.to_dot(name=self._name+"_step{0}.gv".format(step+1))
-
             # Attempt to schedule each operation
             for operation in available_ops:
                 if not slot[exec_port[operation.node_type]][step]:
                     # Put this operation into next slot on appropriate port
                     slot[exec_port[operation.node_type]][step] = operation
-                    # Mark the operation as done (executed)
-                    operation._ready = True
+                    # Mark the operation as done (executed) and update
+                    # any consumers
+                    operation.mark_ready()
+
             for port in range(num_ports):
                 # Prepare the next slot in the schedule on this port
                 slot[port].append(None)
 
-            # Update all dependencies in the graph following the
-            # execution of one or more operations
-            # TODO could just update the consumers of those operations
-            self.update_status()
+            if output_dot_schedule:
+                self.to_dot(name=self._name+"_step{0}.gv".format(step+1))
 
             # Update our list of operations that are now ready to be
             # executed
             available_ops = self.operations_ready()
+
             # Move on to the next step in the schedule that we are
             # constructing
             step += 1
@@ -724,17 +723,6 @@ class DirectedAcyclicGraph(object):
             for port in range(num_ports):
                 sched_str += " {0}".format(slot[port][step])
             print sched_str
-            
-
-    def update_status(self):
-        ''' Examine all the nodes in the graph and mark as 'ready' all
-        those quantities whose producers are now 'ready'. '''
-        for node in self._nodes.itervalues():
-            if not node._ready and \
-               node.node_type not in OPERATORS:
-                # Operators only become ready by being executed (put in
-                # the schedule) and so their status is not updated here
-                node._ready = node.dependencies_satisfied
 
     def operations_ready(self):
         ''' Create a list of all operations in the DAG that are ready to
@@ -749,7 +737,7 @@ class DirectedAcyclicGraph(object):
         # Next we check the dependencies of the next un-computed node
         # on the critical path
         for node in self._critical_path.nodes:
-            if not node._ready and node.dependencies_satisfied:
+            if not node.ready and node.dependencies_satisfied:
                 # This node is the next one on the critical path - look
                 # at its dependencies
                 nodes = node.walk()
@@ -764,4 +752,4 @@ class DirectedAcyclicGraph(object):
             if op not in unique_available_ops:
                 unique_available_ops.append(op)
 
-        return available_ops
+        return unique_available_ops
