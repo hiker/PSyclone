@@ -8,7 +8,9 @@ from config_ivy_bridge import OPERATORS, FORTRAN_INTRINSICS
 VALID_NODE_TYPES = OPERATORS.keys() + ["intrinsic", "constant", "array_ref"]
 
 INDENT_STR = "     "
-
+# At what depth to abort attempting to recursively walk down a graph
+# (hitting this indicates a bug!)
+MAX_RECURSION_DEPTH = 40
 
 class DAGError(Exception):
     ''' Class for exceptions related to DAG manipulations '''
@@ -177,15 +179,25 @@ class DAGNode(object):
         self._node_type = mytype
 
     @property
+    def is_operator(self):
+        return (self._node_type in OPERATORS)
+            
+    @property
     def variable(self):
         ''' Return the Variable object associated with this node or None
         if there isn't one '''
         return self._variable
 
-    def walk(self, node_type=None, top_down=False):
+    def walk(self, node_type=None, top_down=False, depth=0):
         ''' Walk down the tree from this node and generate a list of all
         nodes of type node_type. If no node type is supplied then return
         all descendents '''
+        if depth > MAX_RECURSION_DEPTH:
+            print "Current node = ", str(self)
+            print "Producers:"
+            for idx, node in enumerate(self._producers):
+                print idx, str(node), type(node)
+            raise DAGError("Max recursion depth exceeded when walking tree")
         local_list = []
         if top_down:
             # Add the children of this node before recursing down
@@ -193,10 +205,10 @@ class DAGNode(object):
                 if not node_type or child.node_type == node_type:
                     local_list.append(child)
             for child in self._producers:
-                local_list += child.walk(node_type, top_down)
+                local_list += child.walk(node_type, top_down, depth+1)
         else:
             for child in self._producers:
-                local_list += child.walk(node_type, top_down)
+                local_list += child.walk(node_type, top_down, depth+1)
                 if not node_type or child.node_type == node_type:
                     local_list.append(child)
         return local_list
