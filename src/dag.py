@@ -87,6 +87,9 @@ class Path(object):
 
     @property
     def input_node(self):
+        ''' Searches through the nodes in this Path to find the one
+        that is input (has no producers/dependencies). Raises an
+        exception if none is found. '''
         for node in self._nodes:
             if not node.has_producer:
                 return node
@@ -288,7 +291,7 @@ class DirectedAcyclicGraph(object):
                 if new_node not in node_list:
                     node_list.append(new_node)
         return len(node_list)
-        
+
     def cache_lines(self):
         ''' Count the number of cache lines accessed by the graph. This
         is the number of distinct memory references. We assume that
@@ -507,9 +510,11 @@ class DirectedAcyclicGraph(object):
 
         while found_duplicate:
 
-            print "Found {0} nodes with multiple consumers".format(len(multiple_consumers))
-            for node in multiple_consumers:
-                print "Node: ", str(node), node.node_id
+            if DEBUG:
+                print "Found {0} nodes with multiple consumers".format(
+                    len(multiple_consumers))
+                for node in multiple_consumers:
+                    print "Node: ", str(node), node.node_id
 
             # Each node with > 1 consumer represents a possible duplication
             for multi_node in multiple_consumers[:]:
@@ -572,6 +577,9 @@ class DirectedAcyclicGraph(object):
 
     @property
     def critical_path(self):
+        ''' Returns the Path object holding the critical path through this
+        DAG. calc_critical_path() must have previously been called to
+        calculate this path. '''
         return self._critical_path
 
     def to_dot(self, name=None):
@@ -695,7 +703,7 @@ class DirectedAcyclicGraph(object):
         # Flag all input nodes as being ready
         input_nodes = self.input_nodes()
         for node in input_nodes:
-            node._ready = True
+            node.mark_ready()
 
         # Output this initial graph
         if output_dot_schedule:
@@ -775,7 +783,7 @@ class DirectedAcyclicGraph(object):
                     nodes = node.walk()
                     available_ops.extend(ready_ops_from_list(nodes))
                     break
-                
+
                 if not node.has_consumer:
                     # Have reached the output of the critical path
                     break
@@ -791,8 +799,8 @@ class DirectedAcyclicGraph(object):
 
         # Remove duplicates from the list while preserving their order
         unique_available_ops = []
-        for op in available_ops:
-            if op not in unique_available_ops:
-                unique_available_ops.append(op)
+        for opnode in available_ops:
+            if opnode not in unique_available_ops:
+                unique_available_ops.append(opnode)
 
         return unique_available_ops
