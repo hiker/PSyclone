@@ -228,18 +228,22 @@ class DirectedAcyclicGraph(object):
         elif node.node_id in self._nodes and self._nodes[node.node_id] == node:
             self._nodes.pop(node.node_id)
         else:
-            raise Exception("Object {0} not in list of nodes in graph!".
-                            format(str(node)))
+            raise Exception("Object '{0}' (id={1}) not in list of nodes in "
+                            "graph!".format(str(node), node.node_id))
         # Remove this node from any node that has it as a producer (dependency)
         for pnode in node.consumers[:]:
             pnode.rm_producer(node)
+        # Remove this node from any node that has it listed as a consumer
+        for pnode in node.producers[:]:
+            pnode.rm_consumer(node)
+        print "Deleting node {0} ({1})".format(str(node), node.node_id)
         # Finally, delete it altogether
         del node
 
     def delete_sub_graph(self, node):
         ''' Recursively deletes the supplied node *and all of its
         dependencies/children* '''
-        node_list = node.walk(top_down=True)
+        node_list = node.walk(top_down=True, depth=0)
         if not node.has_consumer:
             self.delete_node(node)
         for child in node_list:
@@ -255,7 +259,7 @@ class DirectedAcyclicGraph(object):
                         print str(dep)
 
     def output_nodes(self):
-        ''' Returns a list of all nodes that do not have a a node
+        ''' Returns a list of all nodes that do not have a node
         that is dependent upon them - i.e. a consumer.
         These are outputs of the DAG. '''
         node_list = []
@@ -485,72 +489,86 @@ class DirectedAcyclicGraph(object):
         for node in dead_nodes:
             self.delete_node(node)
 
+    def nodes_with_multiple_consumers(self):
+        ''' Returns a list of the nodes that have > 1 consumer '''
+        multiple_consumers = []
+        for node in self._nodes.itervalues():
+            if len(node.consumers) > 1:
+                multiple_consumers.append(node)
+        return multiple_consumers
+
     def prune_duplicate_nodes(self):
         ''' Walk through the graph and remove all but one of any
         duplicated sub-graphs that represent FLOPs'''
 
-        for opname in OPERATORS:
+        multiple_consumers = self.nodes_with_multiple_consumers()
 
-            op_list = self.nodelist_by_type(opname)
-            if not op_list or len(op_list) == 1:
-                continue
-            found_duplicate = True
+        found_duplicate = (len(multiple_consumers) > 0)
 
-            # Keep looping until we no longer find duplicate sub-expressions
-            # involving the current operator
-            while found_duplicate:
+        while found_duplicate:
 
-                for idx, node1 in enumerate(op_list[:-1]):
-                    descendents = node1.walk()
-                    # Construct a list of nodes (sub-graphs really) that
-                    # match node1
-                    matching_nodes = []
-                    for node2 in op_list[idx+1:]:
-                        if node2 not in descendents and \
-                           subgraph_matches(node1, node2):
-                            matching_nodes.append(node2)
+            print "Found {0} nodes with multiple consumers".format(len(multiple_consumers))
+            for node in multiple_consumers:
+                print "Node: ", str(node), node.node_id
 
-                    if matching_nodes:
-                        found_duplicate = True
+            # Each node with > 1 consumer represents a possible duplication
+            for multi_node in multiple_consumers[:]:
 
-                        # Create a new node to store the result of this
-                        # duplicated operation
-                        new_node = self.get_node(
-                            name="sub_exp"+str(self._sub_exp_count),
-                            unique=True)
-                        # Increment the count of duplicate sub-expressions
-                        self._sub_exp_count += 1
+                matching_nodes = []
+                node1 = multi_node.consumers[0]
+                for node2 in multi_node.consumers[1:]:
+                    if subgraph_matches(node1, node2):
+                        matching_nodes.append(node2)
 
-                        # Make this new node depend on node1
-                        new_node.add_producer(node1)
-                        node1.add_consumer(new_node)
+                if not matching_nodes:
+                    found_duplicate = False
+                    continue
 
-                        # Each node that had node1 as a dependency must now
-                        # have that replaced by new_node...
-                        for pnode in node1.consumers[:]:
-                            pnode.add_producer(new_node)
-                            pnode.rm_producer(node1)
-                            node1.rm_consumer(pnode)
+                # We've found one or more nodes that match node1
+                print "Node {0} matches:".format(str(node1))
+                for node in matching_nodes:
+                    print str(node)
 
-                        for node2 in matching_nodes:
-                            # Add the new node as a dependency for those nodes
-                            # that previously had node2 as a child
-                            for pnode in node2.consumers[:]:
-                                pnode.add_producer(new_node)
-                                pnode.rm_producer(node2)
-                                node2.rm_consumer(pnode)
+                found_duplicate = True
 
-                            # Delete node2 and all of its dependencies
-                            # (children)
-                            self.delete_sub_graph(node2)
+                # Create a new node to store the result of this
+                # duplicated operation
+                new_node = self.get_node(
+                    name="sub_exp"+str(self._sub_exp_count),
+                    unique=True)
 
-                        # Need to re-generate list of nodes for this operator
-                        op_list = self.nodelist_by_type(opname)
+                # Increment the count of duplicate sub-expressions
+                self._sub_exp_count += 1
 
-                        # Break out to re-start search for duplicates
-                        break
-                    else:
-                        found_duplicate = False
+                # Each node that had node1 as a dependency must now
+                # have that replaced by new_node...
+                for pnode in node1.consumers[:]:
+                    pnode.add_producer(new_node)
+                    new_node.add_consumer(pnode)
+                    pnode.rm_producer(node1)
+                    node1.rm_consumer(pnode)
+
+                # Make this new node depend on node1
+                new_node.add_producer(node1)
+                node1.add_consumer(new_node)
+
+                for node2 in matching_nodes:
+                    # Add the new node as a dependency for those nodes
+                    # that previously had node2 as a producer
+                    for pnode in node2.consumers[:]:
+                        pnode.add_producer(new_node)
+                        new_node.add_consumer(pnode)
+                        pnode.rm_producer(node2)
+                        node2.rm_consumer(pnode)
+
+                    # Delete node2 and all of its dependencies unless
+                    # they have consumers besides node2.
+                    self.delete_sub_graph(node2)
+
+                # Update list of nodes with > 1 consumer
+                multiple_consumers = self.nodes_with_multiple_consumers()
+                self.to_dot(name="debug{0}.gv".format(self._sub_exp_count))
+                break
 
     @property
     def critical_path(self):
