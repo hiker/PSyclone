@@ -67,6 +67,16 @@ def subgraph_matches(node1, node2):
     return matches
 
 
+def ready_ops_from_list(nodes):
+    ''' Look through supplied list of nodes and identify those that
+    are operations which are ready to execute '''
+    op_list = []
+    for node in nodes:
+        if not node._ready and node.node_type in OPERATORS and \
+           node.dependencies_satisfied:
+            op_list.append(node)
+    return op_list
+
 # TODO: would it be better to inherit from the built-in list object?
 class Path(object):
     ''' Class to encapsulate functionality related to a specifc path
@@ -729,11 +739,29 @@ class DirectedAcyclicGraph(object):
     def operations_ready(self):
         ''' Create a list of all operations in the DAG that are ready to
         be executed (all producers are 'ready') '''
+
         available_ops = []
-        for node in self._nodes.itervalues():
-            if (not node._ready and
-                node.node_type in OPERATORS and
-                node.dependencies_satisfied and
-                node not in available_ops):
-                available_ops.append(node)
+        # Check nodes on critical path first so as to prioritise them
+        # when generating schedule
+        if self._critical_path:
+            available_ops.extend(ready_ops_from_list(self._critical_path.nodes))
+
+        # Next we check the dependencies of the next un-computed node
+        # on the critical path
+        for node in self._critical_path.nodes:
+            if not node._ready and node.dependencies_satisfied:
+                # This node is the next one on the critical path - look
+                # at its dependencies
+                nodes = node.walk()
+                available_ops.extend(ready_ops_from_list(nodes))
+                break
+
+        available_ops.extend(ready_ops_from_list(self._nodes.itervalues()))
+
+        # Remove duplicates from the list while preserving their order
+        unique_available_ops = []
+        for op in available_ops:
+            if op not in unique_available_ops:
+                unique_available_ops.append(op)
+
         return available_ops
