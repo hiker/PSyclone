@@ -12,6 +12,7 @@ INDENT_STR = "     "
 # (hitting this indicates a bug!)
 MAX_RECURSION_DEPTH = 40
 
+
 class DAGError(Exception):
     ''' Class for exceptions related to DAG manipulations '''
 
@@ -72,6 +73,9 @@ class DAGNode(object):
 
     @property
     def ready(self):
+        ''' Getter method for self._ready. Used during schedule generation.
+        Is set to true once (quantity represented by this) node has been
+        computed/updated '''
         return self._ready
 
     def mark_ready(self):
@@ -82,7 +86,7 @@ class DAGNode(object):
         for node in self._consumers:
             if node.node_type not in OPERATORS:
                 if node.dependencies_satisfied:
-                    node.mark_ready
+                    node.mark_ready()
 
     @property
     def node_id(self):
@@ -180,8 +184,9 @@ class DAGNode(object):
 
     @property
     def is_operator(self):
+        ''' Returns true if this node represents a floating point operation '''
         return (self._node_type in OPERATORS)
-            
+
     @property
     def variable(self):
         ''' Return the Variable object associated with this node or None
