@@ -501,11 +501,13 @@ class DirectedAcyclicGraph(object):
             while found_duplicate:
 
                 for idx, node1 in enumerate(op_list[:-1]):
+                    descendents = node1.walk()
                     # Construct a list of nodes (sub-graphs really) that
                     # match node1
                     matching_nodes = []
                     for node2 in op_list[idx+1:]:
-                        if subgraph_matches(node1, node2):
+                        if node2 not in descendents and \
+                           subgraph_matches(node1, node2):
                             matching_nodes.append(node2)
 
                     if matching_nodes:
@@ -521,6 +523,8 @@ class DirectedAcyclicGraph(object):
 
                         # Make this new node depend on node1
                         new_node.add_producer(node1)
+                        node1.add_consumer(new_node)
+
                         # Each node that had node1 as a dependency must now
                         # have that replaced by new_node...
                         for pnode in node1.consumers[:]:
