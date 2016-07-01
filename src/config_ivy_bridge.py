@@ -6,7 +6,15 @@
 # Operations are in order of decreasing cost (for use when
 # searching for duplicated sub-graphs).
 # TODO these costs are microarchitecture specific.
-OPERATORS = {"/":14, "+":1, "-":1, "*":1, "FMA":1}
+OPERATORS = {"/":{"latency":15, "cost":14},
+             "+":{"latency":3, "cost":1},
+             "-":{"latency":3, "cost":1},
+             "*":{"latency":5, "cost":1}}
+
+# Which execution port each f.p. operation is mapped to on the CPU
+# (from http://www.agner.org/optimize/microarchitecture.pdf).
+NUM_EXECUTION_PORTS = 2
+CPU_EXECUTION_PORTS = {"/": 0, "*": 0, "+": 1, "-": 1}
 
 # Size of a cache line in bytes
 CACHE_LINE_BYTES = 64
