@@ -7,8 +7,10 @@ from fparser.Fortran2003 import \
     Name, Section_Subscript_List, Parenthesis, Part_Ref
 
 from dag_node import DAGNode, DAGError
+# TODO manange the import of these CPU-specific values in a way that permits
+# the type of CPU to be changed
 from config_ivy_bridge import OPERATORS, CACHE_LINE_BYTES, EXAMPLE_CLOCK_GHZ, \
-    FORTRAN_INTRINSICS
+    FORTRAN_INTRINSICS, NUM_EXECUTION_PORTS, CPU_EXECUTION_PORTS
 
 DEBUG = False
 
@@ -77,6 +79,58 @@ def ready_ops_from_list(nodes):
             op_list.append(node)
     return op_list
 
+def schedule_cost(nsteps, schedule):
+    ''' Calculate the cost (in cycles) of the supplied schedule '''
+    cost = 0
+    
+    print "Schedule contains {0} steps:".format(nsteps)
+    for step in range(0, nsteps):
+
+        sched_str = str(step)
+        max_cost = 0
+
+        # Find the most expensive operation on any port at this step of
+        # the schedule
+        for port in range(NUM_EXECUTION_PORTS):
+            sched_str += " {0}".format(schedule[port][step])
+
+            port_cost = 0
+
+            # If there is an operation on this port at this step of
+            # the schedule then calculate its cost...
+            if schedule[port][step]:
+                operator = str(schedule[port][step])
+                port_cost = OPERATORS[operator]["cost"]
+
+                if False:
+                    # Account for operation latency - assume we have to
+                    # pay it and then subsequently set it to zero if we don't
+                    latency = OPERATORS[operator]["latency"]
+
+                    # If this isn't the first step in the schedule *and* the
+                    # port executed an operation in the previous step then
+                    # check what type it was
+                    if step > 0 and schedule[port][step-1]:
+                        previous_op = str(schedule[port][step-1])
+                        if OPERATORS[previous_op] == \
+                           OPERATORS[operator]:
+                            # This operation is the same as the previous
+                            # one on this port so assume pipelined
+                            latency = 0
+                        elif OPERATORS[operator] in ["+", "-"] and \
+                             OPERATORS[previous_op] in ["+", "-"]:
+                            # Assume '+' and '-' are treated as the same
+                            # and thus we pay no latency
+                            latency = 0
+                    port_cost += latency
+
+            if port_cost > max_cost:
+                max_cost = port_cost
+        sched_str += " cost = {0}".format(max_cost)
+        cost += max_cost
+        print sched_str
+    return cost
+    
 # TODO: would it be better to inherit from the built-in list object?
 class Path(object):
     ''' Class to encapsulate functionality related to a specifc path
@@ -239,7 +293,8 @@ class DirectedAcyclicGraph(object):
         # Remove this node from any node that has it listed as a consumer
         for pnode in node.producers[:]:
             pnode.rm_consumer(node)
-        print "Deleting node {0} ({1})".format(str(node), node.node_id)
+        if DEBUG:
+            print "Deleting node {0} ({1})".format(str(node), node.node_id)
         # Finally, delete it altogether
         del node
 
@@ -681,22 +736,42 @@ class DirectedAcyclicGraph(object):
             print ("    Associated mem bandwidth = {0:.2f}*CLOCK_SPEED "
                    "bytes/s".format(max_mem_bw))
 
+        # Construct a schedule for the execution of the nodes in the DAG,
+        # allowing for the microarchitecture of the chosen CPU
+        # TODO currently this is picked up from configy_ivy_bridge.py
+        nsteps, schedule = self.generate_schedule()
+
+        cost = schedule_cost(nsteps, schedule)
+        print "  Estimate using schedule:"
+        print "    Cost of schedule as a whole = {0} cycles".format(cost)
+        sched_flops_per_hz = float(total_flops)/float(cost)
+        print ("    FLOPS from schedule (ignoring memory accesses) = "
+               "{:.4f}*CLOCK_SPEED".format(sched_flops_per_hz))
+        if num_cache_ref:
+            # Kernel/DAG will take at least ncycles/CLOCK_SPEED (s)
+            sched_mem_bw = float(mem_traffic_bytes) / float(cost)
+            print ("    Associated mem bandwidth = {0:.2f}*CLOCK_SPEED "
+                   "bytes/s".format(sched_mem_bw))
+
         # Print out example performance figures using the clock speed
         # in EXAMPLE_CLOCK_GHZ
-        eg_string = ("  e.g. at {0} GHz, this gives {1:.2f}-{2:.2f} GFLOPS".
+        eg_string = ("  e.g. at {0} GHz, these different estimates give "
+                     "{1:.2f}, {2:.2f}, {3:.2f} GFLOPS".
                      format(EXAMPLE_CLOCK_GHZ,
                             min_flops_per_hz*EXAMPLE_CLOCK_GHZ,
+                            sched_flops_per_hz*EXAMPLE_CLOCK_GHZ,
                             max_flops_per_hz*EXAMPLE_CLOCK_GHZ))
         if num_cache_ref:
-            eg_string += (" with associated BW of {0:.2f}-{1:.2f} GB/s".format(
+            eg_string += (" with associated BW of {0:.2f},{1:.2f}{2:.2f} "
+                          "GB/s".format(
                 min_mem_bw*EXAMPLE_CLOCK_GHZ,
+                sched_mem_bw*EXAMPLE_CLOCK_GHZ,
                 max_mem_bw*EXAMPLE_CLOCK_GHZ))
         print eg_string
 
-        # Which execution port each f.p. operation is mapped to on the CPU
-        # TODO this is microarchitecture specific
-        exec_port = {"/": 0, "*": 0, "+": 1, "-": 1}
-        num_ports = 2
+    def generate_schedule(self):
+        ''' Create a schedule describing how the nodes/operations in the DAG
+        map onto the available hardware '''
 
         output_dot_schedule = True
 
@@ -711,12 +786,13 @@ class DirectedAcyclicGraph(object):
 
         # Construct a schedule
         step = 0
+        
         # We have one slot per execution port at each step in the schedule.
-        # Each port then has its own schedule (list) with entries being the
-        # DAGNodes representing the operations to be performed or None
+        # Each port then has its own schedule (list) with each entry being the
+        # DAGNode representing the operation to be performed or None
         # if a slot is empty (nop).
         slot = []
-        for port in range(num_ports):
+        for port in range(NUM_EXECUTION_PORTS):
             slot.append([None])
 
         # Generate a list of all operations that have their dependencies
@@ -727,14 +803,15 @@ class DirectedAcyclicGraph(object):
 
             # Attempt to schedule each operation
             for operation in available_ops:
-                if not slot[exec_port[operation.node_type]][step]:
+                port = CPU_EXECUTION_PORTS[operation.node_type]
+                if not slot[port][step]:
                     # Put this operation into next slot on appropriate port
-                    slot[exec_port[operation.node_type]][step] = operation
+                    slot[port][step] = operation
                     # Mark the operation as done (executed) and update
                     # any consumers
                     operation.mark_ready()
 
-            for port in range(num_ports):
+            for port in range(NUM_EXECUTION_PORTS):
                 # Prepare the next slot in the schedule on this port
                 slot[port].append(None)
 
@@ -750,16 +827,9 @@ class DirectedAcyclicGraph(object):
             step += 1
 
             if step > 500:
-                raise Exception("Unexpectedly long schedule - this is "
+                raise DAGError("Unexpectedly long schedule - this is "
                                 "probably a bug.")
-
-        nsteps = step
-        print "Schedule contains {0} steps:".format(nsteps)
-        for step in range(0, nsteps):
-            sched_str = str(step)
-            for port in range(num_ports):
-                sched_str += " {0}".format(slot[port][step])
-            print sched_str
+        return step, slot
 
     def operations_ready(self):
         ''' Create a list of all operations in the DAG that are ready to

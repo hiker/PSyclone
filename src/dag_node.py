@@ -225,7 +225,7 @@ class DAGNode(object):
             return 0
         else:
             if self._node_type in OPERATORS:
-                return OPERATORS[self._node_type]
+                return OPERATORS[self._node_type]["cost"]
             elif self._node_type == "intrinsic":
                 return FORTRAN_INTRINSICS[self._name]
             else:
