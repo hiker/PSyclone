@@ -6,7 +6,7 @@
 # Operations are in order of decreasing cost (for use when
 # searching for duplicated sub-graphs).
 # TODO these costs are microarchitecture specific.
-OPERATORS = {"/":{"latency":15, "cost":14},
+OPERATORS = {"/":{"latency":15, "cost":10},
              "+":{"latency":3, "cost":1},
              "-":{"latency":3, "cost":1},
              "*":{"latency":5, "cost":1}}
