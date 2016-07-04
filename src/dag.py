@@ -126,7 +126,7 @@ def schedule_cost(nsteps, schedule):
 
             if port_cost > max_cost:
                 max_cost = port_cost
-        sched_str += " cost = {0}".format(max_cost)
+        sched_str += " (cost = {0})".format(max_cost)
         cost += max_cost
         print sched_str
     return cost
@@ -689,7 +689,7 @@ class DirectedAcyclicGraph(object):
         if num_cache_ref > 0:
             flop_per_byte = total_flops / (num_cache_ref*8.0)
             # This is naive because all FLOPs are not equal - a division
-            # costs ~20-40x as much as an addition.
+            # costs ~10-40x as much as an addition.
             print "  Naive FLOPs/byte = {:.3f}".format(flop_per_byte)
         else:
             print "  Did not find any array/memory references"
@@ -700,7 +700,7 @@ class DirectedAcyclicGraph(object):
 
         # Performance estimate using whole graph. This is a lower bound
         # since it ignores all Instruction-Level Parallelism apart from
-        # FMAs...
+        # FMAs (if the DAG contains any)...
         min_flops_per_hz = float(total_flops)/float(total_cycles)
         print "  Lower bound:"
         print "    Sum of cost of all nodes = {0} (cycles)".\
@@ -738,7 +738,7 @@ class DirectedAcyclicGraph(object):
 
         # Construct a schedule for the execution of the nodes in the DAG,
         # allowing for the microarchitecture of the chosen CPU
-        # TODO currently this is picked up from configy_ivy_bridge.py
+        # TODO currently this is picked up from config_ivy_bridge.py
         nsteps, schedule = self.generate_schedule()
 
         cost = schedule_cost(nsteps, schedule)
@@ -753,19 +753,47 @@ class DirectedAcyclicGraph(object):
             print ("    Associated mem bandwidth = {0:.2f}*CLOCK_SPEED "
                    "bytes/s".format(sched_mem_bw))
 
+        # Given that each execution port can run in parallel with the others,
+        # the time taken to do the graph will be the time taken by the port
+        # that takes longest (i.e. has the most work to do)
+        # Use a dictionary to hold the cost for each port in case the port numbers
+        # aren't contiguous.
+        port_cost = {}
+        for port in CPU_EXECUTION_PORTS.itervalues():
+            # Zero the cost for each port
+            port_cost[str(port)] = 0
+
+        port_cost[str(CPU_EXECUTION_PORTS["/"])] += num_div * OPERATORS["/"]["cost"]
+        port_cost[str(CPU_EXECUTION_PORTS["*"])] += num_mult * OPERATORS["*"]["cost"]
+        port_cost[str(CPU_EXECUTION_PORTS["+"])] += num_plus * OPERATORS["+"]["cost"]
+        port_cost[str(CPU_EXECUTION_PORTS["-"])] += num_minus * OPERATORS["-"]["cost"]
+
+        net_cost = 0
+        for port in port_cost:
+            if port_cost[port] > net_cost:
+                net_cost = port_cost[port]
+        perfect_sched_flops_per_hz = float(total_flops)/float(net_cost)
+        if num_cache_ref:
+            perfect_sched_mem_bw = float(mem_traffic_bytes) / float(net_cost)
+
+        print ("Cost if all ops on different execution ports are perfectly "
+               "overlapped = {0} cycles".format(net_cost))
+
         # Print out example performance figures using the clock speed
         # in EXAMPLE_CLOCK_GHZ
         eg_string = ("  e.g. at {0} GHz, these different estimates give "
-                     "{1:.2f}, {2:.2f}, {3:.2f} GFLOPS".
+                     "{1:.2f}, {2:.2f}, {3:.2f}, {4:.2f} GFLOPS".
                      format(EXAMPLE_CLOCK_GHZ,
                             min_flops_per_hz*EXAMPLE_CLOCK_GHZ,
                             sched_flops_per_hz*EXAMPLE_CLOCK_GHZ,
+                            perfect_sched_flops_per_hz*EXAMPLE_CLOCK_GHZ,
                             max_flops_per_hz*EXAMPLE_CLOCK_GHZ))
         if num_cache_ref:
-            eg_string += (" with associated BW of {0:.2f},{1:.2f}{2:.2f} "
+            eg_string += (" with associated BW of {0:.2f},{1:.2f},{2:.2f},{3:.2f} "
                           "GB/s".format(
                 min_mem_bw*EXAMPLE_CLOCK_GHZ,
                 sched_mem_bw*EXAMPLE_CLOCK_GHZ,
+                perfect_sched_mem_bw*EXAMPLE_CLOCK_GHZ,
                 max_mem_bw*EXAMPLE_CLOCK_GHZ))
         print eg_string
 
