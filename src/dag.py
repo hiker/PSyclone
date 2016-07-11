@@ -186,8 +186,10 @@ class Path(object):
 
     def to_dot(self, fileobj):
         ''' Write this path to the supplied DOT file '''
-        pathstr = self._nodes[0].node_id
-        for node in self._nodes[1:]:
+        # We output the nodes in reverse order so that flow is from
+        # input node to output node.
+        pathstr = self._nodes[-1].node_id
+        for node in reversed(self._nodes[:-1]):
             pathstr += " -> {0}".format(node.node_id)
         pathstr += "[color=red,penwidth=3.0];"
         fileobj.write(pathstr)

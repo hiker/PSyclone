@@ -336,14 +336,20 @@ class DAGNode(object):
         if node_size:
             nodestr += ", height=\"{0}\"".format(node_size)
 
+        # Set node fill colours in order to animate the execution
+        # schedule
         if self._ready:
+            # Node has been executed/updated
             nodestr += ", style=\"filled\", fillcolor=\"grey\""
+        elif self.dependencies_satisfied:
+            # Node is ready to be executed/updated
+            nodestr += ", style=\"filled\", fillcolor=\"green\""
 
         nodestr += "]\n"
 
         fileobj.write(nodestr)
-        if self._producers:
+        if self._consumers:
             fileobj.write(self.node_id+" -> {\n")
-            for child in self._producers:
+            for child in self._consumers:
                 fileobj.write(" "+child.node_id)
             fileobj.write("}\n")
