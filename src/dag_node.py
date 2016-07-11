@@ -300,14 +300,17 @@ class DAGNode(object):
         if node:
             node.critical_path(path)
 
-    def to_dot(self, fileobj):
+    def to_dot(self, fileobj, show_weight):
         ''' Generate representation in the DOT language '''
         for child in self._producers:
-            child.to_dot(fileobj)
+            child.to_dot(fileobj, show_weight)
 
-        nodestr = "{0} [label=\"{1} w={2}\"".format(self.node_id,
-                                                    self.name,
-                                                    str(self._incl_weight))
+        nodestr = "{0} [label=\"{1}".format(self.node_id,
+                                              self.name)
+        if show_weight:
+            nodestr += " (w={0})".format(str(self._incl_weight))
+        nodestr += "\""
+
         # Default node is a black elipse
         node_colour = "black"
         node_shape = "ellipse"

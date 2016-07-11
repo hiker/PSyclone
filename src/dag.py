@@ -639,7 +639,7 @@ class DirectedAcyclicGraph(object):
         calculate this path. '''
         return self._critical_path
 
-    def to_dot(self, name=None):
+    def to_dot(self, name=None, show_weights=True):
         ''' Write the DAG to file in DOT format. If a critical path has
         been computed then it is also written to the file. '''
 
@@ -653,7 +653,7 @@ class DirectedAcyclicGraph(object):
         outfile.write("strict digraph {\n")
 
         for node in self.output_nodes():
-            node.to_dot(outfile)
+            node.to_dot(outfile, show_weights)
 
         # Write the critical path
         if len(self._critical_path):

@@ -104,7 +104,8 @@ def runner(parser, options, args):
     apply_fma_transformation = not options.no_fma
     prune_duplicate_nodes = not options.no_prune
     unroll_factor = int(options.unroll_factor)
-    rm_scalar_temporaries = True
+    rm_scalar_temporaries = options.rm_scalar_tmps
+    show_weights = options.show_weights
 
     for filename in args:
         reader = FortranFileReader(filename)
@@ -177,7 +178,7 @@ def runner(parser, options, args):
                     digraph.calc_critical_path()
 
                     # Write the digraph to file
-                    digraph.to_dot()
+                    digraph.to_dot(show_weights=show_weights)
                     digraph.report()
 
                     # Fuse multiply-adds where possible
@@ -213,6 +214,16 @@ def main():
                       "operations",
                       action="store_true",
                       dest="no_fma",
+                      default=False)
+    parser.add_option("--rm-scalar-tmps",
+                      help="Remove scalar temporaries from the DAG",
+                      action="store_true",
+                      dest="rm_scalar_tmps",
+                      default=False)
+    parser.add_option("--show-weights",
+                      help="Display node weights in the DAG",
+                      action="store_true",
+                      dest="show_weights",
                       default=False)
     parser.add_option("--unroll",
                       help="No. of times to unroll a loop. (Applied to every "
