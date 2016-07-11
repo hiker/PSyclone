@@ -704,7 +704,7 @@ class DirectedAcyclicGraph(object):
         # since it ignores all Instruction-Level Parallelism apart from
         # FMAs (if the DAG contains any)...
         min_flops_per_hz = float(total_flops)/float(total_cycles)
-        print "  Lower bound:"
+        print "  Whole DAG in serial:"
         print "    Sum of cost of all nodes = {0} (cycles)".\
             format(total_cycles)
         print "    {0} FLOPs in {1} cycles => {2:.4f}*CLOCK_SPEED FLOPS".\
@@ -717,7 +717,7 @@ class DirectedAcyclicGraph(object):
         # Performance estimate using critical path - this is an upper
         # bound (assumes all other parts of the graph can somehow be
         # computed in parallel to the critical path).
-        print "  Upper bound:"
+        print "  Everything in parallel to Critical path:"
         ncycles = self._critical_path.cycles()
         print ("    Critical path contains {0} nodes, {1} FLOPs and "
                "is {2} cycles long".format(len(self._critical_path),
@@ -729,7 +729,7 @@ class DirectedAcyclicGraph(object):
         # path.cycles()*1/CLOCK_SPEED (s).
         # Theoretical max FLOPS = total_flops*CLOCK_SPEED/path.cycles()
         max_flops_per_hz = float(total_flops)/float(ncycles)
-        print ("    Theoretical max FLOPS (ignoring memory accesses) = "
+        print ("    FLOPS (ignoring memory accesses) = "
                "{:.4f}*CLOCK_SPEED".format(max_flops_per_hz))
 
         if num_cache_ref:
@@ -744,7 +744,7 @@ class DirectedAcyclicGraph(object):
         nsteps, schedule = self.generate_schedule()
 
         cost = schedule_cost(nsteps, schedule)
-        print "  Estimate using schedule:"
+        print "  Estimate using computed schedule:"
         print "    Cost of schedule as a whole = {0} cycles".format(cost)
         sched_flops_per_hz = float(total_flops)/float(cost)
         print ("    FLOPS from schedule (ignoring memory accesses) = "
@@ -778,26 +778,27 @@ class DirectedAcyclicGraph(object):
         if num_cache_ref:
             perfect_sched_mem_bw = float(mem_traffic_bytes) / float(net_cost)
 
-        print ("Cost if all ops on different execution ports are perfectly "
+        print "  Estimate using perfect schedule:"
+        print ("    Cost if all ops on different execution ports are perfectly "
                "overlapped = {0} cycles".format(net_cost))
 
         # Print out example performance figures using the clock speed
         # in EXAMPLE_CLOCK_GHZ
-        eg_string = ("  e.g. at {0} GHz, these different estimates give "
-                     "{1:.2f}, {2:.2f}, {3:.2f}, {4:.2f} GFLOPS".
-                     format(EXAMPLE_CLOCK_GHZ,
-                            min_flops_per_hz*EXAMPLE_CLOCK_GHZ,
+        print "  e.g. at {0} GHz, these different estimates give (GFLOPS): ".format(EXAMPLE_CLOCK_GHZ)
+        print "  No ILP  |  Computed Schedule  |  Perfect Schedule | Critical path"
+        print "  {0:5.2f}   |         {1:5.2f}       |       {2:5.2f}       |   {3:5.2f}".\
+                     format(min_flops_per_hz*EXAMPLE_CLOCK_GHZ,
                             sched_flops_per_hz*EXAMPLE_CLOCK_GHZ,
                             perfect_sched_flops_per_hz*EXAMPLE_CLOCK_GHZ,
-                            max_flops_per_hz*EXAMPLE_CLOCK_GHZ))
+                            max_flops_per_hz*EXAMPLE_CLOCK_GHZ)
         if num_cache_ref:
-            eg_string += (" with associated BW of {0:.2f},{1:.2f},{2:.2f},{3:.2f} "
+            print (" with associated BW of {0:.2f},{1:.2f},{2:.2f},{3:.2f} "
                           "GB/s".format(
                 min_mem_bw*EXAMPLE_CLOCK_GHZ,
                 sched_mem_bw*EXAMPLE_CLOCK_GHZ,
                 perfect_sched_mem_bw*EXAMPLE_CLOCK_GHZ,
                 max_mem_bw*EXAMPLE_CLOCK_GHZ))
-        print eg_string
+
 
     def generate_schedule(self):
         ''' Create a schedule describing how the nodes/operations in the DAG

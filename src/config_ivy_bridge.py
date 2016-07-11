@@ -6,7 +6,7 @@
 # Operations are in order of decreasing cost (for use when
 # searching for duplicated sub-graphs).
 # TODO these costs are microarchitecture specific.
-OPERATORS = {"/":{"latency":15, "cost":10},
+OPERATORS = {"/":{"latency":15, "cost":8},
              "+":{"latency":3, "cost":1},
              "-":{"latency":3, "cost":1},
              "*":{"latency":5, "cost":1}}
@@ -20,7 +20,7 @@ CPU_EXECUTION_PORTS = {"/": 0, "*": 0, "+": 1, "-": 1}
 CACHE_LINE_BYTES = 64
 
 # Clock speed to use when computing example performance figures
-EXAMPLE_CLOCK_GHZ = 3.8
+EXAMPLE_CLOCK_GHZ = 3.85
 
 # Fortran intrinsics that we recognise, with their cost in cycles
 # (as obtained from micro-benchmarks: dl_microbench).
