@@ -498,6 +498,7 @@ class DirectedAcyclicGraph(object):
 
         # Find the longest of these paths
         max_cycles = 0
+        crit_path = None
         for path in paths:
             if path.cycles() > max_cycles:
                 max_cycles = path.cycles()
@@ -656,7 +657,7 @@ class DirectedAcyclicGraph(object):
             node.to_dot(outfile, show_weights)
 
         # Write the critical path
-        if len(self._critical_path):
+        if self._critical_path:
             self._critical_path.to_dot(outfile)
 
         outfile.write("}\n")
@@ -703,6 +704,10 @@ class DirectedAcyclicGraph(object):
         # Performance estimate using whole graph. This is a lower bound
         # since it ignores all Instruction-Level Parallelism apart from
         # FMAs (if the DAG contains any)...
+        if not total_cycles > 0:
+            print "  DAG contains no FLOPs so skipping performance estimate."
+            return
+        
         min_flops_per_hz = float(total_flops)/float(total_cycles)
         print "  Whole DAG in serial:"
         print "    Sum of cost of all nodes = {0} (cycles)".\
