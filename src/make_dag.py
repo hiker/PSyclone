@@ -168,11 +168,11 @@ def runner(parser, options, args):
 
                 for digraph in digraphs:
 
-                    if rm_scalar_temporaries:
-                        digraph.rm_scalar_temporaries()
-
                     if prune_duplicate_nodes:
                         digraph.prune_duplicate_nodes()
+
+                    if rm_scalar_temporaries:
+                        digraph.rm_scalar_temporaries()
 
                     # Work out the critical path through this graph
                     digraph.calc_critical_path()
