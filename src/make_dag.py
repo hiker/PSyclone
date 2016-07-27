@@ -101,6 +101,7 @@ def runner(parser, options, args):
         Subroutine_Subprogram, Assignment_Stmt, \
         Subroutine_Stmt, Name, Block_Nonlabel_Do_Construct, Execution_Part
     from parse2003 import Loop, get_child
+    from parse import ParseError
 
     apply_fma_transformation = not options.no_fma
     prune_duplicate_nodes = not options.no_prune
@@ -116,9 +117,15 @@ def runner(parser, options, args):
             program = Fortran2003.Program(reader)
             # Find all the subroutines contained in the file
             routines = walk(program.content, Subroutine_Subprogram)
-            # Add the main program as a routine to analyse
-            main = get_child(program, Main_Program)
-            routines.append(main)
+            # Add the main program as a routine to analyse - take care
+            # here as the Fortran source file might not contain a
+            # main program (might just be a subroutine in a module)
+            try:
+                main = get_child(program, Main_Program)
+            except ParseError:
+                main = None
+            if main:
+                routines.append(main)
             
             # Create a DAG for each (sub)routine
             for subroutine in routines:
