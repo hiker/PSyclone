@@ -97,9 +97,10 @@ def runner(parser, options, args):
     subroutines it finds '''
     from fparser.api import Fortran2003
     from fparser.readfortran import FortranFileReader
-    from fparser.Fortran2003 import Subroutine_Subprogram, Assignment_Stmt, \
+    from fparser.Fortran2003 import Program, Main_Program, Program_Stmt, \
+        Subroutine_Subprogram, Assignment_Stmt, \
         Subroutine_Stmt, Name, Block_Nonlabel_Do_Construct, Execution_Part
-    from parse2003 import Loop
+    from parse2003 import Loop, get_child
 
     apply_fma_transformation = not options.no_fma
     prune_duplicate_nodes = not options.no_prune
@@ -114,24 +115,32 @@ def runner(parser, options, args):
         try:
             program = Fortran2003.Program(reader)
             # Find all the subroutines contained in the file
-            subroutines = walk(program.content, Subroutine_Subprogram)
-
-            # Create a DAG for each subroutine
-            for subroutine in subroutines:
-                substmt = walk(subroutine.content, Subroutine_Stmt)
+            routines = walk(program.content, Subroutine_Subprogram)
+            # Add the main program as a routine to analyse
+            main = get_child(program, Main_Program)
+            routines.append(main)
+            
+            # Create a DAG for each (sub)routine
+            for subroutine in routines:
+                # Get the name of this (sub)routine
+                if isinstance(subroutine, Subroutine_Subprogram):
+                    substmt = walk(subroutine.content, Subroutine_Stmt)
+                elif isinstance(subroutine, Main_Program):
+                    substmt = walk(subroutine.content, Program_Stmt)
                 sub_name = str(substmt[0].get_name())
-                
+
+                # Find the section of the tree containing the execution part
+                # of the code
+                exe_part = get_child(subroutine, Execution_Part)
+
                 # Make a list of all Do loops in the routine
-                loops = walk(subroutine.content, Block_Nonlabel_Do_Construct)
+                loops = walk(exe_part.content, Block_Nonlabel_Do_Construct)
                 digraphs = []
                 
                 if not loops:
                     # There are no Do loops in this subroutine so just
                     # generate a DAG for the body of the routine...
-                    # First, find the executable section of the subroutine
-                    exe_part = walk(subroutine.content, Execution_Part)
-                    # Next, generate the DAG of that section
-                    digraph = dag_of_code_block(exe_part[0], sub_name)
+                    digraph = dag_of_code_block(exe_part, sub_name)
                     if digraph:
                         digraphs.append(digraph)
                 else:
@@ -155,6 +164,7 @@ def runner(parser, options, args):
                         if unroll_factor > 1:
                             name += "_unroll" + str(unroll_factor)
 
+                        # Create the DAG
                         digraph = dag_of_code_block(
                             loop, name,
                             loop=myloop,

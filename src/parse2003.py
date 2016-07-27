@@ -53,6 +53,18 @@ def walk(children, my_type, indent=0, debug=False):
     return local_list
 
 
+def get_child(root_node, node_type):
+    ''' Searches for the immediate child of root_node that is of the
+    specified type '''
+    from parse import ParseError
+    for node in root_node.content:
+        print type(node)
+        if isinstance(node, node_type):
+            return node
+    raise ParseError("Node {0} has no child of type {1}".
+                     format(str(root_node), str(node_type)))
+
+
 class Loop(object):
     ''' Representation of a Do loop '''
 
