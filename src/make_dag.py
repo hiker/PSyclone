@@ -17,15 +17,28 @@ def dag_of_assignments(digraph, assignments, mapping):
     from parse2003 import Variable
 
     for assign in assignments:
+
+        # Create a Variable to represent the LHS of the assignment
         lhs_var = Variable()
         lhs_var.load(assign.items[0], mapping=mapping, lhs=True)
-        var_name = str(lhs_var)
 
-        dag = digraph.get_node(parent=None,
-                               variable=lhs_var)
+        # Create a temporary node to store the result of the RHS of
+        # this assignment (in case it references the variable on the
+        # LHS)
+        tmp_node = digraph.get_node(parent=None,
+                                    name="tmp_node",
+                                    unique=True)
+
         # First two items of an Assignment_Stmt are the name of
         # the var being assigned to and '='.
-        digraph.make_dag(dag, assign.items[2:], mapping)
+        digraph.make_dag(tmp_node, assign.items[2:], mapping)
+
+        # Sanity check - the temporary node representing the LHS of
+        # the assignment should not (yet) be consumed by anything
+        # because it is a unique node and only receives the output of
+        # the RHS.
+        if tmp_node.consumers:
+            raise Exception("Temporary node should not have any consumers!")
 
         # Only update the map once we've created a DAG of the
         # assignment statement. This is because any references
@@ -34,7 +47,19 @@ def dag_of_assignments(digraph, assignments, mapping):
         if lhs_var.orig_name in mapping:
             mapping[lhs_var.orig_name] += "'"
         else:
-            mapping[lhs_var.orig_name] = lhs_var.orig_name
+            mapping[lhs_var.orig_name] = lhs_var.orig_name + "'"
+
+        # Create the LHS node proper
+        lhs_node = digraph.get_node(parent=None,
+                                    mapping=mapping,
+                                    variable=lhs_var)
+
+        # Copy over the dependencies from the temporary node
+        for node in tmp_node.producers:
+            lhs_node.add_producer(node)
+            node.add_consumer(lhs_node)
+        # Delete the temporary node
+        digraph.delete_node(tmp_node)
 
 
 def dag_of_code_block(parent_node, name, loop=None, unroll_factor=1):
