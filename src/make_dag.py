@@ -13,7 +13,8 @@ except ImportError:
 from fparser.script_options import set_f2003_options
 
 def dag_of_assignments(digraph, assignments, mapping):
-    ''' Add to the existing DAG using the supplied list of assignments '''
+    ''' Add to the existing DAG using the supplied list of assignments. Each
+    assignment is an instance of a fparser.Fortran2003.Assignment_Stmt '''
     from parse2003 import Variable
 
     for assign in assignments:
@@ -22,7 +23,7 @@ def dag_of_assignments(digraph, assignments, mapping):
         lhs_var = Variable()
         lhs_var.load(assign.items[0], mapping=mapping, lhs=True)
 
-        # Create a temporary node to store the result of the RHS of
+        # Create a *temporary* node to store the result of the RHS of
         # this assignment (in case it references the variable on the
         # LHS)
         tmp_node = digraph.get_node(parent=None,
@@ -30,7 +31,7 @@ def dag_of_assignments(digraph, assignments, mapping):
                                     unique=True)
 
         # First two items of an Assignment_Stmt are the name of
-        # the var being assigned to and '='.
+        # the var being assigned to and '=' so skip them
         digraph.make_dag(tmp_node, assign.items[2:], mapping)
 
         # Sanity check - the temporary node representing the LHS of
@@ -47,9 +48,25 @@ def dag_of_assignments(digraph, assignments, mapping):
         if lhs_var.orig_name in mapping:
             mapping[lhs_var.orig_name] += "'"
         else:
-            mapping[lhs_var.orig_name] = lhs_var.orig_name + "'"
+            # The LHS variable wasn't already in the map
+            mapping[lhs_var.orig_name] = lhs_var.orig_name
 
-        # Create the LHS node proper
+            # Get the list of nodes used on the RHS so that we can check
+            # the names of the variables
+            node_list = tmp_node.walk()
+
+            for node in node_list:
+                if node.variable:
+                    if node.variable.orig_name == lhs_var.orig_name:
+                        # If the LHS variable appeared on the RHS of this
+                        # assignment then we must append a ' character to its
+                        # name. This then means we get a new node representing
+                        # the variable being assigned to.
+                        mapping[lhs_var.orig_name] += "'"
+                        break
+
+        # Create the LHS node proper now that we've updated the
+        # naming map
         lhs_node = digraph.get_node(parent=None,
                                     mapping=mapping,
                                     variable=lhs_var)
@@ -58,7 +75,9 @@ def dag_of_assignments(digraph, assignments, mapping):
         for node in tmp_node.producers:
             lhs_node.add_producer(node)
             node.add_consumer(lhs_node)
-        # Delete the temporary node
+
+        # Delete the temporary node (this also removes it from any
+        # nodes that have it listed as a producer/consumer)
         digraph.delete_node(tmp_node)
 
 
