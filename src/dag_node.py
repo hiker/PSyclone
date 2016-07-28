@@ -40,8 +40,14 @@ class DAGNode(object):
             # relationship
             self.add_consumer(parent)
             parent.add_producer(self)
-        # The name of this node - used to label the node in DOT
-        self._name = name
+        # The name of this node - used to label the node in DOT. This
+        # name is not necessarily the same as the name of the variable
+        # in the Fortran code: if it has been assigned to then it becomes
+        # a new node and we will have appended a "'" to its name.
+        if name:
+            self._name = name
+        elif variable:
+            self._name = str(variable)
         # The type of this node
         self._node_type = None
         # The variable (if any) that this node represents
@@ -96,10 +102,7 @@ class DAGNode(object):
     @property
     def name(self):
         ''' Returns the name (label) of this node '''
-        if self._variable:
-            return str(self._variable)
-        else:
-            return self._name
+        return self._name
 
     @name.setter
     def name(self, new_name):
@@ -306,7 +309,7 @@ class DAGNode(object):
             child.to_dot(fileobj, show_weight)
 
         nodestr = "{0} [label=\"{1}".format(self.node_id,
-                                              self.name)
+                                            self.name)
         if show_weight:
             nodestr += " (w={0})".format(str(self._incl_weight))
         nodestr += "\""
