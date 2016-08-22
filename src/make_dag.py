@@ -63,6 +63,8 @@ def dag_of_assignments(digraph, assignments, mapping):
                         # name. This then means we get a new node representing
                         # the variable being assigned to.
                         mapping[lhs_var.orig_name] += "'"
+                        # Update the name of the LHS variable to match
+                        lhs_var.name = mapping[lhs_var.orig_name]
                         break
 
         # Create the LHS node proper now that we've updated the
