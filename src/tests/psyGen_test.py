@@ -15,11 +15,20 @@
 
 # user classes requiring tests
 # PSyFactory, TransInfo, Transformation
+import os
 import pytest
 from psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
-    NameSpaceFactory, GenerationError
+    NameSpaceFactory, OMPParallelDoDirective, \
+    OMPParallelDirective, OMPDoDirective, OMPDirective, Directive
+from psyGen import GenerationError, FieldNotFoundError, HaloExchange
 from dynamo0p3 import DynKern, DynKernMetadata
 from fparser import api as fpapi
+from parse import parse
+from transformations import OMPParallelLoopTrans, DynamoLoopFuseTrans
+from generator import generate
+
+BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3")
 
 
 # PSyFactory class unit tests
@@ -381,14 +390,56 @@ def test_reset():
     ns2 = nsf.create()
     assert ns1 != ns2
 
+# tests for class Call
 
-# Kern class test
+
+def test_same_name_invalid():
+    '''test that we raise an error if the same name is passed into the
+    same kernel or built-in instance. We need to choose a particular
+    API to check this although the code is in psyGen.py '''
+    with pytest.raises(GenerationError) as excinfo:
+        _, _ = generate(
+            os.path.join(BASE_PATH, "1.10_single_invoke_same_name.f90"),
+            api="dynamo0.3")
+    assert ("Argument 'f1' is passed into kernel 'testkern_code' code "
+            "more than once") in str(excinfo.value)
 
 
-def test_kern_class_view(capsys):
-    ''' tests the view method in the Kern class. The simplest way to
-    do this is via the dynamo0.3 subclass '''
-    meta = '''
+def test_same_name_invalid_array():
+    '''test that we raise an error if the same name is passed into the
+    same kernel or built-in instance. In this case arguments have
+    array references and mixed case. We need to choose a particular
+    API to check this although the code is in psyGen.py. '''
+    with pytest.raises(GenerationError) as excinfo:
+        _, _ = generate(
+            os.path.join(BASE_PATH, "1.11_single_invoke_same_name_array.f90"),
+            api="dynamo0.3")
+    assert ("Argument 'f1(1, n)' is passed into kernel 'testkern_code' code "
+            "more than once") in str(excinfo.value)
+
+
+def test_derived_type_deref_naming():
+    ''' Test that we do not get a name clash for dummy arguments in the PSy
+    layer when the name generation for the component of a derived type
+    may lead to a name already taken by another argument. '''
+    _, invoke = parse(
+        os.path.join(BASE_PATH, "1.12_single_invoke_deref_name_clash.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke)
+    generated_code = str(psy.gen)
+    print generated_code
+    output = (
+        "    SUBROUTINE invoke_0_testkern_type"
+        "(a, f1_my_field, f1_my_field_1, m1, m2)\n"
+        "      USE testkern, ONLY: testkern_code\n"
+        "      USE mesh_mod, ONLY: mesh_type\n"
+        "      REAL(KIND=r_def), intent(in) :: a\n"
+        "      TYPE(field_type), intent(inout) :: f1_my_field\n"
+        "      TYPE(field_type), intent(in) :: f1_my_field_1, m1, m2\n")
+    assert output in generated_code
+
+
+FAKE_KERNEL_METADATA = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
      type(arg_type), meta_args(1) =    &
@@ -403,7 +454,14 @@ contains
   end subroutine dummy_code
 end module dummy_mod
 '''
-    ast = fpapi.parse(meta, ignore_comments=False)
+
+# Kern class test
+
+
+def test_kern_class_view(capsys):
+    ''' tests the view method in the Kern class. The simplest way to
+    do this is via the dynamo0.3 subclass '''
+    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     my_kern = DynKern()
     my_kern.load_meta(metadata)
@@ -412,3 +470,232 @@ end module dummy_mod
     expected_output = \
         "KernCall dummy_code(field_1) [module_inline=False]"
     assert expected_output in out
+
+
+def test_kern_local_vars():
+    ''' Check that calling the abstract local_vars() method of Kern raises
+    the expected exception '''
+    from psyGen import Kern
+    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    my_kern = DynKern()
+    my_kern.load_meta(metadata)
+    with pytest.raises(NotImplementedError) as excinfo:
+        Kern.local_vars(my_kern)
+    assert "Kern.local_vars should be implemented" in str(excinfo.value)
+
+
+def test_written_arg():
+    ''' Check that we raise the expected exception when Kern.written_arg()
+    is called for a kernel that doesn't have an argument that is written
+    to '''
+    from psyGen import Kern
+    # Change the kernel metadata so that the only kernel argument has
+    # read access
+    kernel_metadata = FAKE_KERNEL_METADATA.replace("gh_write", "gh_read", 1)
+    ast = fpapi.parse(kernel_metadata, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    my_kern = DynKern()
+    my_kern.load_meta(metadata)
+    with pytest.raises(FieldNotFoundError) as excinfo:
+        Kern.written_arg(my_kern,
+                         mapping={"write": "gh_write", "readwrite": "gh_inc"})
+    assert "does not have an argument with gh_write or gh_inc access" in \
+        str(excinfo.value)
+
+
+def test_OMPDoDirective_class_view(capsys):
+    '''tests the view method in the OMPDoDirective class. We create a
+    sub-class object then call this method from it '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+
+    cases = [
+        {"current_class": OMPParallelDoDirective,
+         "current_string": "[OMP parallel do]"},
+        {"current_class": OMPDoDirective, "current_string": "[OMP do]"},
+        {"current_class": OMPParallelDirective,
+         "current_string": "[OMP parallel]"},
+        {"current_class": OMPDirective, "current_string": "[OMP]"},
+        {"current_class": Directive, "current_string": ""}]
+    for case in cases:
+        for dist_mem in [False, True]:
+
+            psy = PSyFactory("dynamo0.3", distributed_memory=dist_mem).\
+                create(invoke_info)
+            invoke = psy.invokes.invoke_list[0]
+            schedule = invoke.schedule
+            otrans = OMPParallelLoopTrans()
+
+            if dist_mem:
+                idx = 3
+            else:
+                idx = 0
+
+            _, _ = otrans.apply(schedule.children[idx])
+            omp_parallel_loop = schedule.children[idx]
+
+            # call the OMPDirective view method
+            case["current_class"].view(omp_parallel_loop)
+
+            out, _ = capsys.readouterr()
+            expected_output = (
+                "Directive" + case["current_string"] + "\n"
+                "    Loop[type='',field_space='w1',it_space='cells']\n"
+                "        KernCall testkern_code(a,f1,f2,m1,m2) "
+                "[module_inline=False]")
+
+            assert expected_output in out
+
+
+def test_call_abstract_methods():
+    ''' Check that calling __str__() and gen_code() on the base Call
+    class raises the expected exception '''
+    from psyGen import Call
+    # Monkey-patch a GenerationError object to mock-up suitable
+    # arguments to create a Call
+    fake_call = GenerationError("msg")
+    fake_ktype = GenerationError("msg")
+    fake_ktype.iterates_over = "something"
+    fake_call.ktype = fake_ktype
+    fake_call.module_name = "a_name"
+    fake_arguments = GenerationError("msg")
+    fake_arguments.args = []
+    my_call = Call(fake_call, fake_call, name="a_name",
+                   arguments=fake_arguments)
+    with pytest.raises(NotImplementedError) as excinfo:
+        my_call.__str__()
+    assert "Call.__str__ should be implemented" in str(excinfo.value)
+
+    with pytest.raises(NotImplementedError) as excinfo:
+        my_call.gen_code(None)
+    assert "Call.gen_code should be implemented" in str(excinfo.value)
+
+
+def test_haloexchange_unknown_halo_depth():
+    '''test the case when the halo exchange base class is called without
+    a halo depth'''
+    halo_exchange = HaloExchange(None, None, None, None, None)
+    assert halo_exchange._halo_depth == "unknown"
+
+
+def test_globalsum_view(capsys):
+    '''test the view method in the GlobalSum class. The simplest way to do
+    this is to use a dynamo0p3 example which contains a scalar and
+    then call view() on that.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy.invokes.invoke_list[0].schedule.view()
+    output, _ = capsys.readouterr()
+    expected_output = ("GlobalSum[scalar='rsum']")
+    assert expected_output in output
+
+
+def test_args_filter():
+    '''the args_filter() method is in both Loop() and Arguments() classes
+    with the former method calling the latter. This example tests the
+    case when unique is set to True and therefore any replicated names
+    are not returned. The simplest way to do this is to use a
+    dynamo0p3 example which includes two kernels which share argument
+    names. We choose dm=False to make it easier to fuse the loops.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    # fuse our loops so we have more than one Kernel in a loop
+    schedule = psy.invokes.invoke_list[0].schedule
+    ftrans = DynamoLoopFuseTrans()
+    schedule, _ = ftrans.apply(schedule.children[0],
+                               schedule.children[1])
+    # get our loop and call our method ...
+    loop = schedule.children[0]
+    args = loop.args_filter(unique=True)
+    expected_output = ["a", "f1", "f2", "m1", "m2", "f3"]
+    for arg in args:
+        assert arg.name in expected_output
+    assert len(args) == len(expected_output)
+
+
+def test_args_filter2():
+    '''the args_filter() method is in both Loop() and Arguments() classes
+    with the former method calling the latter. This example tests the cases
+    when one or both of the intent and type arguments are not specified.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.children[3]
+
+    # arg_accesses
+    args = loop.args_filter(arg_accesses=["gh_read"])
+    expected_output = ["chi", "a"]
+    for arg in args:
+        assert arg.name in expected_output
+    assert len(args) == len(expected_output)
+
+    # arg_types
+    args = loop.args_filter(arg_types=["gh_operator", "gh_integer"])
+    expected_output = ["mm_w0", "a"]
+    for arg in args:
+        assert arg.name in expected_output
+    assert len(args) == len(expected_output)
+
+    # neither
+    args = loop.args_filter()
+    expected_output = ["chi", "mm_w0", "a"]
+    for arg in args:
+        assert arg.name in expected_output
+    assert len(args) == len(expected_output)
+
+
+def test_invoke_name():
+    ''' Check that specifying the name of an invoke in the Algorithm
+    layer results in a correctly-named routine in the PSy layer '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.0.1_single_named_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    assert "SUBROUTINE invoke_important_invoke" in gen
+
+
+def test_multi_kern_named_invoke():
+    ''' Check that specifying the name of an invoke containing multiple
+    kernel invocations result in a correctly-named routine in the PSy layer '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.9_named_multikernel_invokes.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    assert "SUBROUTINE invoke_some_name" in gen
+
+
+def test_named_multi_invokes():
+    ''' Check that we generate correct code when we have more than one
+    named invoke in an Algorithm file '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "3.2_multi_functions_multi_named_invokes.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    assert "SUBROUTINE invoke_my_first(" in gen
+    assert "SUBROUTINE invoke_my_second(" in gen
+
+
+def test_named_invoke_name_clash():
+    ''' Check that we do not get a name clash when the name of a variable
+    in the PSy layer would normally conflict with the name given to the
+    subroutine generated by an Invoke. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "4.11_named_invoke_name_clash.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    gen = str(psy.gen)
+    print gen
+    assert "SUBROUTINE invoke_a(invoke_a_1, b, c, istp, rdt," in gen
+    assert "TYPE(field_type), intent(inout) :: invoke_a_1" in gen

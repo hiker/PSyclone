@@ -6,18 +6,18 @@
 !-------------------------------------------------------------------------------
 ! Author R. Ford STFC Daresbury Lab
 
-module testkern
-  type, extends(kernel_type) :: testkern_type
-     type(arg_type), dimension(2) :: meta_args = &
-          (/ arg_type(gh_rscalar, gh_write   ), &
-             arg_type(gh_iscalar, gh_read    )  &
-           /)
-     integer, parameter :: iterates_over = cells
-   contains
-     procedure() :: code => testkern_code
-  end type testkern_type
-contains
+program single_invoke
 
-  subroutine testkern_code()
-  end subroutine testkern_code
-end module testkern
+  ! Description: single function specified in a named invoke call where
+  ! the supplied name already begins with "invoke_"
+  use testkern, only: testkern_type
+  use inf,      only: field_type
+  implicit none
+  type(field_type) :: f1, f2, m1, m2
+  real(r_def) :: a
+
+  call invoke(                       &
+       testkern_type(a,f1,f2,m1,m2), &
+       name="Invoke_Important")
+
+end program single_invoke

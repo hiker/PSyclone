@@ -17,11 +17,143 @@ are discussed separately in the following sections.
 Algorithm
 ---------
 
+The general requirements for the structure of an Algorithm are explained
+in the :ref:`algorithm-layer` section. This section explains the
+dynamo0.3-specific specialisations and extensions.
+
+.. _dynamo0.3-example:
+
+Example
++++++++
+
+An example dynamo0.3 API invoke call is given below with various
+different types of objects supported by the API. These different
+objects and their use are discussed in the following sections.
+
+::
+
+  call invoke( kernel1(field1, field2, operator1, qr),           &
+               builtin1(scalar1, field2, field3),                &
+               kernel2(field1, stencil_extent, field3, scalar1), &
+               name="some calculation"                           &
+             )
+
+Please see the :ref:`algorithm-layer` section for a description of the
+``name`` argument.
+
+Field
++++++
+
 .. note:: To be written.
 
-.. fields and operators
-.. vector of fields
-.. quadrature rules
+Field Vector
+++++++++++++
+
+.. note:: To be written.
+
+Scalar
+++++++
+
+.. note:: To be written.
+
+Operator
+++++++++
+
+.. note:: To be written.
+
+Quadrature rule
++++++++++++++++
+
+.. note:: To be written.
+
+.. _dynamo0.3-alg-stencil:
+
+Stencils
+++++++++
+
+Kernel metadata may specify that a Kernel performs a stencil operation
+on a field. Any such metadata must provide a stencil type. See the
+:ref:`dynamo0.3-api-meta-args` section for more details. The supported
+stencil types are ``X1D``, ``Y1D``, ``XORY1D`` or ``CROSS``.
+
+If a stencil operation is specified by the Kernel metadata the
+algorithm layer must provide the ``extent`` of the stencil (the
+maximum distance from the central cell that the stencil extends). The
+dynamo0.3 API expects this information to be added as an additional
+``integer`` argument immediately after the relevant field when specifying
+the Kernel via an ``invoke``.
+
+For example::
+
+  integer :: extent = 2
+  call invoke(kernel(field1, field2, extent))
+
+where ``field2`` has kernel metadata specifying that it has a stencil
+access.
+
+``extent``  may also be passed as a literal. For example::
+
+  call invoke(kernel(field1, field2, 2))
+
+where, again, ``field2`` has kernel metadata specifying that it has a
+stencil access.
+
+.. note:: The stencil extent specified in the Algorithm layer is not the same as the stencil size passed in to the Kernel. The latter contains the number of cells in the stencil which is dependent on both the stencil type and extent.
+
+If the Kernel metadata specifies that the stencil is of type
+``XORY1D`` (which means ``X1D`` or ``Y1D``) then the algorithm layer
+must specify whether the stencil is ``X1D`` or ``Y1D`` for that
+particular kernel call. The dynamo0.3 API expects this information to
+be added as an additional argument immediately after the relevant
+stencil extent argument. The argument should be an ``integer`` with
+valid values being ``x_direction`` or ``y_direction``, both being
+supplied by the ``LFRic`` infrastructure via the
+``flux_direction_mod`` fortran module
+
+For example::
+
+  use flux_direction_mod, only : x_direction
+  integer :: direction = x_direction
+  integer :: extent = 2
+  ! ...
+  call invoke(kernel(field1, field2, extent, direction))
+
+``direction`` may also be passed as a literal. For example::
+
+  use flux_direction_mod, only : x_direction
+  integer :: extent = 2
+  ! ...
+  call invoke(kernel(field1, field2, extent, x_direction))
+
+If certain fields use the same value of extent and/or direction then
+the same variable, or literal value can be provided.
+
+For example::
+
+  call invoke(kernel1(field1, field2, extent,  field3, extent, direction), &
+              kernel2(field1, field2, extent2, field4, extent, direction))
+
+In the above example ``field2`` and ``field3`` in ``kernel1`` and
+``field4`` in ``kernel2`` will have the same ``extent`` value but
+``field2`` in ``kernel2`` may have a different value. Similarly,
+``field3`` in ``kernel1`` and ``field4`` in ``kernel2`` will have the
+same ``direction`` value.
+
+An example of the use of stencils is available in ``examples/dynamo0p3/eg5``.
+
+There is currently no attempt to perform type checking in PSyclone so
+any errors in the type and/or position of arguments will not be picked
+up until compile time. However, PSyclone does check for the correct
+number of algorithm arguments. If the wrong number of arguments is
+provided then an exception is raised.
+
+For example, running test 19.2 from the dynamo0.3 api test suite gives::
+
+  cd <PSYCLONEHOME>/src/tests
+  python ../../src/generator.py test_files/dynamo0p3/19.2_single_stencil_broken.f90 
+  "Generation Error: error: expected '5' arguments in the algorithm layer but found '4'.
+  Expected '4' standard arguments, '1' stencil arguments and '0' qr_arguments'"
+
 
 Kernel
 -------
@@ -83,8 +215,8 @@ Argument-metadata (metadata contained within the brackets of an
 **operator**.
 
 The first argument-metadata entry describes whether the data that is
-being passed is for a real scalar (``GH_RSCALAR``), an integer scalar
-(``GH_ISCALAR``), a field (``GH_FIELD``) or an operator
+being passed is for a real scalar (``GH_REAL``), an integer scalar
+(``GH_INTEGER``), a field (``GH_FIELD``) or an operator
 (``GH_OPERATOR``). This information is mandatory.
 
 Additionally, argument-metadata can be used to describe a vector of
@@ -99,7 +231,7 @@ fourth is an operator. The third entry is a field vector of size 3.
 ::
 
   type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_RSCALAR, ...),                                      &
+       arg_type(GH_REAL, ...),                                         &
        arg_type(GH_FIELD, ... ),                                       &
        arg_type(GH_FIELD*3, ... ),                                     &
        arg_type(GH_OPERATOR, ...)                                      &
@@ -107,18 +239,27 @@ fourth is an operator. The third entry is a field vector of size 3.
 
 The second entry to argument-metadata (information contained within
 the brackets of an ``arg_type``) describes how the Kernel makes use of
-the data being passed into it. There are 3 possible values of this
-metadata ``GH_WRITE``, ``GH_READ`` and ``GH_INC``. ``GH_WRITE``
-indicates the data is modified in the Kernel before (optionally) being
-read. ``GH_READ`` indicates that the data is read and left
-unmodified. ``GH_INC`` **explanation TBD**.
+the data being passed into it (the way it is accessed within a
+Kernel). This information is mandatory. There are currently 4 possible
+values of this metadata ``GH_WRITE``, ``GH_READ``, ``GH_INC`` and
+``GH_SUM``. However, not all combinations of metadata entries are
+valid and PSyclone will raise an exception if an invalid combination
+is specified. Valid combinations are specified later in this section.
+
+* ``GH_WRITE`` indicates the data is modified in the Kernel before (optionally) being read.
+
+* ``GH_READ`` indicates that the data is read and is unmodified.
+
+* ``GH_INC`` indicates that different iterations of a Kernel make contributions to shared values. For example, values at cell faces may receive contributions from cells on either side of the face. This means that such a Kernel needs appropriate synchronisation (or colouring) to run in parallel.
+
+* ``GH_SUM`` is an example of a reduction and is the only reduction currently supported in PSyclone. This metadata indicates that values are summed over calls to Kernel code.
 
 For example:
 
 ::
 
   type(arg_type) :: meta_args(4) = (/                                  &
-       arg_type(GH_RSCALAR, GH_READ),                                  &
+       arg_type(GH_REAL,  GH_sum),                                     &
        arg_type(GH_FIELD, GH_INC, ... ),                               &
        arg_type(GH_FIELD*3, GH_WRITE, ... ),                           &
        arg_type(GH_OPERATOR, GH_READ, ...)                             &
@@ -168,6 +309,49 @@ forbid ``ANY_SPACE_1`` and ``ANY_SPACE_2`` from being the same.
        arg_type(GH_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2)        &
        /)
 
+Note also that the scope of this naming of any-space function spaces is
+restricted to the argument list of individual kernels. i.e. if an
+Invoke contains say, two kernel calls that each support arguments on
+any function space, e.g. ``ANY_SPACE_1``, there is no requirement that
+these two function spaces be the same. Put another way, if an Invoke
+contained two calls of a kernel with arguments described by the above
+meta-data then the first field argument passed to each kernel call
+need not be on the same space.
+
+.. note:: A GH_FIELD argument that specifies GH_WRITE as its access
+          pattern must be a discontinuous function in the
+          horizontal. At the moment that means it must be ``w3`` but
+          in the future there will be more discontinuous function
+          spaces. A GH_FIELD that specifies GH_INC as its access
+          pattern may be continuous in the vertical (and discontinuous
+          in the horizontal), continuous in the horizontal (and
+          discontinuous in the vertical), or continuous in both. In
+          each case the code is the same. However, if a field is
+          discontinuous in the horizontal then it will not need
+          colouring and there is currently no way to determine this
+          from the metadata (unless we can statically determine the
+          space of the field being passed in). At the moment this type
+          of Kernel is always treated as if it is continuous in the
+          horizontal, even if it is not.
+
+As mentioned earlier, not all combinations of metadata are
+valid. Valid combinations are summarised here. All types of data
+(``GH_INTEGER``, ``GH_REAL``, ``GH_FIELD`` and ``GH_OPERATOR``) may
+be read within a Kernel and this is specified in metadata using
+``GH_READ``. If data is *modified* in a Kernel then the permitted access
+modes depend on the type of data it is and the function
+space it is on. Valid values are given in the table below.
+
+=============     ============================    ============
+Argument Type     Function space                  Access type
+=============     ============================    ============
+GH_INTEGER        n/a                             GH_SUM
+GH_REAL           n/a                             GH_SUM
+GH_FIELD          Discontinuous (w3)              GH_WRITE
+GH_FIELD          Continuous (not w3)             GH_INC
+GH_OPERATOR       Any for both 'to' and 'from'    GH_WRITE
+=============     ============================    ============
+
 Finally, field metadata supports an optional 4th argument which
 specifies that the field is accessed as a stencil operation within the
 Kernel. Stencil metadata only makes sense if the associated field
@@ -179,13 +363,25 @@ Stencil metadata is written in the following format:
 
 ::
 
-  STENCIL(type,extent)
+  STENCIL(type)
 
-where ``type`` may be one of ``X1D``, ``Y1D``, ``CROSS`` or ``REGION``
-and extent is an integer which specifies the maximum distance from the
-central point that a stencil extends.
+where ``type`` may be one of ``X1D``, ``Y1D``, ``XORY1D`` or
+``CROSS``.  As the stencil ``extent`` (the maximum distance from the
+central cell that the stencil extends) is not provided in the metadata,
+it is expected to be provided by the algorithm writer as part of the
+``invoke`` call (see Section :ref:`dynamo0.3-alg-stencil`). As there
+is currently no way to specify a fixed extent value for stencils in the
+Kernel metadata, Kernels must therefore be written to support
+different values of extent (i.e. stencils with a variable number of
+cells).
 
-For example, the following stencil:
+The ``XORY1D`` stencil type indicates that the Kernel can accept
+either ``X1D`` or ``Y1D`` stencils. In this case it is up to the
+algorithm developer to specify which of these it is from the algorithm
+layer as part of the ``invoke`` call (see Section
+:ref:`dynamo0.3-alg-stencil`).
+
+For example, the following stencil (with ``extent=2``):
 
 ::
 
@@ -195,9 +391,9 @@ would be declared as
 
 ::
 
-  STENCIL(X1D,2)
+  STENCIL(X1D)
 
-the following stencil
+and the following stencil (with ``extent=2``)
 
 ::
 
@@ -211,21 +407,7 @@ would be declared as
 
 ::
 
-  STENCIL(CROSS,2)
-
-and the following stencil (all adjacent cells)
-
-::
-
-  | 9 | 5 | 8 |
-  | 2 | 1 | 3 |
-  | 6 | 4 | 7 |
-
-would be declared as
-
-::
-
-  STENCIL(REGION,1)
+  STENCIL(CROSS)
 
 Below is an example of stencil information within the full kernel metadata.
 
@@ -233,9 +415,12 @@ Below is an example of stencil information within the full kernel metadata.
 
   type(arg_type) :: meta_args(3) = (/                                  &
        arg_type(GH_FIELD, GH_INC, W1),                                 &
-       arg_type(GH_FIELD, GH_READ, W2H, STENCIL(REGION,1)),            &
+       arg_type(GH_FIELD, GH_READ, W2H, STENCIL(CROSS)),               &
        arg_type(GH_OPERATOR, GH_READ, W1, W2H)                         &
        /)
+
+There is a full example of this distributed with PSyclone. It may
+be found in ``examples/dynamo0p3/eg5``.
 
 meta_funcs
 ##########
@@ -282,6 +467,10 @@ rules, along with PSyclone's naming conventions, are:
 
     1) if the current entry is a scalar quantity then include the Fortran variable in the argument list. The intent is determined from the metadata (see :ref:`dynamo0.3-api-meta-args` for an explanation).
     2) if the current entry is a field then include the field array. The field array name is currently specified as being ``"field_"<argument_position>"_"<field_function_space>``. A field array is a real array of type ``r_def`` and dimensioned as the unique degrees of freedom for the space that the field operates on. This value is passed in separately. Again, the intent is determined from the metadata (see :ref:`dynamo0.3-api-meta-args`).
+
+       1) If the field entry has a stencil access then add an integer stencil-size argument with intent ``in``. This will supply the number of cells in the stencil.
+       2) If the field entry stencil access is of type ``XORY1D`` then add an integer direction argument with intent ``in``.
+
     3) if the current entry is a field vector then for each dimension of the vector, include a field array. The field array name is specified as being using ``"field_"<argument_position>"_"<field_function_space>"_v"<vector_position>``. A field array in a field vector is declared in the same way as a field array (described in the previous step).
     4) if the current entry is an operator then first include a dimension size. This is an integer. The name of this size is ``<operator_name>"_ncell_3d"``. Next include the operator. This is a real array of type ``r_def`` and is 3 dimensional. The first two dimensions are the local degrees of freedom for the ``to`` and ``from`` function spaces respectively. The third dimension is the dimension size mentioned before. The name of the operator is ``"op_"<argument_position>``. Again the intent is determined from the metadata (see :ref:`dynamo0.3-api-meta-args`).
 
@@ -305,6 +494,299 @@ rules, along with PSyclone's naming conventions, are:
     2) include ``nqp_v``. This is an integer scalar with intent ``in``.
     3) include ``wh``. This is a real array of kind r_def with intent ``in``. It has one dimension of size ``nqp_h``.
     4) include ``wv``. This is a real array of kind r_def with intent ``in``. It has one dimension of size ``nqp_v``.
+
+
+Built-ins
+---------
+
+The basic concept of a PSyclone Built-in is described in the
+:ref:`built-ins` section.  In the Dynamo 0.3 API, calls to
+built-ins generally follow a convention that the field/scalar written
+to comes last in the argument list. Although field arguments to all currently
+supported built-ins may be on any space, the arguments to any given
+call must all be on the same space.
+
+The built-ins supported for the Dynamo 0.3 API are
+listed in alphabetical order below. For clarity, the calculation
+performed by each built-in is described using Fortran array syntax; this
+does not necessarily reflect the actual implementation of the
+built-in (*e.g.* it could be implemented by PSyclone
+generating a call to an optimised maths library).
+
+axpby
++++++
+
+**axpby** (*a*, *field1*, *b*, *field2*, *field3*)
+
+Performs: ::
+   
+   field3(:) = a*field1(:) + b*field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *a*, *b*
+* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(out) :: *field3*
+
+inc_axpby
++++++++++
+
+**inc_axpby** (*a*, *field1*, *b*, *field2*)
+
+Performs: ::
+   
+   field1(:) = a*field1(:) + b*field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *a*, *b*
+* type(field_type), intent(inout) :: *field1*
+* type(field_type),    intent(in) :: *field2*
+
+axpy
+++++
+
+**axpy** (*a*, *field1*, *field2*, *field3*)
+
+Performs: ::
+   
+   field3(:) = a*field1(:) + field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *a*
+* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(out) :: *field3*
+
+inc_axpy
+++++++++
+
+**inc_axpy** (*a*, *field1*, *field2*)
+
+Performs an AXPY and returns the result as an increment to the first
+field: ::
+   
+   field1(:) = a*field1(:) + field2(:)
+
+where:
+
+* real(r_def), intent(in) :: *a*
+* type(field_type), intent(inout) :: *field1*
+* type(field_type),    intent(in) :: *field2*
+
+copy_field
+++++++++++
+
+**copy_field** (*field1*, *field2*)
+
+Copy the values from *field1* into *field2*: ::
+
+   field2(:) = field1(:)
+
+where:
+
+* type(field_type), intent(in) :: *field1*
+* type(field_type), intent(out) :: *field2*
+
+copy_scaled_field
++++++++++++++++++
+
+**copy_scaled_field** (*value*, *field1*, *field2*)
+
+Multiplies a field by a scalar and stores the result in a second field: ::
+  
+  field2(:) = value * field1(:)
+
+where:
+
+* real(r_def), intent(in) :: *value*
+* type(field_type), intent(in) :: *field1*
+* type(field_type), intent(out) :: *field2*
+
+divide_field
+++++++++++++
+
+**divide_field** (*field1*, *field2*)
+
+Divides the first field by the second and returns it: ::
+
+   field1(:) = field1(:) / field2(:)
+
+where:
+
+* type(field_type), intent(inout) :: *field1*
+* type(field_type),    intent(in) :: *field2*
+
+divide_fields
++++++++++++++
+
+**divide_fields** (*field1*, *field2*, *field3*)
+
+Divides the first field by the second and returns the result in the third: ::
+
+   field3(:) = field1(:) / field2(:)
+
+where:
+
+* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(out) :: *field3*
+
+inner_product
++++++++++++++
+
+**inner_product** (*field1*, *field2*, *sumval*)
+
+Computes the inner product of the fields *field1* and *field2*, *i.e.*: ::
+
+  sumval = SUM(field1(:)*field2(:))
+
+where:
+
+* type(field_type), intent(in) :: *field1*, *field2*
+* real(r_def), intent(out) :: *sumval*
+
+.. note:: when used with distributed memory this built-in will trigger
+          the addition of a global sum which may affect the
+          performance and/or scalability of the code.
+
+inc_field
++++++++++
+
+**inc_field** (*field1*, *field2*)
+
+Adds the second field to the first and returns it: ::
+
+  field1(:) = field1(:) + field2(:)
+
+where:
+
+* type(field_type), intent(inout) :: *field1*
+* type(field_type),    intent(in) :: *field2*
+
+minus_fields
+++++++++++++
+
+**minus_fields** (*field1*, *field2*, *field3*)
+
+Subtracts the second field from the first and stores the result in
+the third. *i.e.* performs the operation: ::
+  
+  field3(:) = field1(:) - field2(:)
+
+where:
+
+* type(field_type), intent(in) :: *field1*
+* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(out) :: *field3*
+
+multiply_fields
++++++++++++++++
+
+**multiply_fields** (*field1*, *field2*, *field3*)
+
+Multiplies two fields together and returns the result in a third field: ::
+
+  field3(:) = field1(:)*field2(:)
+
+where:
+
+* type(field_type), intent(in) :: *field1*, *field2*
+* type(field_type), intent(out) :: *field3*
+
+plus_fields
++++++++++++
+
+**plus_fields** (*field1*, *field2*, *field3*)
+
+Sums two fields: ::
+  
+  field3(:) = field1(:) + field2(:)
+
+where:
+
+* type(field_type), intent(in) :: *field1*
+* type(field_type), intent(in) :: *field2*
+* type(field_type), intent(out) :: *field3*
+
+scale_field
++++++++++++
+
+**scale_field** (*scalar*, *field1*)
+
+Multiplies a field by a scalar value and returns the field: ::
+
+  field1(:) = scalar * field1(:)
+
+where:
+
+* real(r_def),      intent(in) :: *scalar*
+* type(field_type), intent(inout) :: *field1*
+
+set_field_scalar
+++++++++++++++++
+
+**set_field_scalar** (*value*, *field*)
+
+Set all elements of the field *field* to the value *value*.
+The field may be on any function space.
+
+* type(field_type), intent(out) :: *field*
+* real(r_def), intent(in) :: *value*
+
+sum_field
++++++++++
+
+**sum_field** (*field*, *sumval*)
+
+Sums all of the elements of the field *field* and returns the result
+in the scalar variable *sumval*: ::
+  
+  sumval = SUM(field(:))
+
+where:
+
+* type(field_type), intent(in) :: field
+* real(r_def), intent(out) :: sumval
+
+.. note:: when used with distributed memory this built-in will trigger
+          the addition of a global sum which may affect the
+          performance and/or scalability of the code.
+
+Boundary Conditions
+-------------------
+
+In the dynamo0.3 API, boundary conditions for a field can be enforced
+by the algorithm developer by calling a particular Kernel called
+``enforce_bc_type``. This kernel takes a field as input and applies
+boundary conditions. For example:
+
+::
+
+  call invoke( kernel_type(field1, field2), &
+               enforce_bc_type(field1)      &
+             )
+
+The particular boundary conditions that are applied are not known by
+PSyclone, PSyclone simply recognises this kernel by its name and passes
+pre-specified dofmap and boundary_value arrays into its kernel
+implementation, the contents of which are set by the LFRic
+infrastructure.
+
+There is one situation where boundary conditions are applied without
+the algorithm developer having to specify them explicitly. Boundary
+conditions are added automatically after a call to
+``matrix_vector_type`` if the function space of the fields being
+passed into the call are either ``w1`` or ``w2``. This functionality
+was requested by the scientists to avoid having to write a large
+number of ``enforce_bc_type`` calls in the algorithm layer as
+``matrix_vector_type`` may be used a large number of times in an
+algorithm.
+
+Example ``eg4`` in the ``examples/dynamo`` directory includes a call
+to ``matrix_vector_type`` so can be used to see the boundary condition
+code that is added by PSyclone. See the ``README`` in the
+``examples/dynamo`` directory for instructions on how to run this
+example.
 
 
 Conventions

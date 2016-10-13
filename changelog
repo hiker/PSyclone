@@ -1,3 +1,109 @@
+        1) #686 Stencil extents (depth of the stencil) are now changed to
+	stencil sizes (number of elements in the stencil) in the PSy-layer
+	as the algorithm expects to provide the former and the kernel
+	expects to receive the latter.
+
+        2) #706 Avoid potential name clashes with stencil extent and
+	direction arguments (as well as nlayers).
+
+	3) #673 Fixed an xfailing built-in test
+
+        4) #721 Bug fix - generate correct variable declarations and
+        module use statements without modifying original arguments. Invokes
+        requiring multiple enforce-bc kernel calls are now handled correctly.
+
+        5) #727 Addition of install script (contributions/install) to
+	support Met Office modules environment.
+
+        6) #423 Add support for distributed-memory for built-ins.
+        Global sums are now generated for calls to inner_product and
+        sum_field built-in kernels.
+
+        7) #489 Support the dereferencing of an object/derived type in the
+	argument list of a kernel call within an invoke in the algorithm
+	layer e.g. call invoke(kern(a%b))
+
+	8) #669 Added support for named arguments to the expression
+	analyser. This is the first step towards supporting named invokes
+	in PSyclone.
+
+        9) #628 dofmap lookups are now outside loops in the
+	PSy-layer. This makes no functional difference but should give a
+	performance benefit.
+
+        10) #304 Added support for named invokes in PSyclone.
+
+release 1.2.4
+
+        1) #658 Adds support for the use of real and integer literals with
+	kind specified in kernel calls from the algorithm layer. For
+	example 0.0_rdef. This will be particularly useful for built-ins.
+
+        2) #475 Fixes any remaining string assert comparison errors in
+	tests. Updates algen_test.py to be pep8, pyflakes and pylint
+	compliant.
+
+	3) #468 Add support for kernels that perform stencil operations.
+	Stencil depth is specified at the algorithm layer.
+
+        4) #672 Fix error in boundary layer code generation for
+	matrix_vector_kernel. The function space check is now always
+	correct (hopefully).
+
+        5) #680 Bug fix: the kernel stub generator was not adding the stencil
+	dofmap required by a field with stencil access.
+
+release 1.2.3
+
+        1) #111 Adds support for dynamo0.3 built-in operations running
+	sequentially.
+
+        2) #640 Update PSyclone to call enforce_bc_kernel after every
+	call to matrix_vector_kernel if the space is W1 or W2. (Previously
+	PSyclone looked for matrix_vector_mm_kernel and only W2.)
+
+	3) #430 Adds support for multiple kernels within an invoke with
+	kernel arguments specified as any_space. Previously there was a
+	limit of one kernel per invoke. This is particularly relevant for
+	built-ins as all of these currently have arguments that are
+	any_space.
+
+	4) #657 Changes to the declaration and assignment of the mesh
+	object (it is now a pointer) within the generated PSy layer so as
+	to use the mesh singleton and not generate a temporary copy of it.
+
+release 1.2.2
+
+        1) #575 Add parser support for stencil meta-data.
+
+        2) #587 Changed scalar metadata names to gh_real and gh_integer
+
+        3) #501 Updates to parser and documentation to support writing to
+	scalar arguments (reductions). Note that this is currently only
+	supported for serial code. Implementation of this functionality
+	for OpenMP and MPI will be done under #484 and #423, respectively.
+
+	4) #235 PSyclone now uses the appropriate intent for arguments in
+	the generated PSy code. Previously it always used inout. This
+	allows the algorithm developer to specify the intent of data in
+	the algorithm layer appropriately, rather than being forced to use
+	inout in all cases.
+
+        5) #604 If PSyclone encounters an Algorithm file that contains no
+	invoke calls then it now issues a warning and outputs that file
+	unchanged (previously it did not output a file at all). No PSy
+	file is created in this case.
+
+        6) #618 fix for #235. Data with intent out should have fields
+	declared as inout as internal subroutines within the field are
+	dereferenced so are required as intent in.
+
+	7) #610 When PSyclone is operating in line length limiting mode
+	("-l" switch) problems are caused if it breaks a line in the middle
+	of a string. PSyclone now prefixes all continued lines with an
+	ampersand. This then produces valid Fortran irrespective of whether
+	the line-break happens within a string.
+
 release 1.2.1
 
         1) Added a PSyclone logo

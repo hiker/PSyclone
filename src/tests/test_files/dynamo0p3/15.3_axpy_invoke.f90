@@ -4,18 +4,21 @@
 ! However, it has been created with the help of the GungHo Consortium,
 ! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 !-------------------------------------------------------------------------------
-! Author A. R. Porter, STFC Daresbury Lab
+! Author A. R. Porter STFC Daresbury Lab
 
 program single_invoke
 
-  ! Description: single function specified in an invoke call
-  use testkern_no_fields, only: testkern_type
+  ! Description: single point-wise operation specified in an invoke call
+  use testkern, only: testkern_type
+  use inf,      only: field_type
   implicit none
-  real(r_def)      :: a
-  integer(i_def)   :: istep
+  type(field_type) :: f1, f2, f3
+  real(r_def) :: a
 
-  call invoke(                              &
-       testkern_type(a,istep)   &
-          )
+  a = 0.5
+
+  call invoke(                  &
+              axpy(a, f1, f2, f3)   &
+             )
 
 end program single_invoke

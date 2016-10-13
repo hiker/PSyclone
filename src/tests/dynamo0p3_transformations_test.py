@@ -11,7 +11,7 @@
 import os
 import pytest
 from parse import parse
-from psyGen import PSyFactory
+from psyGen import PSyFactory, GenerationError
 from transformations import TransformationError, \
     OMPParallelTrans, \
     Dynamo0p3ColourTrans, \
@@ -23,6 +23,8 @@ from transformations import TransformationError, \
 # The version of the API that the tests in this file
 # exercise.
 TEST_API = "dynamo0.3"
+BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3")
 
 
 def test_colour_trans_declarations():
@@ -109,7 +111,12 @@ def test_colour_trans():
         assert cell_loop_idx - col_loop_idx == 1
 
         # Check that we're using the colour map when getting the cell dof maps
-        assert "get_cell_dofmap(cmap(colour, cell))" in gen
+        assert (
+            "call testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data, "
+            "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "map_w1(:,cmap(colour, cell)), ndf_w2, undf_w2, "
+            "map_w2(:,cmap(colour, cell)), ndf_w3, undf_w3, "
+            "map_w3(:,cmap(colour, cell)))" in gen)
 
         if dist_mem:
             # Check that we get the right number of set_dirty halo calls in
@@ -155,6 +162,46 @@ def test_colour_trans_operator():
 
         # check the first argument is a colourmap lookup
         assert "CALL testkern_operator_code(cmap(colour, cell), nlayers" in gen
+
+
+def test_colour_trans_stencil():
+    '''test of the colouring transformation of a single loop with a
+    stencil access. We test when distributed memory is both off and
+    on    '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "19.1_single_stencil.f90"),
+                    api=TEST_API)
+    for dist_mem in [False, True]:
+        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+        invoke = psy.invokes.get('invoke_0_testkern_stencil_type')
+        schedule = invoke.schedule
+        ctrans = Dynamo0p3ColourTrans()
+
+        if dist_mem:
+            index = 3
+        else:
+            index = 0
+
+        # Colour the loop
+        cschedule, _ = ctrans.apply(schedule.children[index])
+
+        # Replace the original loop schedule with the transformed one
+        invoke.schedule = cschedule
+
+        # Store the results of applying this code transformation as
+        # a string
+        gen = str(psy.gen)
+        print gen
+
+        # Check that we index the stencil dofmap appropriately
+        assert (
+            "          CALL testkern_stencil_code(nlayers, f1_proxy%data, "
+            "f2_proxy%data, f2_stencil_size, "
+            "f2_stencil_dofmap(:,:,cmap(colour, cell)), f3_proxy%data, "
+            "f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cmap(colour, cell)), "
+            "ndf_w2, undf_w2, map_w2(:,cmap(colour, cell)), ndf_w3, "
+            "undf_w3, map_w3(:,cmap(colour, cell)))" in gen)
 
 
 def test_colouring_not_a_loop():
@@ -236,7 +283,8 @@ def test_omp_do_not_over_cells():
         with pytest.raises(TransformationError) as excinfo:
             _, _ = otrans.apply(schedule.children[index])
         assert "Error in Dynamo0p3OMPLoopTrans trans" in str(excinfo.value)
-        assert "The iteration space is not 'cells'" in str(excinfo.value)
+        assert "The iteration space (dofs) is not 'cells'" in \
+            str(excinfo.value)
 
 
 def test_omp_parallel_do_not_over_cells():
@@ -328,6 +376,7 @@ def test_omp_colour_trans():
 
         invoke.schedule = schedule
         code = str(psy.gen)
+        print code
 
         col_loop_idx = -1
         omp_idx = -1
@@ -344,7 +393,7 @@ def test_omp_colour_trans():
         assert omp_idx - col_loop_idx == 1
 
         # Check that the list of private variables is correct
-        assert "private(cell,map_w1,map_w2,map_w3)" in code
+        assert "private(cell)" in code
 
 
 def test_omp_colour_orient_trans():
@@ -381,7 +430,7 @@ def test_omp_colour_orient_trans():
         assert "get_cell_orientation(cmap(colour, cell))" in code
 
         # Check that the list of private variables is correct
-        assert "private(cell,map_w3,map_w2,map_w0,orientation_w2)" in code
+        assert "private(cell,orientation_w2)" in code
 
 
 def test_omp_parallel_colouring_needed():
@@ -581,8 +630,8 @@ def test_colouring_multi_kernel():
         assert "a_proxy%vspace%get_colours(" in gen
         assert "f_proxy%vspace%get_colours(" in gen
         assert gen.count("_proxy%vspace%get_colours(") == 2
-        assert "private(cell,map_w2,map_w3,map_w0)" in gen
-        assert gen.count("private(cell,map_w2,map_w3,map_w0)") == 2
+        assert "private(cell)" in gen
+        assert gen.count("private(cell)") == 2
 
 
 def test_omp_region_omp_do():
@@ -700,7 +749,7 @@ def test_multi_kernel_single_omp_region():
             if "!$omp end do" in line:
                 omp_end_do_idx = idx
             if "!$omp parallel default(shared), " +\
-               "private(cell,map_w1,map_w2,map_w3)" in line:
+               "private(cell)" in line:
                 omp_para_idx = idx
             if "END DO" in line:
                 end_do_idx = idx
@@ -748,8 +797,7 @@ def test_multi_different_kernel_omp():
         code = str(psy.gen)
         print code
 
-        assert "private(cell,map_w2,map_w3,map_w0)" in code
-        assert "private(cell,map_w1,map_w2,map_w3)" in code
+        assert "private(cell)" in code
 
 
 def test_loop_fuse_different_spaces():
@@ -782,8 +830,8 @@ def test_loop_fuse_different_spaces():
             _, _ = ftrans.apply(schedule.children[index],
                                 schedule.children[index+1])
         assert "Error in DynamoLoopFuse transformation" in str(excinfo.value)
-        assert "Cannot fuse loops" in str(excinfo.value)
-        assert "over different spaces: w2 w1" in str(excinfo.value)
+        assert "Cannot fuse loops that are over different spaces" in \
+            str(excinfo.value)
 
 
 def test_loop_fuse_unexpected_error():
@@ -943,7 +991,7 @@ def test_loop_fuse_omp():
             if loop_str in line:
                 cell_do_idx = idx
             if "!$omp parallel do default(shared), " +\
-               "private(cell,map_w1,map_w2,map_w3), schedule(static)" in line:
+               "private(cell), schedule(static)" in line:
                 omp_para_idx = idx
             if "CALL testkern_code" in line:
                 if call1_idx == -1:
@@ -1044,7 +1092,7 @@ def test_fuse_colour_loops():
                 else:
                     call_idx2 = idx
             if "!$omp parallel default(shared), " +\
-               "private(cell,map_w2,map_w3,map_w0)" in line:
+               "private(cell)" in line:
                 omp_para_idx = idx
             if "!$omp do schedule(static)" in line:
                 if omp_do_idx1 == -1:
@@ -1124,3 +1172,37 @@ def test_module_inline():
         assert 'SUBROUTINE ru_code()' in gen
         # check that the associated psy "use" does not exist
         assert 'USE ru_kernel_mod, only : ru_code' not in gen
+
+
+def test_scalar_sum_and_OpenMP_unsupported():
+    ''' Test that we fail if OpenMP and global sums are specified '''
+    _, info = parse(os.path.join(BASE_PATH, "16.3_real_scalar_sum.f90"),
+                    api=TEST_API, distributed_memory=False)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    otrans = DynamoOMPParallelLoopTrans()
+    # Apply OpenMP parallelisation to the loop
+    schedule, _ = otrans.apply(schedule.children[0])
+    invoke.schedule = schedule
+    # We should get an error when we try to generate the code
+    with pytest.raises(GenerationError) as excinfo:
+        _ = str(psy.gen)
+    assert "OpenMP reductions are not yet supported" in str(excinfo.value)
+
+
+def test_builtin_and_OpenMP_unsupported():
+    ''' Test that we raise an error if we attempt to use OpenMP on
+    code containing a call to a built-in. '''
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "15_single_pointwise_invoke.f90"),
+                    api=TEST_API, distributed_memory=False)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    schedule.view()
+    otrans = DynamoOMPParallelLoopTrans()
+    # Apply OpenMP parallelisation to the loop
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = otrans.apply(schedule.children[0])
+    assert "The iteration space is not 'cells'." in str(excinfo.value)
