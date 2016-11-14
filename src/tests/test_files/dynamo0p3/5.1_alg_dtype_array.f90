@@ -18,7 +18,7 @@ program single_function
   real(r_def) :: b(2), a(8)
   integer :: iflag(4)
 
-  call f0(1)%log_minmax(LOG_LEVEL_DEBUG,'max/min r_u = ')
+  call f0(1)%log_minmax(LOG_LEVEL_DEBUG(3),'max/min r_u = ')
 
   call invoke(                                                  &
        testkern_qr_type(f0(1),f1(1,1),f1(2,index),b(1),         &

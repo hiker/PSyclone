@@ -184,7 +184,8 @@ class TestAlgGenClassDynamo0p3(object):
             BASE_PATH, "5.1_alg_dtype_array.f90"), api="dynamo0.3")
         gen = str(alg)
         print gen
-        assert "CALL f0(1)%log_minmax(log_level_debug, 'max/min r_u = ')" in gen
+        assert ("CALL f0(1)%log_minmax(log_level_debug(3), "
+                "'max/min r_u = ')" in gen)
 
     @pytest.mark.xfail(reason="multi qr values not yet supported in psy layer")
     def test_multiple_qr_per_invoke(self):
