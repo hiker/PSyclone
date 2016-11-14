@@ -173,12 +173,26 @@ class Call(Statement):
         item = self.item
         apply_map = item.apply_map
         line = item.get_line()[4:].strip()
-        i = line.find('(')
+        # Work backwards from the end of the line in order to allow
+        # for code like:
+        #     call my_type(1)%my_function(arg(2))
+        i = line.rfind(')')
+        # Work back down the line until we find the matching '('
+        nopen = 1
+        i -= 1
+        while i > 0:
+            if line[i] == ')':
+                nopen += 1
+            elif line[i] == '(':
+                nopen -= 1
+            if nopen == 0:
+                break
+            i -= 1
         items = []
-        if i==-1:
+        if i < 0:
             self.designator = apply_map(line).strip()
         else:
-            j = line.find(')')
+            j = line.rfind(')')
             if j == -1 or len(line)-1 != j:
                 self.isvalid = False
                 return
