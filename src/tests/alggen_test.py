@@ -176,6 +176,16 @@ class TestAlgGenClassDynamo0p3(object):
                 "f1(index, index2(index3)), iflag(2), a(index1), "
                 "iflag(index2(index3)), qr)" in gen)
 
+    def test_type_bound_array_element_call(self):
+        ''' Test the re-writing of the alg. layer when it contains a call
+        to a type-bound procedure and the type is references as an element
+        of an array. '''
+        alg, _ = generate(os.path.join(
+            BASE_PATH, "5.1_alg_dtype_array.f90"), api="dynamo0.3")
+        gen = str(alg)
+        print gen
+        assert "call f0(1)%log_minmax(LOG_LEVEL_DEBUG,'max/min r_u = ')" in gen
+
     @pytest.mark.xfail(reason="multi qr values not yet supported in psy layer")
     def test_multiple_qr_per_invoke(self):
         ''' invoke functions require different quadrature rules '''
