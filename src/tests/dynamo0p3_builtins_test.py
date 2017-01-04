@@ -4,6 +4,11 @@
     using pytest. Currently all built-in operations are 'pointwise' in that
     they iterate over DOFs. However this may change in the future. '''
 
+# Since this is a file containing tests which often have to get in and
+# change the internal state of objects we disable pylint's warning
+# about such accesses
+# pylint: disable=protected-access
+
 # imports
 import os
 import pytest
@@ -115,26 +120,24 @@ def test_builtin_sum_and_inc():
             "inc_axpy_code" in str(excinfo))
 
 
-def test_builtin_zero_writes():
+def test_builtin_zero_writes(monkeypatch):
     ''' Check that we raise an appropriate error if we encounter a built-in
     that does not write to any field '''
     import dynamo0p3_builtins
-    # The file containing broken meta-data for the built-ins. The definition
-    # for axpby that it contains erroneously has no argument that is written
-    # to.
-    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = \
-        os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.8.0_axpby_invoke.f90"),
-                           api="dynamo0.3")
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
+    # Use pytest's monkeypatch support to change our configuration to
+    # point to a file containing broken meta-data for the
+    # built-ins. The definition for axpby that it contains erroneously
+    # has no argument that is written to.
+    monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
+                        value=os.path.join(BASE_PATH,
+                                           "invalid_builtins_mod.f90"))
     with pytest.raises(ParseError) as excinfo:
-        _ = PSyFactory("dynamo0.3",
-                       distributed_memory=False).create(invoke_info)
-    assert ("A built-in kernel in the Dynamo 0.3 API must have one and only "
-            "one argument that is written to but found 0 for kernel "
-            "axpby_code" in str(excinfo))
+        _, _ = parse(os.path.join(BASE_PATH,
+                                  "15.8.0_axpby_invoke.f90"),
+                     api="dynamo0.3")
+    assert ("A Dynamo 0.3 kernel must have at least one "
+            "argument that is updated (written to) but "
+            "found none for kernel axpby" in str(excinfo))
 
 
 def test_builtin_no_field_args():
@@ -179,7 +182,7 @@ def test_builtin_operator_arg():
             "type gh_operator" in str(excinfo))
 
 
-def test_builtin_args_not_same_space():
+def test_builtin_args_not_same_space():  # pylint: disable=invalid-name
     ''' Check that we raise the correct error if we encounter a built-in
     that has arguments on different function spaces '''
     import dynamo0p3_builtins
@@ -1500,7 +1503,7 @@ def test_inc_axpby():
 @pytest.mark.xfail(
     reason="Requires kernel-argument dependency analysis to deduce the "
     "spaces of the fields passed to the built-in kernel")
-def test_multiply_fields_on_different_spaces():
+def test_multiply_fields_on_different_spaces():  # pylint: disable=invalid-name
     ''' Test that we raise an error if multiply_fields() is called for
     two fields that are on different spaces '''
     _, invoke_info = parse(
@@ -1516,7 +1519,7 @@ def test_multiply_fields_on_different_spaces():
 @pytest.mark.xfail(
     reason="Dependency analysis of kernel arguments within an invoke is "
     "not yet implemented")
-def test_multiply_fields_deduce_space():
+def test_multiply_fields_deduce_space():  # pylint: disable=invalid-name
     ''' Test that we generate correct code if multiply_fields() is called
     in an invoke containing another kernel that allows the space of the
     fields to be deduced '''
@@ -1734,10 +1737,6 @@ def test_innerprod():
         print code
         output = (
             "      !\n"
-            "      ! Zero summation variables\n"
-            "      !\n"
-            "      asum = 0.0_r_def\n"
-            "      !\n"
             "      ! Initialise field proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
@@ -1759,6 +1758,11 @@ def test_innerprod():
                 "      !\n"
                 "      ! Call our kernels\n"
                 "      !\n"
+                "      !\n"
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
                 "      END DO \n"
@@ -1775,6 +1779,11 @@ def test_innerprod():
                 "      undf_any_space_1_f1 = f1_proxy%vspace%get_undf()\n"
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      !\n"
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
                 "      !\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
@@ -1817,10 +1826,6 @@ def test_sumfield():
         print code
         output = (
             "      !\n"
-            "      ! Zero summation variables\n"
-            "      !\n"
-            "      asum = 0.0_r_def\n"
-            "      !\n"
             "      ! Initialise field proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
@@ -1837,6 +1842,11 @@ def test_sumfield():
                 "      !\n"
                 "      ! Call our kernels\n"
                 "      !\n"
+                "      !\n"
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
                 "      DO df=1,undf_any_space_1_f1\n"
                 "        asum = asum+f1_proxy%data(df)\n"
                 "      END DO ")
@@ -1852,6 +1862,11 @@ def test_sumfield():
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
+                "      !\n"
+                "      ! Zero summation variables\n"
+                "      !\n"
+                "      asum = 0.0_r_def\n"
+                "      !\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)\n"
                 "      END DO \n"
@@ -1859,3 +1874,133 @@ def test_sumfield():
                 "      asum = global_sum%get_sum()")
             assert output in code
             assert "      REAL(KIND=r_def), intent(out) :: asum\n" in code
+
+
+def test_multi_builtin_single_invoke():  # pylint: disable=invalid-name
+    '''Test that multiple builtins, including one with reductions,
+    produce correct code'''
+    for distmem in [False, True]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "15.15.0_builtins_reduction_fuse_error.f90"),
+            distributed_memory=distmem,
+            api="dynamo0.3")
+        psy = PSyFactory("dynamo0.3",
+                         distributed_memory=distmem).create(invoke_info)
+        code = str(psy.gen)
+        print code
+        if distmem:
+            assert(
+                "    SUBROUTINE invoke_0(f1, f2, asum, b)\n"
+                "      USE scalar_mod, ONLY: scalar_type\n"
+                "      USE mesh_mod, ONLY: mesh_type\n"
+                "      REAL(KIND=r_def), intent(out) :: asum\n"
+                "      REAL(KIND=r_def), intent(in) :: b\n"
+                "      TYPE(field_type), intent(inout) :: f1\n"
+                "      TYPE(field_type), intent(in) :: f2\n"
+                "      TYPE(scalar_type) global_sum\n"
+                "      INTEGER df\n"
+                "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
+                "      TYPE(mesh_type), pointer :: mesh => null()\n"
+                "      INTEGER nlayers\n"
+                "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n") in code
+            assert (
+                "      f1_proxy = f1%get_proxy()\n"
+                "      f2_proxy = f2%get_proxy()\n"
+                "      !\n"
+                "      ! Initialise number of layers\n"
+                "      !\n"
+                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+                "      !\n"
+                "      ! Create a mesh object\n"
+                "      !\n"
+                "      mesh => f1%get_mesh()\n"
+                "      !\n"
+                "      ! Initialise sizes and allocate any basis arrays "
+                "for any_space_1_f1\n"
+                "      !\n"
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = "
+                "f1_proxy%vspace%get_undf()\n") in code
+            assert (
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      global_sum%value = asum\n"
+                "      asum = global_sum%get_sum()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = b*f1_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the above "
+                "loop\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()\n"
+                "      !\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "        f1_proxy%data(df) = asum*f1_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty for fields modified in the above "
+                "loop\n"
+                "      !\n"
+                "      CALL f1_proxy%set_dirty()\n") in code
+        else:
+            assert (
+                "    SUBROUTINE invoke_0(f1, f2, asum, b)\n"
+                "      REAL(KIND=r_def), intent(out) :: asum\n"
+                "      REAL(KIND=r_def), intent(in) :: b\n"
+                "      TYPE(field_type), intent(inout) :: f1\n"
+                "      TYPE(field_type), intent(in) :: f2\n"
+                "      INTEGER df\n"
+                "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
+                "      INTEGER nlayers\n"
+                "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n") in code
+            assert (
+                "      f1_proxy = f1%get_proxy()\n"
+                "      f2_proxy = f2%get_proxy()\n"
+                "      !\n"
+                "      ! Initialise number of layers\n"
+                "      !\n"
+                "      nlayers = f1_proxy%vspace%get_nlayers()\n"
+                "      !\n"
+                "      ! Initialise sizes and allocate any basis arrays "
+                "for any_space_1_f1\n"
+                "      !\n"
+                "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f1 = "
+                "f1_proxy%vspace%get_undf()\n") in code
+            assert (
+                "      asum = 0.0_r_def\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = b*f1_proxy%data(df)\n"
+                "      END DO \n"
+                "      DO df=1,undf_any_space_1_f1\n"
+                "        f1_proxy%data(df) = asum*f1_proxy%data(df)\n"
+                "      END DO \n") in code
+
+
+def test_scalar_int_builtin_error(monkeypatch):
+    ''' Test that specifying that a built-in has an integer scalar
+    argument raises the expected error '''
+    import dynamo0p3_builtins
+    # Point to fake built-in kernel metadata
+    monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
+                        value=os.path.join(BASE_PATH,
+                                           "int_reduction_builtins_mod.f90"))
+    for dist_mem in [True, False]:
+        _, invoke_info = parse(
+            os.path.join(BASE_PATH, "16.2_integer_scalar_sum.f90"),
+            api="dynamo0.3", distributed_memory=dist_mem)
+        with pytest.raises(ParseError) as excinfo:
+            _ = PSyFactory("dynamo0.3",
+                           distributed_memory=dist_mem).create(invoke_info)
+        assert ("an argument to a built-in kernel must be one of ['gh_field', "
+                "'gh_real'] but kernel set_field_scalar_code has an argument "
+                "of type gh_integer" in str(excinfo))
