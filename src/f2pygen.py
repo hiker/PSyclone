@@ -12,7 +12,7 @@
 
 from fparser.statements import Comment
 from fparser.readfortran import FortranStringReader
-from fparser.block_statements import Select
+from fparser.block_statements import SelectCase, SelectType
 from fparser.statements import Case
 
 # Module-wide utility methods
@@ -753,7 +753,7 @@ class TypeDeclGen(BaseGen):
         return self._typedecl
 
 
-class TypeSelect(Select):
+class TypeSelect(SelectType):
     ''' Generate a Fortran SELECT TYPE statement '''
     # TODO can this whole class be deleted?
     def tostr(self):
@@ -779,7 +779,7 @@ class TypeCase(Case):
 
 
 class SelectionGen(BaseGen):
-    ''' Generate a Fortran SELECT block '''
+    ''' Generate a Fortran SELECT CASE block '''
     # TODO can this whole class be deleted?
 
     def __init__(self, parent, expr="UNSET", typeselect=False):
@@ -796,7 +796,7 @@ class SelectionGen(BaseGen):
         if self._typeselect:
             select = TypeSelect(parent.root, select_line)
         else:
-            select = Select(parent.root, select_line)
+            select = SelectCase(parent.root, select_line)
         endselect = EndSelect(select, end_select_line)
         select.expr = expr
         select.content.append(endselect)
