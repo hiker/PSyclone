@@ -36,7 +36,8 @@ VALID_OFFSET_NAMES = ["offset_se", "offset_sw",
 SUPPORTED_OFFSETS = ["offset_ne", "offset_sw", "offset_any"]
 
 # The sets of grid points that a kernel may operate on
-VALID_ITERATES_OVER = ["all_pts", "internal_pts", "external_pts"]
+VALID_ITERATES_OVER = ["all_pts", "internal_pts", "external_pts",
+                       "internal_ns_halo", "internal_we_halo"]
 
 # Valid values for the type of access a kernel argument may have
 VALID_ARG_ACCESSES = ["read", "write", "readwrite"]
@@ -414,6 +415,12 @@ class GOLoop(Loop):
         self._bounds_lookup['offset_sw']['cf']['internal_pts'] = \
             {'inner': {'start': "2", 'stop': "+1"},
              'outer': {'start': "2", 'stop': "+1"}}
+        self._bounds_lookup['offset_ne']['ct']['internal_ns_halo'] = \
+            {'inner': {'start': "2", 'stop': ""},
+             'outer': {'start': "1", 'stop': "+1"}}
+        self._bounds_lookup['offset_ne']['ct']['internal_we_halo'] = \
+            {'inner': {'start': "1", 'stop': "+1"},
+             'outer': {'start': "2", 'stop': ""}}
         # For offset 'any'
         for gridpt_type in VALID_FIELD_GRID_TYPES:
             for itspace in VALID_ITERATES_OVER:
