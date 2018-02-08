@@ -26,6 +26,7 @@ from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.algGen import NoInvokesError
 from psyclone.config import SUPPORTEDAPIS, DEFAULTAPI, DISTRIBUTED_MEMORY
 from psyclone.line_length import FortLineLength
+from psyclone.profiler import Profiler
 
 
 def generate(filename, api="", kernel_path="", script_name=None,
@@ -190,11 +191,13 @@ def main(args):
         '-nodm', '--no_dist_mem', dest='dist_mem', action='store_false',
         help='do not generate distributed memory code')
     parser.add_argument(
-        '--profile', '-p', action="append", choices=["invokes", "kernels"],
+        '--profile', '-p', action="append", choices=Profiler.SUPPORTED_OPTIONS,
         help="Add profilig hooks for either 'kernels' or 'invokes'")
     parser.set_defaults(dist_mem=DISTRIBUTED_MEMORY)
 
     args = parser.parse_args(args)
+
+    Profiler.set_options(args.profile)
 
     if args.api not in SUPPORTEDAPIS:
         print "Unsupported API '{0}' specified. Supported API's are "\

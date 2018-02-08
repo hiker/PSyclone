@@ -65,7 +65,8 @@ class DynInvoke(Invoke):
             by the associated invoke call in the algorithm layer). This
             consists of the PSy invocation subroutine and the declaration of
             its arguments.'''
-        from f2pygen import SubroutineGen, TypeDeclGen
+        from psyclone.f2pygen import SubroutineGen, TypeDeclGen
+        from psyclone.profiler import Profiler
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name = self.name,
                                    args = self.psy_unique_var_names)
@@ -76,6 +77,7 @@ class DynInvoke(Invoke):
                                   entity_decls = self.psy_unique_var_names,
                                   intent = "inout")
         invoke_sub.add(my_typedecl)
+        Profiler.createInvokeRegion(invoke_sub)
 
 
 class DynSchedule(Schedule):
