@@ -65,7 +65,8 @@ class Profiler(object):
     # -------------------------------------------------------------------------
     @staticmethod
     def createInvokeRegion(invoke):
-        if not Profiler.INVOKES in Profiler._options: return
+        if Profiler._options is None or \
+            Profiler.INVOKES not in Profiler._options: return
 
         profile_name = NameSpaceFactory().create().create_name("profile")
         prof_var_decl = TypeDeclGen(invoke, datatype="ProfilerData",
