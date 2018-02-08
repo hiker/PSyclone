@@ -31,9 +31,8 @@ from psyclone.profiler import Profiler
 
 def generate(filename, api="", kernel_path="", script_name=None,
              line_length=False,
-             distributed_memory=DISTRIBUTED_MEMORY,
-             profile=[]):
-    # pylint: disable=too-many-arguments, dangerous-default-value
+             distributed_memory=DISTRIBUTED_MEMORY):
+    # pylint: disable=too-many-arguments
     '''Takes a GungHo algorithm specification as input and outputs the
     associated generated algorithm and psy codes suitable for
     compiling with the specified kernel(s) and GungHo
@@ -59,8 +58,6 @@ def generate(filename, api="", kernel_path="", script_name=None,
     :param bool distributed_memory: A logical flag specifying whether to
                                     generate distributed memory code. The
                                     default is set in the config.py file.
-    :param string-list profile: A list containing 'invokes' or 'kernels'
-                                or both or nothing.
     :return: The algorithm code and the psy code.
     :rtype: ast
     :raises IOError: if the filename or search path do not exist
@@ -94,8 +91,8 @@ def generate(filename, api="", kernel_path="", script_name=None,
         ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
                                  kernel_path=kernel_path,
                                  line_length=line_length)
-        psy = PSyFactory(api, distributed_memory=distributed_memory,
-                         profile=profile).create(invoke_info)
+        psy = PSyFactory(api, distributed_memory=distributed_memory)\
+            .create(invoke_info)
         if script_name is not None:
             sys_path_appended = False
             try:
@@ -210,8 +207,7 @@ def main(args):
                             kernel_path=args.directory,
                             script_name=args.script,
                             line_length=args.limit,
-                            distributed_memory=args.dist_mem,
-                            profile=args.profile)
+                            distributed_memory=args.dist_mem)
     except NoInvokesError:
         _, exc_value, _ = sys.exc_info()
         print "Warning: {0}".format(exc_value)

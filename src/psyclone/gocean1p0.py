@@ -73,8 +73,8 @@ class GOPSy(PSy):
         invokes object (which controls all the required invocation calls).
         Also overrides the PSy gen method so that we generate GOcean-
         specific PSy module code. '''
-    def __init__(self, invoke_info, profile):
-        PSy.__init__(self, invoke_info, profile)
+    def __init__(self, invoke_info):
+        PSy.__init__(self, invoke_info)
         self._invokes = GOInvokes(invoke_info.calls)
 
     @property
@@ -248,6 +248,9 @@ class GOInvoke(Invoke):
                            position=["after", position])
             invoke_sub.add(CommentGen(invoke_sub, ""),
                            position=["after", position])
+
+        from psyclone.profiler import Profiler
+        Profiler.createInvokeRegion(invoke_sub)
 
 
 class GOSchedule(Schedule):

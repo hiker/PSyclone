@@ -20,8 +20,8 @@ class GOPSy(PSy):
         invokes object (which controls all the required invocation calls).
         Also overrides the PSy gen method so that we generate GOceaen
         specific PSy module code. '''
-    def __init__(self, invoke_info, profile):
-        PSy.__init__(self, invoke_info, profile)
+    def __init__(self, invoke_info):
+        PSy.__init__(self, invoke_info)
         self._invokes = GOInvokes(invoke_info.calls)
 
     @property
@@ -128,6 +128,8 @@ class GOInvoke(Invoke):
                             intent="inout")
             invoke_sub.add(my_decl_scalars)
 
+        from psyclone.profiler import Profiler
+        Profiler.createInvokeRegion(invoke_sub)
 
 class GOSchedule(Schedule):
     ''' The GOcean specific schedule class. All we have to do is supply our

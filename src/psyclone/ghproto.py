@@ -9,8 +9,8 @@
 from psyGen import PSy,Invokes,Invoke,Schedule,Loop,Kern,Arguments,Argument,Inf
 
 class GHProtoPSy(PSy):
-    def __init__(self,invoke_info, profile):
-        PSy.__init__(self,invoke_info, profile)
+    def __init__(self,invoke_info):
+        PSy.__init__(self,invoke_info)
         self._invokes=GHProtoInvokes(invoke_info.calls)
 
     @property

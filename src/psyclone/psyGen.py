@@ -190,15 +190,11 @@ class PSyFactory(object):
         config.DISTRIBUTED_MEMORY. If we set it to None and then test
         the value, it then fails. I've no idea why. '''
 
-    def __init__(self, api="", distributed_memory=config.DISTRIBUTED_MEMORY,
-                 profile=[]):
+    def __init__(self, api="", distributed_memory=config.DISTRIBUTED_MEMORY):
         '''Initialises a factory which can create API specific PSY objects.
         :param api: Name of the API to use.
         :param distributed_memory: True if distributed memory should be
                                    supported.
-        :param profile: A (potentially empty) list containing at most
-                        'invokes' and 'kernels', which will create profiling
-                        hooks on code creation.
         '''
         if distributed_memory not in [True, False]:
             raise GenerationError(
@@ -206,25 +202,24 @@ class PSyFactory(object):
                 " 'True' or 'False'")
         config.DISTRIBUTED_MEMORY = distributed_memory
         self._type = get_api(api)
-        self._profile = profile
 
     def create(self, invoke_info):
         ''' Return the API specifiv version of PSy. '''
         if self._type == "gunghoproto":
             from psyclone.ghproto import GHProtoPSy
-            return GHProtoPSy(invoke_info, self._profile)
+            return GHProtoPSy(invoke_info)
         elif self._type == "dynamo0.1":
             from psyclone.dynamo0p1 import DynamoPSy
-            return DynamoPSy(invoke_info, self._profile)
+            return DynamoPSy(invoke_info)
         elif self._type == "dynamo0.3":
             from psyclone.dynamo0p3 import DynamoPSy
-            return DynamoPSy(invoke_info, self._profile)
+            return DynamoPSy(invoke_info)
         elif self._type == "gocean0.1":
             from psyclone.gocean0p1 import GOPSy
-            return GOPSy(invoke_info, self._profile)
+            return GOPSy(invoke_info)
         elif self._type == "gocean1.0":
             from psyclone.gocean1p0 import GOPSy
-            return GOPSy(invoke_info, self._profile)
+            return GOPSy(invoke_info)
         else:
             raise GenerationError("PSyFactory: Internal Error: Unsupported "
                                   "api type '{0}' found. Should not be "
@@ -242,8 +237,6 @@ class PSy(object):
                                      invocation information for code
                                      optimisation and generation. Produced
                                      by the function :func:`parse.parse`.
-        :param profile: List of profile options (empty if no profiling
-                        should be done) - optional, default no profiling.
 
         For example:
 
@@ -256,12 +249,11 @@ class PSy(object):
         >>> print(psy.gen)
 
     '''
-    def __init__(self, invoke_info, profile=[]):
+    def __init__(self, invoke_info):
         # pylint:disable=dangerous-default-value
 
         self._name = invoke_info.name
         self._invokes = None
-        self._profile = profile
 
     def __str__(self):
         return "PSy"
