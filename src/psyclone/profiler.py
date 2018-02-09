@@ -74,7 +74,10 @@ class Profiler(object):
                                 attrspec=["save"])
         invoke.add(prof_var_decl)
 
-        prof_start = CallGen(invoke, "profile_start", [profile_name])
+        prof_start = CallGen(invoke, "profile_start",
+                             ["\"{0}\"".format(invoke.root.name),
+                              "\"{0}\"".format(invoke.parent.root.name),
+                              profile_name])
         prof_end = CallGen(invoke, "profile_end", [profile_name])
 
         obj = invoke.last_declaration()
