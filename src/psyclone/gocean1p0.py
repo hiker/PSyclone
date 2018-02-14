@@ -37,7 +37,8 @@ SUPPORTED_OFFSETS = ["offset_ne", "offset_sw", "offset_any"]
 
 # The sets of grid points that a kernel may operate on
 VALID_ITERATES_OVER = ["all_pts", "internal_pts", "external_pts",
-                       "internal_ns_halo", "internal_we_halo"]
+                       "internal_ns_halo", "internal_we_halo",
+                       "n_halo", "s_halo", "w_halo", "e_halo"]
 
 # Valid values for the type of access a kernel argument may have
 VALID_ARG_ACCESSES = ["read", "write", "readwrite"]
@@ -426,6 +427,18 @@ class GOLoop(Loop):
              'outer': {'start': "1", 'stop': "{stop}+1"}}
         self._bounds_lookup['offset_ne']['ct']['internal_we_halo'] = \
             {'inner': {'start': "1", 'stop': "{stop}+1"},
+             'outer': {'start': "2", 'stop': "{stop}"}}
+        self._bounds_lookup['offset_ne']['ct']['n_halo'] = \
+            {'inner': {'start': "1", 'stop': "{stop}+1"},
+             'outer': {'start': "1", 'stop': "1"}}
+        self._bounds_lookup['offset_ne']['ct']['s_halo'] = \
+            {'inner': {'start': "1", 'stop': "{stop}+1"},
+             'outer': {'start': '{stop}+1', 'stop':"{stop}+1"}}
+        self._bounds_lookup['offset_ne']['ct']['w_halo'] = \
+            {'inner': {'start': '1', 'stop': '1'},
+             'outer': {'start': "2", 'stop': "{stop}"}}
+        self._bounds_lookup['offset_ne']['ct']['e_halo'] = \
+            {'inner': {'start': '{stop}+1', 'stop': '{stop}+1'},
              'outer': {'start': "2", 'stop': "{stop}"}}
         # For offset 'any'
         for gridpt_type in VALID_FIELD_GRID_TYPES:
