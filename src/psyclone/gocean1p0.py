@@ -249,9 +249,6 @@ class GOInvoke(Invoke):
             invoke_sub.add(CommentGen(invoke_sub, ""),
                            position=["after", position])
 
-        from psyclone.profiler import Profiler
-        Profiler.createInvokeRegion(invoke_sub)
-
 
 class GOSchedule(Schedule):
     ''' The GOcean specific schedule class. We call the base class

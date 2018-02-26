@@ -2737,8 +2737,6 @@ class DynInvoke(Invoke):
         self.evaluators.deallocate(invoke_sub)
 
         invoke_sub.add(CommentGen(invoke_sub, ""))
-        from psyclone.profiler import Profiler
-        Profiler.createInvokeRegion(invoke_sub)
 
         # finally, add me to my parent
         parent.add(invoke_sub)

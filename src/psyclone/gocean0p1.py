@@ -128,8 +128,6 @@ class GOInvoke(Invoke):
                             intent="inout")
             invoke_sub.add(my_decl_scalars)
 
-        from psyclone.profiler import Profiler
-        Profiler.createInvokeRegion(invoke_sub)
 
 class GOSchedule(Schedule):
     ''' The GOcean specific schedule class. All we have to do is supply our
