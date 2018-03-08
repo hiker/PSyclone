@@ -1241,7 +1241,8 @@ class Schedule(Node):
         for call in alg_calls:
             parent = self
             from psyclone.profiler import Profiler, ProfileNode
-            if Profiler.profile_kernels():
+            #if Profiler.profile_kernels():
+            if False:
                 # Parent needs to be a Node type, and both 'self'
                 # and ProfileNode are ... but pylint doesn't like it:
                 # pylint: disable=redefined-variable-type
@@ -1253,7 +1254,8 @@ class Schedule(Node):
                 obj = BuiltInFactory.create(call, parent=parent)
             else:
                 obj = KernFactory.create(call, parent=parent)
-            if Profiler.profile_kernels():
+            #if Profiler.profile_kernels():
+            if False:
                 parent.addchild(obj)
             else:
                 sequence.append(obj)
