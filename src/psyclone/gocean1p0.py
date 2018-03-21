@@ -155,6 +155,13 @@ class GOInvoke(Invoke):
         if False:  # pylint: disable=using-constant-test
             self._schedule = GOSchedule(None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, GOSchedule)
+        from psyclone.profiler import Profiler, ProfileNode
+        if Profiler.profile_kernels():
+            for (idx, loop) in enumerate(self.schedule.children):
+                if not isinstance(loop, GOLoop): continue
+                pn = ProfileNode(children=[loop], parent = loop.parent)
+                self.schedule.children[idx] = pn
+                loop.parent = pn
 
     @property
     def unique_args_arrays(self):
