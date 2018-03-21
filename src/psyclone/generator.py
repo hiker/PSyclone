@@ -21,16 +21,18 @@ import argparse
 import sys
 import os
 import traceback
-from parse import parse, ParseError
-from psyGen import PSyFactory, GenerationError
-from algGen import NoInvokesError
-from config import SUPPORTEDAPIS, DEFAULTAPI, DISTRIBUTED_MEMORY
-from line_length import FortLineLength
+from psyclone.parse import parse, ParseError
+from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.algGen import NoInvokesError
+from psyclone.config import SUPPORTEDAPIS, DEFAULTAPI, DISTRIBUTED_MEMORY
+from psyclone.line_length import FortLineLength
+from psyclone.profiler import Profiler
 
 
 def generate(filename, api="", kernel_path="", script_name=None,
              line_length=False,
              distributed_memory=DISTRIBUTED_MEMORY):
+    # pylint: disable=too-many-arguments
     '''Takes a GungHo algorithm specification as input and outputs the
     associated generated algorithm and psy codes suitable for
     compiling with the specified kernel(s) and GungHo
@@ -71,6 +73,7 @@ def generate(filename, api="", kernel_path="", script_name=None,
 
     '''
 
+    # pylint: disable=too-many-statements, too-many-locals, too-many-branches
     if api == "":
         api = DEFAULTAPI
     else:
@@ -84,12 +87,13 @@ def generate(filename, api="", kernel_path="", script_name=None,
     if (len(kernel_path) > 0) and (not os.access(kernel_path, os.R_OK)):
         raise IOError("kernel search path '{0}' not found".format(kernel_path))
     try:
-        from algGen import Alg
+        from psyclone.algGen import Alg
         ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
                                  kernel_path=kernel_path,
                                  line_length=line_length)
-        psy = PSyFactory(api, distributed_memory=distributed_memory).\
-            create(invoke_info)
+        psy = PSyFactory(api, distributed_memory=distributed_memory)\
+            .create(invoke_info)
+
         if script_name is not None:
             sys_path_appended = False
             try:
@@ -150,6 +154,21 @@ def generate(filename, api="", kernel_path="", script_name=None,
         alg = Alg(ast, psy)
     except Exception:
         raise
+
+    if Profiler.profile_kernels():
+        for invoke in psy.invokes.invoke_list:
+            schedule = invoke.schedule
+            from psyclone.psyGen import Loop
+            from psyclone.profiler import ProfileNode
+            for loop in schedule.walk(schedule.children, Loop):
+                ps = ProfileNode()
+                ps.addchild(loop, 0)
+                index = loop.parent.children.index(loop)
+                loop.parent.children[index] = ps
+                ps.parent = schedule
+                loop.parent = ps
+
+
     return alg.gen, psy.gen
 
 
@@ -160,6 +179,7 @@ def main(args):
     results
     '''
 
+    # pylint: disable=too-many-statements
     parser = argparse.ArgumentParser(
         description='Run the PSyclone code generator on a particular file')
     parser.add_argument('-oalg', help='filename of transformed algorithm code')
@@ -183,14 +203,21 @@ def main(args):
     parser.add_argument(
         '-nodm', '--no_dist_mem', dest='dist_mem', action='store_false',
         help='do not generate distributed memory code')
+    parser.add_argument(
+        '--profile', '-p', action="append", choices=Profiler.SUPPORTED_OPTIONS,
+        help="Add profilig hooks for either 'kernels' or 'invokes'")
     parser.set_defaults(dist_mem=DISTRIBUTED_MEMORY)
 
     args = parser.parse_args(args)
+
+    Profiler.set_options(args.profile)
 
     if args.api not in SUPPORTEDAPIS:
         print "Unsupported API '{0}' specified. Supported API's are "\
             "{1}.".format(args.api, SUPPORTEDAPIS)
         exit(1)
+    # Only needed for except Exception
+
     try:
         alg, psy = generate(args.filename, api=args.api,
                             kernel_path=args.directory,
@@ -212,7 +239,7 @@ def main(args):
         _, exc_value, _ = sys.exc_info()
         print exc_value
         exit(1)
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
         print "Error, unexpected exception, please report to the authors:"
         exc_type, exc_value, exc_tb = sys.exc_info()
         print "Description ..."
