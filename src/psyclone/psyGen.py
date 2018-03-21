@@ -2064,9 +2064,17 @@ class Loop(Node):
             calls = self.reductions()
             zero_reduction_variables(calls, parent)
 
-        if self._start == "1" and self._stop == "1":  # no need for a loop
+        # In case of a single iteration loop, create an assignment
+        # instead of a loop:
+        if self._start == self._stop:
+            from psyclone.f2pygen import AssignGen, DeclGen
+            assign = AssignGen(parent, self._variable_name, self._start)
+            parent.add(assign)
             for child in self.children:
                 child.gen_code(parent)
+            my_decl = DeclGen(parent, datatype="integer",
+                               entity_decls=[self._variable_name])
+            parent.add(my_decl)
         else:
             from psyclone.f2pygen import DoGen, DeclGen
             do = DoGen(parent, self._variable_name, self._start, self._stop)
