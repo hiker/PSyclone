@@ -204,7 +204,7 @@ class PSyFactory(object):
         self._type = get_api(api)
 
     def create(self, invoke_info):
-        ''' Return the API specifiv version of PSy. '''
+        ''' Return the API specific PSy instance. '''
         if self._type == "gunghoproto":
             from psyclone.ghproto import GHProtoPSy
             return GHProtoPSy(invoke_info)
@@ -1239,27 +1239,10 @@ class Schedule(Node):
         sequence = []
         from psyclone.parse import BuiltInCall
         for call in alg_calls:
-            parent = self
-            from psyclone.profiler import Profiler, ProfileNode
-            #if Profiler.profile_kernels():
-            if False:
-                # Parent needs to be a Node type, and both 'self'
-                # and ProfileNode are ... but pylint doesn't like it:
-                # pylint: disable=redefined-variable-type
-                parent = ProfileNode()
-                sequence.append(parent)
-                parent.parent = self
-
             if isinstance(call, BuiltInCall):
-                obj = BuiltInFactory.create(call, parent=parent)
+                sequence.append(BuiltInFactory.create(call, parent=self))
             else:
-                obj = KernFactory.create(call, parent=parent)
-            #if Profiler.profile_kernels():
-            if False:
-                parent.addchild(obj)
-            else:
-                sequence.append(obj)
-
+                sequence.append(KernFactory.create(call, parent=self))
         Node.__init__(self, children=sequence)
         self._invoke = None
 
