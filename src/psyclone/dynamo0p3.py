@@ -2363,6 +2363,14 @@ class DynInvoke(Invoke):
                     global_sum = DynGlobalSum(scalar, parent=loop.parent)
                     loop.parent.children.insert(loop.position+1, global_sum)
 
+            from psyclone.profiler import Profiler, ProfileNode
+            if Profiler.profile_kernels():
+                for (idx, loop) in enumerate(self.schedule.children):
+                    if not isinstance(loop, DynLoop): continue
+                    pn = ProfileNode(children=[loop], parent=loop.parent)
+                    self.schedule.children[idx] = pn
+                    loop.parent = pn
+
     def unique_proxy_declarations(self, datatype, access=None):
         ''' Returns a list of all required proxy declarations for the
         specified datatype.  If access is supplied (e.g. "gh_write")

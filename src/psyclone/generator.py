@@ -155,20 +155,6 @@ def generate(filename, api="", kernel_path="", script_name=None,
     except Exception:
         raise
 
-    if Profiler.profile_kernels():
-        for invoke in psy.invokes.invoke_list:
-            schedule = invoke.schedule
-            from psyclone.psyGen import Loop
-            from psyclone.profiler import ProfileNode
-            for loop in schedule.walk(schedule.children, Loop):
-                ps = ProfileNode()
-                ps.addchild(loop, 0)
-                index = loop.parent.children.index(loop)
-                loop.parent.children[index] = ps
-                ps.parent = schedule
-                loop.parent = ps
-
-
     return alg.gen, psy.gen
 
 
