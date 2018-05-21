@@ -43,7 +43,8 @@
 
 from psyclone.f2pygen import CallGen, ModuleGen, SubroutineGen, \
     TypeDeclGen, UseGen
-from psyclone.psyGen import GenerationError, Kern, NameSpaceFactory, Node
+from psyclone.psyGen import colored, GenerationError, Kern, NameSpace, \
+     NameSpaceFactory, Node, SCHEDULE_COLOUR_MAP
 
 
 class Profiler(object):
@@ -54,6 +55,8 @@ class Profiler(object):
     KERNELS = "kernels"
     SUPPORTED_OPTIONS = [INVOKES, KERNELS]
     _options = []
+    # A namespace manager to make sure we get unique region names
+    _namespace = NameSpace()
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -84,8 +87,12 @@ class Profiler(object):
     # -------------------------------------------------------------------------
     @staticmethod
     def add_profile_nodes(schedule, loop_class):
-        '''This function inserts all required Profiling Nodes into a
-        schedule.'''
+        '''This function inserts all required Profiling Nodes (for invokes
+        and kernels, as specified on the command line) into a schedule.
+        :param loop_class: The loop class (e.g. GOLoop, DynLoop) to instrument.
+        "type loop_class: :py::class::`psyclone.psyGen.Loop` or derived class.
+        '''
+
         from psyclone.transformations import ProfileRegionTrans
         if Profiler.profile_kernels():
             profile_trans = ProfileRegionTrans()
@@ -96,19 +103,48 @@ class Profiler(object):
             profile_trans = ProfileRegionTrans()
             profile_trans.apply(schedule.children)
 
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def create_unique_region(name):
+        '''This function makes sure that region names are unique even if
+        the same kernel is called.
+        :param name: The name of a region (usually kernel name).
+        :type name: string
+        :return: A unique names based on the parameter name.
+        :rtype: string'''
+
+        return Profiler._namespace.create_name(name)
+
 
 # =============================================================================
 class ProfileNode(Node):
     '''This class can be inserted into a schedule to create profiling code.
     '''
 
+    def __init__(self, children=None, parent=None):
+        Node.__init__(self, children=children, parent=parent)
+        self._namespace = NameSpace()
+
+    # -------------------------------------------------------------------------
     def __str__(self):
-        return "Profiler"
+        return "Profile"
+
+    # -------------------------------------------------------------------------
+    @property
+    def coloured_text(self):
+        '''
+        Return text containing the (coloured) name of this node type
+
+        :return: the name of this node type, possibly with control codes
+                 for colour
+        :rtype: string
+        '''
+        return colored("Profile", SCHEDULE_COLOUR_MAP["Profile"])
 
     # -------------------------------------------------------------------------
     def view(self, indent=0):
         # pylint: disable=arguments-differ
-        print self.indent(indent) + "[Profile]"
+        print self.indent(indent) + self.coloured_text
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -127,9 +163,8 @@ class ProfileNode(Node):
         for k in self.walk(self.children, Kern):
             region_name = k.name
             break
-        # Use the namespace manager to create unique names within one module
-        # one subroutine might have many identical calls.
-        region_name = NameSpaceFactory().create().create_name(region_name)
+
+        region_name = Profiler.create_unique_region(region_name)
 
         # Find the enclosing subroutine statement for declaring variables
         subroutine = parent
@@ -151,12 +186,12 @@ class ProfileNode(Node):
 
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!
-        use = UseGen(parent, "profiler_mod", only=True,
-                     funcnames=["ProfilerData, ProfileStart, ProfileEnd"])
+        use = UseGen(parent, "profile_mod", only=True,
+                     funcnames=["ProfileData, ProfileStart, ProfileEnd"])
         parent.add(use)
 
         profile_name = NameSpaceFactory().create().create_name("profile")
-        prof_var_decl = TypeDeclGen(parent, datatype="ProfilerData",
+        prof_var_decl = TypeDeclGen(parent, datatype="ProfileData",
                                     entity_decls=[profile_name],
                                     attrspec=["save"])
         parent.add(prof_var_decl)

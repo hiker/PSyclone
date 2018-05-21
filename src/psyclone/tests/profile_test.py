@@ -36,14 +36,20 @@
 ''' Module containing tests for generating monitoring hooks'''
 
 from __future__ import absolute_import
+
 import os
 import re
+import pytest
+
+from psyclone.generator import GenerationError
+from psyclone.gocean1p0 import GOKern, GOSchedule
 from psyclone.parse import parse
-from psyclone.psyGen import PSyFactory
-from psyclone.profiler import Profiler
+from psyclone.profiler import Profiler, ProfileNode
+from psyclone.psyGen import Loop, PSyFactory
+from psyclone.transformations import ProfileRegionTrans, TransformationError
 
 
-def get_invoke(api, algfile, idx):
+def get_invoke(api, algfile, key):
     ''' Utility method to get the idx'th invoke from the algorithm
     specified in file '''
 
@@ -59,11 +65,145 @@ def get_invoke(api, algfile, idx):
                     api=api)
     psy = PSyFactory(api).create(info)
     invokes = psy.invokes
-    # invokes does not have a method by which to request the i'th
-    # in the list so we do this rather clumsy lookup of the name
-    # of the invoke that we want
-    invoke = invokes.get(invokes.names[idx])
+    if isinstance(key, str):
+        invoke = invokes.get(key)
+    else:
+        # invokes does not have a method by which to request the i'th
+        # in the list so we do this rather clumsy lookup of the name
+        # of the invoke that we want
+        invoke = invokes.get(invokes.names[key])
     return psy, invoke
+
+
+# -----------------------------------------------------------------------------
+def test_profile_basic(capsys):
+    '''Check basic functionality: node names, schedule view.
+    '''
+    Profiler.set_options([Profiler.INVOKES])
+    _, invoke = get_invoke("gocean1.0", "test11_different_iterates_over_"
+                           "one_invoke.f90", 0)
+
+    assert str(invoke.schedule.children[0]) == "Profile"
+
+    invoke.schedule.view()
+    out, _ = capsys.readouterr()
+
+    coloured_schedule = GOSchedule([]).coloured_text
+    coloured_loop = Loop().coloured_text
+    coloured_kern = GOKern().coloured_text
+    coloured_profile = ProfileNode().coloured_text
+    correct = (
+        '''{0}[invoke='invoke_0',Constant loop bounds=True]
+    {3}
+        {1}[type='outer',field_space='cv',it_space='internal_pts']
+            {1}[type='inner',field_space='cv',it_space='internal_pts']
+                {2} compute_cv_code(cv_fld,p_fld,v_fld) '''
+        '''[module_inline=False]
+        {1}[type='outer',field_space='ct',it_space='all_pts']
+            {1}[type='inner',field_space='ct',it_space='all_pts']
+                {2} bc_ssh_code(ncycle,p_fld,tmask) '''
+        '''[module_inline=False]'''.format(coloured_schedule, coloured_loop,
+                                           coloured_kern, coloured_profile)
+    )
+
+    print correct
+    print out
+
+    assert correct in out
+
+    prt = ProfileRegionTrans()
+
+    # Insert a profile call between outer and inner loop.
+    # This forces the profile node to loop up in the tree
+    # to find the subroutine node (i.e. we are testing
+    # the while loop in the ProfileNode).
+    new_sched, _ = prt.apply(invoke.schedule.children[0]
+                             .children[0].children[0])
+
+    new_sched.view()
+    out, _ = capsys.readouterr()
+
+    # Make sure to support colour codes
+    correct = (
+        '''{0}[invoke='invoke_0',Constant loop bounds=True]
+    {3}
+        {1}[type='outer',field_space='cv',it_space='internal_pts']
+            {3}
+                {1}[type='inner',field_space='cv',it_space='internal_pts']
+                    {2} compute_cv_code(cv_fld,p_fld,v_fld) '''
+        '''[module_inline=False]
+        {1}[type='outer',field_space='ct',it_space='all_pts']
+            {1}[type='inner',field_space='ct',it_space='all_pts']
+                {2} bc_ssh_code(ncycle,p_fld,tmask) '''
+        '''[module_inline=False]'''
+    ).format(coloured_schedule, coloured_loop, coloured_kern, coloured_profile)
+    assert correct in out
+
+    # ... but only if we do call the actual invoke now - but no need
+    # to test the result.
+    invoke.gen()
+
+    Profiler.set_options(None)
+
+
+# -----------------------------------------------------------------------------
+def test_module_name_not_found():
+    '''Test that the profile node handles a mnissing module node
+    correctly - by using the name "unknown module". I could not create
+    this error with normal code. So instead I create an artificial tree
+    that contains a subroutine, which does not have a module as parent,
+    and pass this on directly to profile's gen_code. Then the children
+    of that dummy subroutine are checked for the correct ProfileStart
+    call with 'unknown module' as parameter:
+
+    '''
+
+    Profiler.set_options([Profiler.INVOKES])
+    _, invoke = get_invoke("gocean1.0", "test11_different_iterates_over_"
+                           "one_invoke.f90", 0)
+    schedule = invoke.schedule
+
+    assert str(schedule.children[0]) == "Profile"
+
+    from psyclone.f2pygen import CallGen, ModuleGen, SubroutineGen
+
+    # You need a parent in order to create a subroutine, so first
+    # create a dummy module"
+    module = ModuleGen(name="test")
+    subroutine = SubroutineGen(module, name="test")
+    # And then set the parent of the subroutine (atm the module object)
+    # to none:
+    subroutine._parent = None
+
+    # This call should not find a module object
+    schedule.children[0].gen_code(subroutine)
+
+    # Now one of the children should contain a call to ProfileStart
+    # with 'unknown module' as parameter:
+    found = False
+    for i in subroutine.children:
+        if isinstance(i, CallGen) and i._call.designator == "ProfileStart" \
+                and i._call.items[0] == "\"unknown module\"":
+            found = True
+
+    assert found
+
+    Profiler.set_options(None)
+
+
+# -----------------------------------------------------------------------------
+def test_profile_errors2():
+    '''Test various error handling.'''
+    Profiler.set_options([Profiler.INVOKES])
+    _, invoke = get_invoke("gocean1.0", "test11_different_iterates_over_"
+                           "one_invoke.f90", 0)
+    schedule = invoke.schedule
+
+    assert str(schedule.children[0]) == "Profile"
+
+    # Raise an error if no subroutine object is found:
+    with pytest.raises(GenerationError):
+        schedule.children[0].gen_code(None)
 
 
 # -----------------------------------------------------------------------------
@@ -79,15 +219,15 @@ def test_profile_invokes_gocean1p0():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
-                  "use profiler_mod, only: ProfilerData.*"
-                  r"TYPE\(ProfilerData\), save :: profile.*"
-                  "call profile_start.*"
+                  "use profile_mod, only: ProfileData.*"
+                  r"TYPE\(ProfileData\), save :: profile.*"
+                  "call ProfileStart.*"
                   "do j.*"
                   "do i.*"
                   "call.*"
                   "end.*"
                   "end.*"
-                  "call profile_end")
+                  "call ProfileEnd")
     assert re.search(correct_re, code, re.I) is not None
 
     _, invoke = get_invoke("gocean1.0", "single_invoke_"
@@ -98,9 +238,9 @@ def test_profile_invokes_gocean1p0():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
-                  "use profiler_mod, only: ProfilerData.*"
-                  r"TYPE\(ProfilerData\), save :: profile.*"
-                  "call profile_start.*"
+                  "use profile_mod, only: ProfileData.*"
+                  r"TYPE\(ProfileData\), save :: profile.*"
+                  "call ProfileStart.*"
                   "do j.*"
                   "do i.*"
                   "call.*"
@@ -111,9 +251,51 @@ def test_profile_invokes_gocean1p0():
                   "call.*"
                   "end.*"
                   "end.*"
-                  "call profile_end")
+                  "call ProfileEnd")
     assert re.search(correct_re, code, re.I) is not None
     Profiler.set_options(None)
+
+
+# -----------------------------------------------------------------------------
+def test_unique_region_names():
+    '''Test that unique region names are created even when the kernel
+    names are identical.'''
+
+    Profiler.set_options([Profiler.KERNELS])
+    _, invoke = get_invoke("gocean1.0",
+                           "single_invoke_two_identical_kernels.f90", 0)
+
+    # Conver the invoke to code, and remove all new lines, to make
+    # regex matching easier
+
+    code = str(invoke.gen()).replace("\n", "")
+
+    # This regular expression puts the region names into groups.
+    # Make sure even though the kernels have the same name, that
+    # the created regions have different names
+    correct_re = ("subroutine invoke.*"
+                  "use profile_mod, only: ProfileData.*"
+                  r"TYPE\(ProfileData\), save :: profile.*"
+                  r"call ProfileStart\(.*, \"(\w*)\",.*\).*"
+                  "do j.*"
+                  "do i.*"
+                  "call compute_cu_code.*"
+                  "end.*"
+                  "end.*"
+                  "call ProfileEnd.*"
+                  r"call ProfileStart\(.*, \"(\w*)\",.*\).*"
+                  "do j.*"
+                  "do i.*"
+                  "call compute_cu_code.*"
+                  "end.*"
+                  "end.*"
+                  "call ProfileEnd")
+
+    groups = re.search(correct_re, code, re.I)
+    assert groups is not None
+
+    # Check that the regions are different
+    assert groups.group(1) != groups.group(2)
 
 
 # -----------------------------------------------------------------------------
@@ -129,15 +311,15 @@ def test_profile_kernels_gocean1p0():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
-                  "use profiler_mod, only: ProfilerData.*"
-                  r"TYPE\(ProfilerData\), save :: profile.*"
-                  "call profile_start.*"
+                  "use profile_mod, only: ProfileData.*"
+                  r"TYPE\(ProfileData\), save :: profile.*"
+                  "call ProfileStart.*"
                   "do j.*"
                   "do i.*"
                   "call.*"
                   "end.*"
                   "end.*"
-                  "call profile_end")
+                  "call ProfileEnd")
     assert re.search(correct_re, code, re.I) is not None
 
     _, invoke = get_invoke("gocean1.0", "single_invoke_"
@@ -148,23 +330,23 @@ def test_profile_kernels_gocean1p0():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
-                  "use profiler_mod, only: ProfilerData.*"
-                  r"TYPE\(ProfilerData\), save :: profile.*"
-                  r"TYPE\(ProfilerData\), save :: profile.*"
-                  r"call profile_start\(.*, (?P<profile1>\w*)\).*"
+                  "use profile_mod, only: ProfileData.*"
+                  r"TYPE\(ProfileData\), save :: profile.*"
+                  r"TYPE\(ProfileData\), save :: profile.*"
+                  r"call ProfileStart\(.*, (?P<profile1>\w*)\).*"
                   "do j.*"
                   "do i.*"
                   "call.*"
                   "end.*"
                   "end.*"
-                  r"call profile_end\((?P=profile1)\).*"
-                  r"call profile_start\(.*, (?P<profile2>\w*)\).*"
+                  r"call ProfileEnd\((?P=profile1)\).*"
+                  r"call ProfileStart\(.*, (?P<profile2>\w*)\).*"
                   "do j.*"
                   "do i.*"
                   "call.*"
                   "end.*"
                   "end.*"
-                  r"call profile_end\((?P=profile2)\)")
+                  r"call ProfileEnd\((?P=profile2)\)")
     groups = re.search(correct_re, code, re.I)
     assert groups is not None
     # Check that the variables are different
@@ -185,13 +367,13 @@ def test_profile_invokes_dynamo0p3():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
-                  "use profiler_mod, only: ProfilerData.*"
-                  r"TYPE\(ProfilerData\), save :: profile.*"
-                  "call profile_start.*"
+                  "use profile_mod, only: ProfileData.*"
+                  r"TYPE\(ProfileData\), save :: profile.*"
+                  "call ProfileStart.*"
                   "do cell.*"
                   "call.*"
                   "end.*"
-                  "call profile_end")
+                  "call ProfileEnd")
     assert re.search(correct_re, code, re.I) is not None
 
     _, invoke = get_invoke("dynamo0.3", "1.2_multi_invoke.f90", 0)
@@ -201,16 +383,16 @@ def test_profile_invokes_dynamo0p3():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
-                  "use profiler_mod, only: ProfilerData.*"
-                  r"TYPE\(ProfilerData\), save :: profile.*"
-                  "call profile_start.*"
+                  "use profile_mod, only: ProfileData.*"
+                  r"TYPE\(ProfileData\), save :: profile.*"
+                  "call ProfileStart.*"
                   "do cell.*"
                   "call.*"
                   "end.*"
                   "do cell.*"
                   "call.*"
                   "end.*"
-                  "call profile_end")
+                  "call ProfileEnd")
     assert re.search(correct_re, code, re.I) is not None
     Profiler.set_options(None)
 
@@ -227,13 +409,13 @@ def test_profile_kernels_dynamo0p3():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
-                  "use profiler_mod, only: ProfilerData.*"
-                  r"TYPE\(ProfilerData\), save :: profile.*"
-                  "call profile_start.*"
+                  "use profile_mod, only: ProfileData.*"
+                  r"TYPE\(ProfileData\), save :: profile.*"
+                  "call ProfileStart.*"
                   "do cell.*"
                   "call.*"
                   "end.*"
-                  "call profile_end")
+                  "call ProfileEnd")
     assert re.search(correct_re, code, re.I) is not None
 
     _, invoke = get_invoke("dynamo0.3", "1.2_multi_invoke.f90", 0)
@@ -243,21 +425,148 @@ def test_profile_kernels_dynamo0p3():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
-                  "use profiler_mod, only: ProfilerData.*"
-                  r"TYPE\(ProfilerData\), save :: profile.*"
-                  r"TYPE\(ProfilerData\), save :: profile.*"
-                  r"call profile_start\(.*, (?P<profile1>\w*)\).*"
+                  "use profile_mod, only: ProfileData.*"
+                  r"TYPE\(ProfileData\), save :: profile.*"
+                  r"TYPE\(ProfileData\), save :: profile.*"
+                  r"call ProfileStart\(.*, (?P<profile1>\w*)\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
-                  r"call profile_end\((?P=profile1)\).*"
-                  r"call profile_start\(.*, (?P<profile2>\w*)\).*"
+                  r"call ProfileEnd\((?P=profile1)\).*"
+                  r"call ProfileStart\(.*, (?P<profile2>\w*)\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
-                  r"call profile_end\((?P=profile2)\).*")
+                  r"call ProfileEnd\((?P=profile2)\).*")
     groups = re.search(correct_re, code, re.I)
     assert groups is not None
     # Check that the variables are different
     assert groups.group(1) != groups.group(2)
     Profiler.set_options(None)
+
+
+# -----------------------------------------------------------------------------
+def test_transform(capsys):
+    '''Tests normal behaviour of profile region transformation.'''
+
+    _, invoke = get_invoke("gocean1.0", "test27_loop_swap.f90", "invoke_loop1")
+    schedule = invoke.schedule
+
+    prt = ProfileRegionTrans()
+    assert str(prt) == "Insert a profile start and end call."
+    assert prt.name == "ProfileRegionTrans"
+
+    # Try applying it to a list
+    sched1, _ = prt.apply(schedule.children)
+    sched1.view()
+    out, _ = capsys.readouterr()
+    # out is unicode, and has no replace function, so convert to string first
+    out = str(out).replace("\n", "")
+
+    # The .* before and after a keyword are necessary to escape colouring
+    # codes that might be used!
+    correct_re = (".*GOSchedule.*"
+                  r"    .*Profile.*"
+                  r"        .*Loop.*\[type='outer'.*"
+                  r"        .*Loop.*\[type='outer'.*"
+                  r"        .*Loop.*\[type='outer'.*")
+    assert re.search(correct_re, out)
+
+    # Now only wrap a single node - the middle loop:
+    sched2, _ = prt.apply(schedule.children[0].children[1])
+    sched2.view()
+    out, _ = capsys.readouterr()  # .replace("\n", "")
+    # out is unicode, and has no replace function, so convert to string first
+    out = str(out).replace("\n", "")
+    correct_re = (".*GOSchedule.*"
+                  r"    .*Profile.*"
+                  r"        .*Loop.*\[type='outer'.*"
+                  r"        .*Profile.*"
+                  r"            .*Loop.*\[type='outer'.*"
+                  r"        .*Loop.*\[type='outer'.*")
+    assert re.search(correct_re, out)
+
+    # Check that an sublist created from individual elements
+    # can be wrapped
+    sched3, _ = prt.apply([sched2.children[0].children[0],
+                           sched2.children[0].children[1]])
+    sched3.view()
+    out, _ = capsys.readouterr()  # .replace("\n", "")
+    # out is unicode, and has no replace function, so convert to string first
+    out = str(out).replace("\n", "")
+    correct_re = (".*GOSchedule.*"
+                  r"    .*Profile.*"
+                  r"        .*Profile.*"
+                  r"            .*Loop.*\[type='outer'.*"
+                  r"            .*Profile.*"
+                  r"                .*Loop.*\[type='outer'.*"
+                  r"        .*Loop.*\[type='outer'.*")
+    assert re.search(correct_re, out)
+
+
+# -----------------------------------------------------------------------------
+def test_transform_errors(capsys):
+    '''Tests error handling of the profile region transformation.'''
+
+    # This has been imported and tested before, so we can assume
+    # here that this all works as expected/
+    _, invoke = get_invoke("gocean1.0", "test27_loop_swap.f90", "invoke_loop1")
+
+    schedule = invoke.schedule
+    prt = ProfileRegionTrans()
+
+    with pytest.raises(TransformationError) as excinfo:
+        prt.apply([schedule.children[0].children[0], schedule.children[1]])
+    assert "supplied nodes are not children of the same Schedule/parent." \
+           in str(excinfo)
+
+    # Supply not a node object:
+    with pytest.raises(TransformationError) as excinfo:
+        prt.apply(5)
+    assert "Argument must be a single Node in a schedule or a list of Nodes " \
+           "in a schedule but have been passed an object of type: " \
+           "<type 'int'>" in str(excinfo)
+
+    # Test that it will only allow correctly ordered nodes:
+    with pytest.raises(TransformationError) as excinfo:
+        sched1, _ = prt.apply([schedule.children[1], schedule.children[0]])
+    assert "Children are not consecutive children of one parent:" \
+           in str(excinfo)
+
+    with pytest.raises(TransformationError) as excinfo:
+        sched1, _ = prt.apply([schedule.children[0], schedule.children[2]])
+    assert "Children are not consecutive children of one parent:" \
+           in str(excinfo)
+
+    # Test 3 element lists: first various incorrect ordering:
+    with pytest.raises(TransformationError) as excinfo:
+        sched1, _ = prt.apply([schedule.children[0],
+                               schedule.children[2],
+                               schedule.children[1]])
+    assert "Children are not consecutive children of one parent:" \
+           in str(excinfo)
+
+    with pytest.raises(TransformationError) as excinfo:
+        sched1, _ = prt.apply([schedule.children[1],
+                               schedule.children[0],
+                               schedule.children[2]])
+    assert "Children are not consecutive children of one parent:" \
+           in str(excinfo)
+
+    # Just to be sure: also check that the right order does indeed work!
+    sched1, _ = prt.apply([schedule.children[0],
+                           schedule.children[1],
+                           schedule.children[2]])
+    sched1.view()
+    out, _ = capsys.readouterr()
+    # out is unicode, and has no replace function, so convert to string first
+    out = str(out).replace("\n", "")
+
+    correct_re = (".*GOSchedule.*"
+                  r"    .*Profile.*"
+                  r"        .*Loop.*\[type='outer'.*"
+                  r"        .*Loop.*\[type='outer'.*"
+                  r"        .*Loop.*\[type='outer'.*")
+    print correct_re
+    print out
+    assert re.search(correct_re, out)
